@@ -1,0 +1,7 @@
+using .SampledSignals: SampleBuf
+
+function SignalTrait(x::SampleBuf)
+    IsSignal(SampledSignals.samplerate(x))
+end
+samples(x::SampleBuf) = TimeSlices{size(x,2)}(x)
+nsamples(x::SampleBuf) = size(x,1)
