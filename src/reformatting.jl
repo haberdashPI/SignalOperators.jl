@@ -5,8 +5,8 @@ tosamplerate(x,::Nothing,fs) =
     error("Don't know how to set sample rate of non signal: $x")
 tosamplerate(x,::IsSignal,fs) = format(x,fs,nchannels(x))
 
-tochannels(x,ch) = tochannels(x,SignalTrait(x),fs)
-tosamplerate(x,::Nothing,fs) = 
+tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
+tochannels(x,::Nothing,ch) = 
     error("Don't know how to set number of channgles of non signal: $x")
 tochannels(x,::IsSignal,ch) = format(x,samplerate(x),ch)
 
@@ -64,16 +64,16 @@ end
 # end
 
 any_samplerate(x) = any_samplerate(x,SignalTrait(x))
-any_samplerate(x,s::SignalTrait) = s.samplerate
+any_samplerate(x,s::IsSignal) = s.samplerate
 any_samplerate(x,::Nothing) = 0.0
 
 any_nchannels(x,fs) = any_nchannels(x,SignalTrait(x),fs)
-any_nchannels(x,s::SignalTrait,fs) = nchannels(x)
+any_nchannels(x,s::IsSignal,fs) = nchannels(x)
 any_nchannels(x,::Nothing,fs) = any_nchannels(signal(x,fs))
 
 maybe_format(x,fs,ch=any_nchannels(x)) = maybe_format(x,SignalTrait(x),fs,ch)
 maybe_format(x,::Nothing,fs,ch) = maybe_format(signal(x,fs),fs,ch)
-function maybe_format(x,s::SignalTrait,fs,ch) 
+function maybe_format(x,s::IsSignal,fs,ch) 
     format(x,fs,ch)
 end
 

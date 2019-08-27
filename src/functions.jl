@@ -5,27 +5,33 @@ struct SignalFunction{Fn,Fr}
     ω::Fr
     ϕ::Float64
     samplerate::Float64
+    offset::Int
 end
+SignalFunction(fn,ω,ϕ,samplerate) = SignalFunction(fn,ω,ϕ,samplerate,0)
 SignalTrait(x::SignalFunction) = IsSignal(x.samplerate)
-function Base.iterate(x::SignalFunction,i=0) 
+function Base.iterate(x::SignalFunction,i=x.offset) 
     t = i/x.samplerate
     x.fn(2π*(t*x.ω + x.ϕ)), i+1
 end
-function Base.iterate(x::SignalFunction{typeof(sin),Float64},i=0) 
+function Base.iterate(x::SignalFunction{typeof(sin),Float64},i=x.offset) 
     t = i/x.samplerate
     sinpi(2*(t*x.ω + x.ϕ)), i+1
 end
-function Base.iterate(x::SignalFunction{<:Any,Nothing},i=0)
+function Base.iterate(x::SignalFunction{<:Any,Missing},i=x.offset)
     t = i/x.samplerate
     x.fn(t + x.ϕ), i+1
 end
+function Base.Iterators.drop(x::SignalFunction,n)
+    SignalFunction(x.fn,x.ω,x.ϕ,x.samplerate,x.n+n)
+end
     
 function signal(x::Function,samplerate;
-    ω=nothing,frequency=ω,ϕ=0,phase=ϕ)
+    ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
-    SignalFunction(x,inHz(ω),inradians(ϕ)/2π,inHz(samplerate))
+    SignalFunction(x,inHz(ω),Float64(inradians(ϕ)/2π),Float64(inHz(samplerate)))
 end
 
+# TODO: handle missing sample rates more broadly for functions
 signal(x::typeof(randn),fs=nothing) = SignalFunction(x,nothing,0.0,0.0)
 function Base.iterate(x::SignalFunction{typeof(randn)},i=0)
     randn(), 0

@@ -1,5 +1,21 @@
-const frames = Hz*s
-const FrameQuant = DimensionlessQuantity
+using Unitful
+
+# having these in a submodule allows the user to decide if
+# they want to import the shorthand unit names (or just use e.g. u"ms")
+module Units
+    using Unitful
+    using Unitful: Hz, s, kHz, ms, °, rad
+    using DSP: dB
+
+    const frames = Hz*s
+    const FrameQuant = DimensionlessQuantity
+    export Hz, s, kHz, ms, frames, dB, °, rad
+end
+using .Units
+using .Units: FrameQuant
+
+inradians(x::Number) = x
+inradians(x::Quantity) = ustrip(uconvert(rad, x))
 
 """
     inframes([Type,]quantity[, rate])
@@ -36,6 +52,11 @@ inframes(::Type, ::InfiniteLength) = infinite_length
 inframes(::InfiniteLength,fs) = infinite_length
 inframes(::Type, ::InfiniteLength,fs) = infinite_length
 
+inframes(::Missing) = missing
+inframes(::Type,::Missing) = missing
+inframes(::Type,::Missing,fs) = missing
+inframes(::Missing,fs) = missing
+
 """
     inHz(quantity[, rate])
 
@@ -59,6 +80,8 @@ inHz(x::FrameQuant) = error("Unknown sample rate")
 inHz(x::FrameQuant, rate) = inHz(inframes(x) / rate)
 inHz(x::Real, rate) = x
 inHz(x::Real) = x
+inHz(::Missing) = missing
+inHz(::Missing,rate) = missing
 
 """
    inseconds(quantity[, rate])
@@ -82,12 +105,15 @@ julia> inseconds(441frames, 44100Hz)
 inseconds(x::Unitful.Time, rate=nothing) = ustrip(uconvert(s,x))
 inseconds(x::FrameQuant) = error("Unknown sample rate")
 # assume we have a time buffer with sample rate in hz
-inseconds(x::FrameQuant, rate) = inseconds(inframes(x) / rate)
+inseconds(x::FrameQuant, rate) = inframes(x,rate) / inHz(rate)
 inseconds(x::Real, rate) = x
 inseconds(x::Real) = x
 
 inseconds(::InfiniteLength) = infinite_length
 inseconds(::InfiniteLength,fs) = infinite_length
+
+inseconds(::Missing) = missing
+inseconds(::Missing,r) = missing
 
 # inseconds(x, rate::Quantity) = inseconds(x,inHz(rate))
 # inseconds(x::FrameQuant, rate::Real) = (ustrip(x) / rate)

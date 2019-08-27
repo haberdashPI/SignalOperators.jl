@@ -1,5 +1,6 @@
 module SignalOperators
-using Require
+using Requires
+using DSP
 
 # basic defintions
 include("signal.jl")
@@ -9,8 +10,11 @@ include("arrays.jl")
 include("functions.jl")
 include("files.jl")
 
-# handy utilities
+# handy internal utilities
 include("util.jl")
+
+# handling of units
+include("units.jl")
 
 # various operators
 include("reformatting.jl")

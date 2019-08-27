@@ -6,6 +6,16 @@ struct InfiniteLength
 end
 Base.isinf(::InfiniteLength) = true
 const infinite_length = InfiniteLength()
+Base.:(+)(::InfiniteLength,::Number) = infinite_length
+Base.:(+)(::Number,::InfiniteLength) = infinite_length
+Base.:(-)(::InfiniteLength,::Number) = infinite_length
+Base.:(-)(::Number,::InfiniteLength) = infinite_length
+Base.min(x::Number,::InfiniteLength) = x
+Base.min(::InfiniteLength,x::Number) = x
+Base.max(x::Number,::InfiniteLength) = infinite_length
+Base.max(::InfiniteLength,x::Number) = infinite_length
+Base.:(*)(::InfiniteLength,::Number) = infinite_length
+Base.:(*)(::InfiniteLength,::Unitful.FreeUnits) = infinite_length
 
 # Signals have a sample rate
 struct IsSignal
@@ -14,15 +24,15 @@ end
 SignalTrait(x) = nothing
 
 duration(x) = duration(x,SignalTrait(x))
-duration(x,s::IsSignal) = inseconds(signal_length(x),samplerate(x))
+duration(x,s::IsSignal) = inseconds(signal_length(x,s),samplerate(x))
 duration(x,::Nothing) = error("Value is not a signal: $x")
 
 nsamples(x) = nsamples(x,SignalTrait(x))
-nsamples(x,::SignalTrait) = inframes(Int,signal_length(x),samplerate(x))+1
+nsamples(x,s::IsSignal) = inframes(Int,signal_length(x,s),samplerate(x))+1
 nsamples(x,::Nothing) = error("Value is not a signal: $x")
 
 signal_length(x) = signal_length(x,SignalTrait(x))
-signal_length(x,::SignalTrait) = infinite_length
+signal_length(x,::IsSignal) = infinite_length
 signal_length(x,::Nothing) = error("Value is not a signal: $x")
 
 samplerate(x) = samplerate(x,SignalTrait(x))
@@ -49,7 +59,7 @@ struct NumberSignal{T}
     val::T
     samplerate::Float64
 end
-signal(x::Number,fs) = NumberSignal(val,fs)
+signal(val::Number,fs) = NumberSignal(val,Float64(inHz(fs)))
 SignalTrait(x::NumberSignal) = IsSignal(x.samplerate)
 struct Blank
 end

@@ -17,11 +17,11 @@ struct PaddedSignal{S,T} <: WrappedSignal
 end
 pad(p) = x -> pad(x,p)
 pad(x,p) = isinf(signal_length(x)) ? x : PaddedSignal(x,p)
-signal_length(x::PaddedSignal) = infinite_length
+signal_length(x::PaddedSignal,::IsSignal) = infinite_length
 usepad(pad::Number,itr) = pad
 usepad(pad::Function,itr) = usepad(pad,IteratorEltype(itr),itr)
-usepad(padfn,::HasEltype,itr) = padfn(eltype(itr))
-usepad(padfn,::EltypeUnknown,itr) = padfn(Int)
+usepad(padfn,::Iterators.HasEltype,itr) = padfn(eltype(itr))
+usepad(padfn,::Iterators.EltypeUnknown,itr) = padfn(Int)
 childsignal(x::PaddedSignal) = x.x
 
 function Base.iterate(x::PaddedSignal,(itr,state) = itersetup(x))
