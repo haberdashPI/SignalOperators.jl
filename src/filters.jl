@@ -20,12 +20,13 @@ filter_helper(x,filter,method) = filter_helper(x,SignalTrait(x),filter,method)
 function filter_helper(x,::Nothing,args...)
     error("Value is not a signal $x.")
 end
-function filter_helper(x,::IsSignal,filter,method)
+function filter_helper(x,s::IsSignal,filter,method)
     H = digitalfilter(filter,method)
     data = asarray(x)
     mapreduce(hcat,1:size(data,2)) do ch
         filtfilt(H,data[:,ch])
     end
+    signal(data,s.samplerate)
 end
 
 function normpower(x)

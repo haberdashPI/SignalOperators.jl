@@ -12,6 +12,7 @@ struct TimeSlices{N,A <: AbstractArray}
     data::A
 end
 TimeSlices{N}(x::A) where{N,A} = TimeSlices{N,A}(x)
+samples(x::MetaArray{<:Any,IsSignal},::IsSignal) = TimeSlices{size(x,2)}(x)
 
 function Base.iterate(x::TimeSlices,i=1)
     i ≤ size(x.data,1) ? (Tuple(view(x,i,:)), i+1) : nothing
@@ -22,12 +23,8 @@ end
 function Base.Iterators.drop(x::TimeSlices{N},n) where N
     TimeSlices{N}(@views(x[n+1:end,:]))
 end
-Base.IteratorEltype(x::TimeSlices) = HasEltype()
-Base.eltype(::Type{<:TimeSlices{N,A}}) where {N,A} = NTuple{N,eltype(A)}
-Base.IteratorSize(x::TimeSlices) = HasLength()
+Base.IteratorEltype(::Type{<:TimeSlices}) = Iterators.HasEltype()
+Base.eltype(::TimeSlices{N,A}) where {N,A} = NTuple{N,eltype(A)}
+Base.IteratorSize(::Type{<:TimeSlices}) = Iterators.HasLength()
 Base.length(x::TimeSlices) = length(x.data)
-
-samples(x::MetaArray{<:Any,IsSignal},::IsSignal) = TimeSlices(x)
-signal_length(x::MetaArray{<:Any,IsSignal},::IsSignal) = (size(x,1)-1)*frames
-nsamples(x::MetaArray{<:Any,IsSignal},::IsSignal) = size(x,1)
 

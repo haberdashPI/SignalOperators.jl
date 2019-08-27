@@ -23,20 +23,14 @@ struct IsSignal
 end
 SignalTrait(x) = nothing
 
-duration(x) = duration(x,SignalTrait(x))
-duration(x,s::IsSignal) = inseconds(signal_length(x,s),samplerate(x))
-duration(x,::Nothing) = error("Value is not a signal: $x")
+# TODO: change of definitions
+# just use length(samples(x)) to define all three of these
+# (change all other definitions of these functions throughout)
 
-nsamples(x) = nsamples(x,SignalTrait(x))
-nsamples(x,s::IsSignal) = inframes(Int,signal_length(x,s),samplerate(x))+1
-nsamples(x,::Nothing) = error("Value is not a signal: $x")
-
-signal_length(x) = signal_length(x,SignalTrait(x))
-signal_length(x,::IsSignal) = infinite_length
-signal_length(x,::Nothing) = error("Value is not a signal: $x")
+duration(x) = nsamples(x) / samplerate(x)
+nsamples(x) = length(samples(x))
 
 samplerate(x) = samplerate(x,SignalTrait(x))
-samplerate(x,s::IsSignal) = s.samplerate
 samplerate(x,::Nothing) = error("Value is not a signal: $x")
 
 checksamplerate(fs,_fs) = isnothing(fs) || _fs == fs
@@ -54,20 +48,3 @@ function signal(x,::IsSignal,fs)
     checksamplerate(fs,samplerate(x))
     x
 end
-
-struct NumberSignal{T}
-    val::T
-    samplerate::Float64
-end
-signal(val::Number,fs) = NumberSignal(val,Float64(inHz(fs)))
-SignalTrait(x::NumberSignal) = IsSignal(x.samplerate)
-struct Blank
-end
-const blank = Blank()
-Base.iterate(x::NumberSignal,state=blank) = (x,),state
-Base.IteratorEltype(x::NumberSignal) = HasEltype()
-Base.eltype(x::NumberSignal{T}) where T = T
-Base.IteratorSize(::Type{<:NumberSignal}) = IsInfinite()
-
-signal_eltype(x) = ntuple_T(eltype(samples(x)))
-ntuple_T(x::NTuple{<:Any,T}) where T = T

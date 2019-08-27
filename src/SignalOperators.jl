@@ -6,6 +6,7 @@ using DSP
 include("signal.jl")
 
 # types of signals
+include("numbers.jl")
 include("arrays.jl")
 include("functions.jl")
 include("files.jl")

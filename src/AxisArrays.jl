@@ -5,8 +5,6 @@ function SignalTrait(x::AxisArray)
     times = axisvalues(x,Axis{:time})
     IsSignal(1/step(times))
 end
-signal_length(x::AxisArray,::IsSignal) = (size(x,Axis{:time})-1)*frames
-nsamples(x::AxisArray,::IsSignal) = size(x,Axis{:time})
 
 struct AxisTimeSlices{N,Ax} where {N,Ax <: AxisArray}
     data::Ax

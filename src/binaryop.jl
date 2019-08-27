@@ -1,5 +1,5 @@
 using Unitful
-export signalop, mix, amplify
+export signalop, mix, amplify, addchannel
 
 ################################################################################
 # binary operators
@@ -11,8 +11,6 @@ struct SignalOp{Fn,El,L,S,A}
     state::S
     samples::A
 end
-signal_length(x::SignalOp,::IsSignal) = (x.len-1)*frames
-nsamples(x::SignalOp,::IsSignal) = x.len
 
 signalop(fn,x;kwds...) = y -> signalop(fn,x,y;kwds...)
 function signalop(fn,xs...;padding = default_pad(fn))
@@ -52,8 +50,11 @@ default_pad(::typeof(*)) = one
 default_pad(::typeof(-)) = zero
 default_pad(::typeof(/)) = one
 
-mix(x) = (ys...) -> mix(x,ys...)
+mix(x) = ys -> mix(x,y)
 mix(xs...) = signalop(+,xs...)
 
-amplify(x) = (ys...) -> amplify(x,ys...)
+amplify(x) = y -> amplify(x,y)
 amplify(xs...) = signalop(+,xs...)
+
+addchannel(y) = x -> addchannel(x,y)
+addchannel(xs...) = signalop(tuple,xs...)
