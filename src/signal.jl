@@ -1,3 +1,4 @@
+export duration, nsamples, samplerate, samples, nchannels, signal
 using MetaArrays
 using FileIO
 

@@ -17,16 +17,16 @@ include("reformatting.jl")
 include("cutting.jl")
 include("extending.jl")
 include("filters.jl")
-include("ramps.jl")
 include("binaryop.jl")
+include("ramps.jl")
 
 # extensions
-@require SampledSignals = "TODO" begin
-    include("SampledSignals.jl")
-end
+# @require SampledSignals = "TODO" begin
+#     include("SampledSignals.jl")
+# end
 
-@require AxisArrays = "TODO" begin
-    include("AxisArrays.jl")
-end
+# @require AxisArrays = "TODO" begin
+#     include("AxisArrays.jl")
+# end
 
 end # module

@@ -1,3 +1,4 @@
+export lowpass, highpass, bandpass, bandstop, normpower
 
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;method=Butterworth(order),order=5) = 
