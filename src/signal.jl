@@ -17,7 +17,7 @@ duration(x,s::IsSignal) = inseconds(signal_length(x))
 duration(x,::Nothing) = error("Value is not a signal: $x")
 
 nsamples(x) = nsamples(x,SignalTrait(x))
-nsamples(x,::SignalTrait) = inframes(signal_length(x))
+nsamples(x,::SignalTrait) = inframes(Int,signal_length(x),x)
 nsamples(x,::Nothing) = error("Value is not a signal: $x")
 
 signal_length(x) = signal_length(x,SignalTrait(x))

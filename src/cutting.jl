@@ -27,13 +27,13 @@ SignalTrait(x::ItrApply) = SignalTrait(x.signal)
 const TakeApply{S,A} = ItrApply{S,A,typeof(Iterators.take)}
 until(time) = x -> until(x,time)
 function until(x,time)
-    ItrApply(x,inframesof(x,time),Iterators.take)
+    ItrApply(x,inframes(Int,time,samplerate(x)),Iterators.take)
 end
 
 const DropApply{S,A} = ItrApply{S,A,typeof(Iterators.drop)}
 after(time) = x -> after(x,time)
 function after(x,time)
-    ItrApply(x,inframesof(x,time),Iterators.drop)
+    ItrApply(x,inframes(Int,time,samplerate(x)),Iterators.drop)
 end
 
 function itersetup(x::IterApply)
