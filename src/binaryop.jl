@@ -1,4 +1,5 @@
 using Unitful
+export signalop, mix, amplify
 
 ################################################################################
 # binary operators
@@ -13,7 +14,7 @@ end
 signal_length(x::SignalOp) = (x.len-1)*frames
 nsamples(x::SignalOp) = x.len
 
-signalop(fn,x,kwds...) = y -> signalop(fn,x,y;kwds...)
+signalop(fn,x;kwds...) = y -> signalop(fn,x,y;kwds...)
 function signalop(fn,xs...;padding = default_pad(fn))
     xs = uniform(xs)   
     if any(!isinf,xs)
