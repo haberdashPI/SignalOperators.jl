@@ -1,19 +1,3 @@
-
-abstract type WrappedSignal
-end
-"""
-    child_signal(x)
-
-Retriev the signal wrapped by x of type `WrappedSignal`
-"""
-function child_signal
-end
-function itersetup(x::WrappedSignal)
-    itr = samples(child_signal(x))
-    state = iterate(itr)
-    itr, state
-end
-
 ################################################################################
 # cutting signals
 

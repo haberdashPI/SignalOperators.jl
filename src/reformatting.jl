@@ -1,7 +1,4 @@
-export tosamplerate, tochannels, uniform
-
-################################################################################
-# resampling
+export tosamplerate, tochannels, format, uniform
 
 tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),fs)
 tosamplerate(x,::Nothing,fs) = 

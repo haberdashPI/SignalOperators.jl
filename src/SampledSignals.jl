@@ -5,3 +5,4 @@ function SignalTrait(x::SampleBuf)
 end
 samples(x::SampleBuf) = TimeSlices{size(x,2)}(x)
 nsamples(x::SampleBuf) = size(x,1)
+signal_length(x::SampleBuf) = (size(x,1)-1)*frames

@@ -13,11 +13,11 @@ end
 SignalTrait(x) = nothing
 
 duration(x) = duration(x,SignalTrait(x))
-duration(x,s::IsSignal) = inseconds(signal_length(x))
+duration(x,s::IsSignal) = inseconds(signal_length(x),samplerate(x))
 duration(x,::Nothing) = error("Value is not a signal: $x")
 
 nsamples(x) = nsamples(x,SignalTrait(x))
-nsamples(x,::SignalTrait) = inframes(Int,signal_length(x),x)
+nsamples(x,::SignalTrait) = inframes(Int,signal_length(x),samplerate(x))+1
 nsamples(x,::Nothing) = error("Value is not a signal: $x")
 
 signal_length(x) = signal_length(x,SignalTrait(x))

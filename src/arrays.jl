@@ -28,5 +28,6 @@ Base.IteratorSize(x::TimeSlices) = HasLength()
 Base.length(x::TimeSlices) = length(x.data)
 
 samples(x::MetaArray{<:Any,IsSignal}) = TimeSlices(x)
-signal_length(x::MetaArray{<:Any,IsSignal}) = size(x,1)*frames
+signal_length(x::MetaArray{<:Any,IsSignal}) = (size(x,1)-1)*frames
+nsamples(x::MetaArray{<:Any,IsSignal}) = size(x,1)
 

@@ -5,6 +5,9 @@ function SignalTrait(x::AxisArray)
     times = axisvalues(x,Axis{:time})
     IsSignal(1/step(times))
 end
+signal_length(x::AxisArray) = (size(x,Axis{:time})-1)*frames
+nsamples(x::AxisArray) = size(x,Axis{:time})
+
 struct AxisTimeSlices{N,Ax} where {N,Ax <: AxisArray}
     data::Ax
     start::Int
@@ -12,7 +15,7 @@ struct AxisTimeSlices{N,Ax} where {N,Ax <: AxisArray}
 end
 AxisTimeSlices{N}(data:Ax,start,n) where {N,Ax <: AxisArray} = 
     AxisTimeSlices{N,Ax}(data,start,n)
-signal_length(x::AxisArray) = length(axisvalues(x,Axis{:time}))*frames
+
 function samples(x::AxisArray) 
     if 1 ≤ ndims(x) ≤ 2
         error("Expected AxisArray to have one or two dimensions")

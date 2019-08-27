@@ -21,6 +21,7 @@ usepad(pad::Number,itr) = pad
 usepad(pad::Function,itr) = usepad(pad,IteratorEltype(itr),itr)
 usepad(padfn,::HasEltype,itr) = padfn(eltype(itr))
 usepad(padfn,::EltypeUnknown,itr) = padfn(Int)
+childsignal(x::PaddedSignal) = x.x
 
 function Base.iterate(x::PaddedSignal,(itr,state) = itersetup(x))
     if isnothing(state)
