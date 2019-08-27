@@ -7,8 +7,9 @@ function rampup_fn(x,len,fun)
 end
 
 sinramp(x) = sinpi(0.5x)
-rampup(len::Number,fun::Function=sinramp) = x -> rampup(x,len,fun)
-function rampup(x,len::Number,fun::Function=sinramp)
+rampup(fun::Function) = rampup(10ms,fun)
+rampup(len::Number=10ms,fun::Function=sinramp) = x -> rampup(x,len,fun)
+function rampup(x,len::Number=10ms,fun::Function=sinramp)
     signal(rampup_fn(len,fun),samplerate(x)) |> amplify(x)
 end
 
@@ -18,18 +19,21 @@ function rampdown_fn(x,len,fun)
     x -> x < ramp_start ? 1.0 : fun(1.0 - (x-ramp_start)/time)
 end
 
-rampdown(len::Number,fun::Function=sinramp) = x -> rampdown(x,len,fun)
-function rampdown(x,len::Number,fun::Function=sinramp)
+rampdown(fun::Function) = rampdown(10ms,fun)
+rampdown(len::Number=10ms,fun::Function=sinramp) = x -> rampdown(x,len,fun)
+function rampdown(x,len::Number=10ms,fun::Function=sinramp)
     signal(rampdown_fn(len),samplerate(x)) |> amplify(x)
 end
 
-ramp(len,fun::Function=sinramp) = x -> ramp(x,len,fun)
+ramp(fun::Function) = ramp(10ms,fun)
+ramp(len::Number=10ms,fun::Function=sinramp) = x -> ramp(x,len,fun)
 function ramp(x,len::Number,fun::Function)
     x |> rampup(len,fun) |> rampdown(len,fun)
 end
 
-fadeto(y,len::Number,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
-function fadeto(x,y,len::Number,fun::aunction)
+fadeto(y,fun::Function) = fadeto(y,10ms,fun)
+fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
+function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
     n = inframes(Int,len,samplerate(x))
     silence = signal(zero,x) |> until(nsamples(x) - n)
     y = y |> rampup(len,fun) |> prepend(silence)
