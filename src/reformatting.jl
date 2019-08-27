@@ -1,4 +1,4 @@
-
+export tosamplerate, tochannels, uniform
 
 ################################################################################
 # resampling
@@ -14,36 +14,39 @@ tosamplerate(x,::Nothing,fs) =
 tochannels(x,::IsSignal,ch) = format(x,samplerate(x),ch)
 
 function format(x,fs,ch)
-    data = asarray(x)
     ratio = rationalize(fs/samplerate(x))
     
     if ratio == 1
         if ch == size(data,2)
-            data
+            x
         elseif ch == 1
-            sum(data,dims=2)
+            data = asarray(x)
+            signal(sum(data,dims=2),fs)
         elseif size(data,2) == 1
-            reduce(hcat,(data for _ in 1:ch))
+            data = asarray(x)
+            signal(reduce(hcat,(data for _ in 1:ch)),fs)
         else
-        error("No rule to convert signal with $(size(data,2)) channels to",
-              " a signal with $ch channels.")
+            error("No rule to convert signal with $(size(data,2)) channels to",
+                " a signal with $ch channels.")
         end
-    elseif ch == size(data,2)
-        mapreduce(hcat,1:size(data,2)) do c
-            DSP.resample(data[:,c],ratio)
-        end
-    elseif ch == 1
-        c = 1
-        first = DSP.resample(data[:,c],ratio)
-        for c in 2:size(data,2)
-            first .+= DSP.resample(data[:,c],ratio)
-        end
-    elseif size(data,2) == 1
-        first = DSP.resample(data,ratio)
-        reduce(hcat,(first for _ in 1:size(data,2)))
     else
-        error("No rule to convert signal with $(size(data,2)) channels to",
-              " a signal with $ch channels.")
+        data = asarray(x)
+        data = if ch == size(data,2)
+            mapreduce(hcat,1:size(data,2)) do c
+                DSP.resample(data[:,c],ratio)
+            end
+        elseif ch == 1
+            c = 1
+            DSP.resample(sum(data,dim=2),ratio)
+        elseif size(data,2) == 1
+            first = DSP.resample(data,ratio)
+            reduce(hcat,(first for _ in 1:size(data,2)))
+        else
+            error("No rule to convert signal with $(size(data,2)) channels to",
+                " a signal with $ch channels.")
+        end
+
+        signal(data,fs)
     end
 end
 
