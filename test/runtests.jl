@@ -53,6 +53,24 @@ using SignalOperators: SignalTrait, IsSignal
         @test tone[1] .< tone[110] # verify bump of sine wave
     end
 
+    @testset "Padding" begin
+        # TODO: the length of the signal is being incorrently computed
+        # (is 500, should be 700)
+        tone = signal(sin,100Hz,ω=10Hz) |> until(5s) |> pad(zero) |> 
+            until(7s) |> Array
+        @test mean(abs.(tone[0:50])) > 0
+        @test mean(abs.(tone[51:70])) == 0
+    end
+        
+    @testset "Appending" begin
+        a = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        b = signal(sin,50Hz,ω=10Hz) |> until(5s)
+        tones = a |> append(b) |> Array
+        # TODO: create a test for this
+    end
+        
+
+
     ## TODO:
     # extending
     # filters

@@ -30,7 +30,7 @@ function asarray(x,::IsSignal,smp,::Iterators.IsInfinite)
     error("Cannot store infinite signal in an array. (Use `until`?)")
 end
 
-abstract type WrappedSignal <: AbstractSignal
+abstract type WrappedSignal{T} <: AbstractSignal
 end
 
 """
@@ -41,8 +41,10 @@ Retrieve the signal wrapped by x of type `WrappedSignal`
 function childsignal
 end
 samplerate(x::WrappedSignal) = samplerate(childsignal(x))
+SignalTrait(x::WrappedSignal) = SignalTrait(childsignal(x))
 
-Base.Iterators.IteratorEltype(::Type{<:WrappedSignal}) = HasEltype()
-Base.eltype(x::WrappedSignal) = eltype(childsignal(x))
-Base.Iterators.IteratorSize(::Type{<:WrappedSignal}) = Iterators.IteratorSize(childsignal(x))
+Base.Iterators.IteratorEltype(::Type{<:WrappedSignal}) = Iterators.HasEltype()
+Base.eltype(::Type{<:WrappedSignal{T}}) where T = eltype(T)
+Base.Iterators.IteratorSize(::Type{<:WrappedSignal{T}}) where T =
+    Iterators.IteratorSize(T)
 Base.length(x::WrappedSignal) = length(childsignal(x))

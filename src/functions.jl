@@ -61,6 +61,8 @@ function Base.iterate(x::SignalFunction{typeof(randn)},i=0)
     (randn(),), 0
 end
 
+# handle missing rate and eltype, just use the other signals information
+# via unify
 signal(fn::typeof(zero),x) = signal(fn,x,SignalTrait(x))
 function signal(fn::typeof(zero),x,::IsSignal)
     signal(zero(signal_eltype(x)),samplerate(x))

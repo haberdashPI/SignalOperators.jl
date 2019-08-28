@@ -3,7 +3,7 @@ export until, after
 ################################################################################
 # cutting signals
 
-struct ItrApply{S,Fn} <: WrappedSignal
+struct ItrApply{S,Fn} <: WrappedSignal{S}
     signal::S
     time::Int
     fn::Fn

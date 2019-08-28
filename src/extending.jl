@@ -11,17 +11,30 @@ end
 
 ################################################################################
 # padding
-struct PaddedSignal{S,T} <: WrappedSignal
+struct PaddedSignal{S,T} <: WrappedSignal{S}
     x::S
     pad::T
 end
 pad(p) = x -> pad(x,p)
-pad(x,p) = isinf(signal_length(x)) ? x : PaddedSignal(x,p)
+pad(x,p) = infsignal(x) ? x : PaddedSignal(x,p)
 Base.length(x::PaddedSignal,::IsSignal) = infinite_length
-usepad(pad::Number,itr) = pad
-usepad(pad::Function,itr) = usepad(pad,IteratorEltype(itr),itr)
-usepad(padfn,::Iterators.HasEltype,itr) = padfn(eltype(itr))
-usepad(padfn,::Iterators.EltypeUnknown,itr) = padfn(Int)
+
+usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
+usepad(x::PaddedSignal,s::IsSignal{<:NTuple{1,<:Any}}) = (usepad(x,s,x.pad),)
+function usepad(x::PaddedSignal,s::IsSignal{NTuple{2,<:Any}})
+    v = usepad(x,s,x.pad)
+    (v,v)
+end
+function usepad(x::PaddedSignal,s::IsSignal{<:NTuple{N,<:Any}}) where N
+    v = usepad(x,s,x.pad)
+    tuple((v for _ in 1:N)...)
+end
+
+usepad(x::PaddedSignal,s::IsSignal{<:NTuple{<:Any,T}},p::Number) where T = 
+    convert(T,p)
+usepad(x::PaddedSignal,s::IsSignal{<:NTuple{<:Any,T}},fn::Function) where T = 
+    fn(T)
+
 childsignal(x::PaddedSignal) = x.x
 
 struct UsePad
@@ -30,7 +43,7 @@ const use_pad = UsePad()
 
 function padresult(x,smp,result)
     if isnothing(result)
-        usepad(x.pad,smp), (smp, use_pad)
+        usepad(x), (smp, use_pad)
     else
         val, state = result
         val, (smp, state)
@@ -42,6 +55,6 @@ function Base.iterate(x::PaddedSignal)
     padresult(x,smp,iterate(smp))
 end
 Base.iterate(x::PaddedSignal,(smp,state)::Tuple{<:Any,UsePad}) = 
-    usepad(x.pad,smp), (smp, use_pad)
+    usepad(x), (smp, use_pad)
 Base.iterate(x::PaddedSignal,(smp,state)) = 
     padresult(x,smp,iterate(smp,state))
