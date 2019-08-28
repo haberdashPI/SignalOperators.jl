@@ -6,7 +6,7 @@ export append, prepend, pad
 append(y) = x -> append(x,y)
 prepend(x) = y -> prepend(x,y)
 function append(xs...)
-    Iterators.flatten(samples.(uniform.(xs,channels=true)))
+    Iterators.flatten(samples.(uniform(xs,channels=true)))
 end
 
 ################################################################################
@@ -17,7 +17,7 @@ struct PaddedSignal{S,T} <: WrappedSignal{S}
 end
 pad(p) = x -> pad(x,p)
 pad(x,p) = infsignal(x) ? x : PaddedSignal(x,p)
-Base.length(x::PaddedSignal,::IsSignal) = infinite_length
+Base.Iterators.IteratorSize(::Type{<:PaddedSignal}) = Iterators.IsInfinite()
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
 usepad(x::PaddedSignal,s::IsSignal{<:NTuple{1,<:Any}}) = (usepad(x,s,x.pad),)

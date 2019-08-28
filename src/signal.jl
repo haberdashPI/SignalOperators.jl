@@ -39,7 +39,7 @@ samples(x,::IsSignal) = x
 samples(x,::Nothing) = error("value is not a signal: $x")
 
 nchannels(x) = nchannels(x,SignalTrait(x))
-nchannels(x,::IsSignal{NTuple{N}}) where N = N
+nchannels(x,::IsSignal{<:NTuple{N}}) where N = N
 nchannels(x,::Nothing) = error("value is not a signal: $x")
 
 signal_eltype(x) = signal_eltype(x,SignalTrait(x))

@@ -58,13 +58,14 @@ using SignalOperators: SignalTrait, IsSignal
         # (is 500, should be 700)
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s) |> pad(zero) |> 
             until(7s) |> Array
-        @test mean(abs.(tone[0:50])) > 0
-        @test mean(abs.(tone[51:70])) == 0
+        @test mean(abs.(tone[1:500])) > 0
+        @test mean(abs.(tone[501:700])) == 0
     end
         
     @testset "Appending" begin
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,50Hz,ω=10Hz) |> until(5s)
+        # TODO: problem, why is this causing a call to resample??
         tones = a |> append(b) |> Array
         # TODO: create a test for this
     end

@@ -1,6 +1,7 @@
 using DSP: FIRFilter, resample_filter
 export tosamplerate, tochannels, format, uniform
 
+tosamplerate(fs) = x -> tosamplerate(x,fs)
 tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),fs)
 tosamplerate(x,::Nothing,fs) = 
     error("Don't know how to set sample rate of non signal: $x")
@@ -11,14 +12,14 @@ function tosamplerate(x,s::IsSignal{N},fs) where N
     if ratio == 1
         x
     else
-        h = resample_filter(rate)
+        h = resample_filter(ratio)
         self = FIRFilter(h, ratio)
         τ = timedelay(self)
         setphase!(self, τ)
 
         x = if !infsignal(x)
-            outlen = ceil(Int, nsamples(x)*rate)
-            inlen = inputlength(h, outlen)
+            outlen = ceil(Int, nsamples(x)*ratio)
+            inlen = inputlength(self, outlen)
             pad(x,zero) |> until(inlen*frames)
         else
             x
@@ -28,6 +29,7 @@ function tosamplerate(x,s::IsSignal{N},fs) where N
     end
 end
 
+tochannels(ch) = x -> tochannels(x,ch)
 tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
 tochannels(x,::Nothing,ch) = 
     error("Don't know how to set number of channgles of non signal: $x")
@@ -46,9 +48,9 @@ end
 
 function format(x,fs,ch)
     if ch > 1 && nchannels(x) == 0
-        tosamplerate(x,fs) |> tochannels(x,ch)
+        tosamplerate(x,fs) |> tochannels(ch)
     else
-        tochannels(x,ch) |> tosamplerate(x,fs)
+        tochannels(x,ch) |> tosamplerate(fs)
     end
 end
 
