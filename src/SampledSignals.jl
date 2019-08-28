@@ -1,8 +1,9 @@
 using .SampledSignals: SampleBuf
 
 function SignalTrait(x::SampleBuf)
-    IsSignal(SampledSignals.samplerate(x))
+    IsSignal{nchannels(x)}(SampledSignals.samplerate(x))
 end
-samples(x::SampleBuf) = TimeSlices{size(x,2)}(x)
-nsamples(x::SampleBuf,::IsSignal) = size(x,1)
-signal_length(x::SampleBuf,::IsSignal) = (size(x,1)-1)*frames
+samples(x::SampleBuf) = TimeSlices{nchannels(x)}(x)
+
+SampleBuf(x::AbstractSignal) = SampleBuf(asarray(x),samplerate(x))
+SampleBuf(x::MetaArray{<:Any,IsSignal}) = SampleBuf(asarray(x),samplerate(x))

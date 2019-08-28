@@ -18,11 +18,11 @@ include("util.jl")
 include("units.jl")
 
 # various operators
-include("reformatting.jl")
 include("cutting.jl")
 include("extending.jl")
 include("filters.jl")
 include("binaryop.jl")
+include("reformatting.jl")
 include("ramps.jl")
 
 # extensions

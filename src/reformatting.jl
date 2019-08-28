@@ -1,67 +1,56 @@
+using DSP: FIRFilter, resample_filter
 export tosamplerate, tochannels, format, uniform
 
 tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),fs)
 tosamplerate(x,::Nothing,fs) = 
     error("Don't know how to set sample rate of non signal: $x")
-tosamplerate(x,::IsSignal,fs) = format(x,fs,nchannels(x))
+
+function tosamplerate(x,s::IsSignal{N},fs) where N
+    # copieded and modified from DSP's `resample`
+    ratio = rationalize(fs/samplerate(x))
+    if ratio == 1
+        x
+    else
+        h = resample_filter(rate)
+        self = FIRFilter(h, ratio)
+        τ = timedelay(self)
+        setphase!(self, τ)
+
+        x = if !infsignal(x)
+            outlen = ceil(Int, nsamples(x)*rate)
+            inlen = inputlength(h, outlen)
+            pad(x,zero) |> until(inlen*frames)
+        else
+            x
+        end
+
+        filtersignal(x,IsSignal{N}(fs),self)
+    end
+end
 
 tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
 tochannels(x,::Nothing,ch) = 
     error("Don't know how to set number of channgles of non signal: $x")
-tochannels(x,::IsSignal,ch) = format(x,samplerate(x),ch)
-
-function format(x,fs,ch)
-    ratio = rationalize(fs/samplerate(x))
-    
-    if ratio == 1
-        if ch == size(data,2)
-            x
-        elseif ch == 1
-            data = asarray(x)
-            signal(sum(data,dims=2),fs)
-        elseif size(data,2) == 1
-            data = asarray(x)
-            signal(reduce(hcat,(data for _ in 1:ch)),fs)
-        else
-            error("No rule to convert signal with $(size(data,2)) channels to",
-                " a signal with $ch channels.")
-        end
+function tochannels(x,::IsSignal,ch) 
+    if ch == nchannels(x)
+        x
+    elseif ch == 1
+        mix((channel(x,ch) for ch in 1:nchannels(x))...)
+    elseif nchannels(x) == 1
+        signalop(x -> tuple((x for _ in 1:ch)...),x)
     else
-        data = asarray(x)
-        data = if ch == size(data,2)
-            mapreduce(hcat,1:size(data,2)) do c
-                DSP.resample(data[:,c],ratio)
-            end
-        elseif ch == 1
-            c = 1
-            DSP.resample(sum(data,dim=2),ratio)
-        elseif size(data,2) == 1
-            first = DSP.resample(data,ratio)
-            reduce(hcat,(first for _ in 1:size(data,2)))
-        else
-            error("No rule to convert signal with $(size(data,2)) channels to",
-                " a signal with $ch channels.")
-        end
-
-        signal(data,fs)
+        error("No rule to convert signal with $(size(data,2)) channels to",
+            " a signal with $ch channels.")
     end
 end
 
-# TODO: support resampling of infinite length signals
-
-# function tosamplerate(x,::IsSignal(x),fs;block_size=4096)
-#     ratio = rationalize(fs/samplerate(x))
-#     coefs = resample_filter(ratio)
-#     filters = [FIRFilter(coefs, ratio) for _ in 1:nchannels(x)]
-#     sig = samples(x)
-#     block = zero_helper(eltype(x),min(block_size,length(sig)))
-    
-# function resmaple_block(block,sig,::HasLength)
-#     result = iterate(sig)
-#     count = 0
-#     for 1:min(length(sig),block)
-#     filt!()
-# end
+function format(x,fs,ch)
+    if ch > 1 && nchannels(x) == 0
+        tosamplerate(x,fs) |> tochannels(x,ch)
+    else
+        tochannels(x,ch) |> tosamplerate(x,fs)
+    end
+end
 
 any_samplerate(x) = any_samplerate(x,SignalTrait(x))
 any_samplerate(x,s::IsSignal) = s.samplerate

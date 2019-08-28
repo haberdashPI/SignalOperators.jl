@@ -1,4 +1,4 @@
-export lowpass, highpass, bandpass, bandstop, normpower
+export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;method=Butterworth(order),order=5) = 
@@ -16,19 +16,19 @@ bandstop(low,high;kwds...) = x->highpass(x,low,high;kwds...)
 bandstop(x,low,high;method=Butterworth(order),order=5) = 
     filter_helper(x,Bandstop(inHz(high),samplerate(x)),method)
 
-filter_helper(x,filter,method) = filter_helper(x,SignalTrait(x),filter,method)
-function filter_helper(x,::Nothing,args...)
+filtersignal(x,filter,method) = filtersignal(x,SignalTrait(x),filter,method)
+function filtersignal(x,::Nothing,args...)
     error("Value is not a signal $x.")
 end
-function filter_helper(x,s::IsSignal,filter,method)
-    H = digitalfilter(filter,method)
-    data = asarray(x)
-    mapreduce(hcat,1:size(data,2)) do ch
-        filtfilt(H,data[:,ch])
-    end
-    signal(data,s.samplerate)
+
+# TODO: allow the filter to be applied iteratively to allow application of
+# filter to infinite signal
+filtersignal(x,s::IsSignal,f,m) = filtersignal(x,s,digitalfilter(f,m))
+function filtersignal(x,s::IsSignal,h)
+    signal(filt(h,asarray(x)),s.samplerate)
 end
 
+# TODO: allow this to be applied iteratively for application to infinite signal
 function normpower(x)
     x = asarray(x)
     x ./ sqrt.(mean(x.^2,dims=1))

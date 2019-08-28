@@ -3,6 +3,12 @@ using Statistics
 zero_helper(sig) = zero_helper(eltype(sig),length(sig))
 zero_helper(x::NTuple{M,T},N) where {M,T} = zeros(T,N,M)
 
+"""
+    asarray(signal)
+
+Converts any signal into an array, with time as the rows and channels as
+the columns.
+"""
 asarray(x::AbstractArray) = x
 asarray(x) = asarray(x,SignalTrait(x))
 function asarray(x,s::IsSignal) 
@@ -28,7 +34,7 @@ abstract type WrappedSignal
 end
 
 """
-    child_signal(x)
+    childsignal(x)
 
 Retrieve the signal wrapped by x of type `WrappedSignal`
 """
@@ -40,10 +46,8 @@ function itersetup(x::WrappedSignal)
     itr, state
 end
 samplerate(x::WrappedSignal) = samplerate(childsignal(x))
-nsamples(x::WrappedSignal,::IsSignal) = nsamples(childsignal(x))
-signal_length(x::WrappedSignal,::IsSignal) = signal_length(childsignal(x))
 
 Base.Iterators.IteratorEltype(x::WrappedSignal) = HasEltype()
 Base.eltype(x::WrappedSignal) = eltype(childsignal(x))
 Base.Iterators.IteratorSize(x::WrappedSignal) = Iterators.IteratorSize(childsignal(x))
-Base.length(x::WrappedSignal) = nsamples(x)
+Base.length(x::WrappedSignal) = length(childsignal(x))
