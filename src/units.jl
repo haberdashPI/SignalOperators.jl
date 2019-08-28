@@ -47,10 +47,10 @@ inframes(frame::Quantity) = error("Unknown sample rate")
 inframes(::Type{T}, frame::Real) where T = T(frame)
 inframes(frame::Real) = frame
 
-inframes(::InfiniteLength) = infinite_length
-inframes(::Type, ::InfiniteLength) = infinite_length
-inframes(::InfiniteLength,fs) = infinite_length
-inframes(::Type, ::InfiniteLength,fs) = infinite_length
+# inframes(::InfiniteLength) = infinite_length
+# inframes(::Type, ::InfiniteLength) = infinite_length
+# inframes(::InfiniteLength,fs) = infinite_length
+# inframes(::Type, ::InfiniteLength,fs) = infinite_length
 
 inframes(::Missing) = missing
 inframes(::Type,::Missing) = missing
@@ -109,8 +109,8 @@ inseconds(x::FrameQuant, rate) = inframes(x,rate) / inHz(rate)
 inseconds(x::Real, rate) = x
 inseconds(x::Real) = x
 
-inseconds(::InfiniteLength) = infinite_length
-inseconds(::InfiniteLength,fs) = infinite_length
+# inseconds(::InfiniteLength) = infinite_length
+# inseconds(::InfiniteLength,fs) = infinite_length
 
 inseconds(::Missing) = missing
 inseconds(::Missing,r) = missing

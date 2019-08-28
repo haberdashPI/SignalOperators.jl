@@ -1,7 +1,7 @@
 using Statistics
 
 zero_helper(sig) = zero_helper(eltype(sig),length(sig))
-zero_helper(x::NTuple{M,T},N) where {M,T} = zeros(T,N,M)
+zero_helper(x::Type{<:NTuple{M,T}},N) where {M,T} = zeros(T,N,M)
 
 """
     asarray(signal)
@@ -30,7 +30,7 @@ function asarray(x,::IsSignal,smp,::Iterators.IsInfinite)
     error("Cannot store infinite signal in an array. (Use `until`?)")
 end
 
-abstract type WrappedSignal
+abstract type WrappedSignal <: AbstractSignal
 end
 
 """
@@ -40,14 +40,9 @@ Retrieve the signal wrapped by x of type `WrappedSignal`
 """
 function childsignal
 end
-function itersetup(x::WrappedSignal)
-    itr = samples(childsignal(x))
-    state = iterate(itr)
-    itr, state
-end
 samplerate(x::WrappedSignal) = samplerate(childsignal(x))
 
-Base.Iterators.IteratorEltype(x::WrappedSignal) = HasEltype()
+Base.Iterators.IteratorEltype(::Type{<:WrappedSignal}) = HasEltype()
 Base.eltype(x::WrappedSignal) = eltype(childsignal(x))
-Base.Iterators.IteratorSize(x::WrappedSignal) = Iterators.IteratorSize(childsignal(x))
+Base.Iterators.IteratorSize(::Type{<:WrappedSignal}) = Iterators.IteratorSize(childsignal(x))
 Base.length(x::WrappedSignal) = length(childsignal(x))

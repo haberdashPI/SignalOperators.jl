@@ -9,6 +9,6 @@ struct Blank
 end
 const blank = Blank()
 Base.iterate(x::NumberSignal,state=blank) = (x,),state
-Base.IteratorEltype(::Type{<:NumberSignal}) = HasEltype()
+Base.Iterators.IteratorEltype(::Type{<:NumberSignal}) = HasEltype()
 Base.eltype(x::NumberSignal{T}) where T = Tuple{T}
-Base.IteratorSize(::Type{<:NumberSignal}) = IsInfinite()
+Base.Iterators.IteratorSize(::Type{<:NumberSignal}) = IsInfinite()

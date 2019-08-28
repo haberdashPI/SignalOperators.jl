@@ -12,7 +12,7 @@ using SignalOperators: SignalTrait, IsSignal
         @test SignalOperators.inframes(1s,44.1kHz) == 44100
         @test SignalOperators.inframes(1.0s,44.1kHz) isa Float64
         @test SignalOperators.inseconds(50ms) == 1//20
-        @test SignalOperators.inseconds(10frames,10Hz) == 1s
+        @test SignalOperators.inseconds(10frames,10Hz) == 1
         @test SignalOperators.inseconds(1s,44.1kHz) == 1
         @test_throws ErrorException SignalOperators.inseconds(2frames)
     end
@@ -20,6 +20,7 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Function Currying" begin
         x = signal(1,10Hz)
         @test isa(mix(x),Function)
+        @test isa(amplify(x),Function)
         @test isa(bandpass(200Hz,400Hz),Function)
         @test isa(lowpass(200Hz),Function)
         @test isa(highpass(200Hz),Function)
@@ -40,17 +41,16 @@ using SignalOperators: SignalTrait, IsSignal
 
     @testset "Cutting Operators" begin
         tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s)
-        @test !isinf(nsamples(tone))
+        @test !infsignal(tone)
         @test nsamples(tone) == 44100*5
 
         aftered = tone |> after(2s) 
-        @test nsamples(aftered) = 44100*3
+        @test nsamples(aftered) == 44100*3
     end
 
-    @testset "Convert to arrays" 
-        tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s)
-        vals = Array(tone)
-        @test vals[1,:] .< vals[2205,:]
+    @testset "Convert to arrays" begin
+        tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> Array
+        @test tone[1] .< tone[110] # verify bump of sine wave
     end
 
     ## TODO:

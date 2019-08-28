@@ -7,7 +7,7 @@ function signal(x::AbstractArray,fs)
     end
     MetaArray(IsSignal{NTuple{size(x,2),eltype(x)}}(inHz(fs)),x)
 end
-SignalTrait(x::MetaArray{<:Any,IsSignal}) = getmeta(x)
+SignalTrait(x::MetaArray{<:Any,<:IsSignal}) = getmeta(x)
 
 struct TimeSlices{N,D,A <: AbstractArray} 
     data::A
@@ -18,7 +18,7 @@ samples(x::MetaArray{<:Any,IsSignal},::IsSignal) = TimeSlices{size(x,2)}(x)
 
 Base.iterate(x::TimeSlices{<:Any,1},i=1) =
     i ≤ size(x.data,1) ? (Tuple(view(x,i,:)), i+1) : nothing
-Base.iterate(x::TimeSlices{<:Any,2},i=1)   
+Base.iterate(x::TimeSlices{<:Any,2},i=1) =
     i ≤ size(x.data,2) ? (Tuple(view(x,:,i)), i+1) : nothing
 
 Base.Iterators.take(x::TimeSlices{N,1},n) where N =
@@ -29,7 +29,10 @@ Base.Iterators.take(x::TimeSlices{N,2},n) where N =
     TimeSlices{N,1}(@views(x[:,1:n]))
 Base.Iterators.drop(x::TimeSlices{N,2},n) where N =
     TimeSlices{N,2}(@views(x[:,n+1:end]))
-Base.IteratorEltype(::Type{<:TimeSlices}) = Iterators.HasEltype()
-Base.eltype(::TimeSlices{N,D,A}) where {N,D,A} = NTuple{N,eltype(A)}
-Base.IteratorSize(::Type{<:TimeSlices}) = Iterators.HasLength()
+Base.Iterators.IteratorEltype(::Type{<:TimeSlices}) = Iterators.HasEltype()
+Base.eltype(::Type{TimeSlices{N,D,A}}) where {N,D,A} = NTuple{N,eltype(A)}
+Base.Iterators.IteratorSize(::Type{<:TimeSlices}) = Iterators.HasLength()
 Base.length(x::TimeSlices) = length(x.data)
+
+Base.Array(x::AbstractSignal) = asarray(x)
+Base.Array(x::MetaArray{<:Any,<:IsSignal}) = asarray(x)

@@ -1,6 +1,5 @@
 module SignalOperators
-using Requires
-using DSP
+using Requires, DSP, LambdaFn
 
 # basic defintions
 include("signal.jl")
@@ -21,7 +20,7 @@ include("units.jl")
 include("cutting.jl")
 include("extending.jl")
 include("filters.jl")
-include("binaryop.jl")
+include("signalop.jl")
 include("reformatting.jl")
 include("ramps.jl")
 

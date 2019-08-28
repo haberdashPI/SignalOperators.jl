@@ -17,7 +17,7 @@ SignalTrait(x::SignalFunction{<:Any,<:Any,T}) where T =
     IsSignal{T}(x.samplerate)
 function Base.iterate(x::SignalFunction,i=x.offset) 
     if iszero(i)
-        x.first
+        x.first, i+1
     else
         t = i/x.samplerate
         wrap(x.fn(2π*(t*x.ω + x.ϕ)),), i+1
@@ -25,7 +25,7 @@ function Base.iterate(x::SignalFunction,i=x.offset)
 end
 function Base.iterate(x::SignalFunction{typeof(sin),Float64},i=x.offset) 
     if iszero(i)
-        x.first
+        x.first, i+1
     else
         t = i/x.samplerate
         (sinpi(2*(t*x.ω + x.ϕ)),), i+1
@@ -33,7 +33,7 @@ function Base.iterate(x::SignalFunction{typeof(sin),Float64},i=x.offset)
 end
 function Base.iterate(x::SignalFunction{<:Any,Missing},i=x.offset)
     if iszero(i)
-        x.first
+        x.first, i+1
     else
         t = i/x.samplerate
         wrap(x.fn(t + x.ϕ)), i+1
@@ -43,16 +43,16 @@ function Base.Iterators.drop(x::SignalFunction,n)
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,x.samplerate,x.n+n)
 end
 
-Base.IteratorEltype(x::SignalFunction) = Iterators.HasEltype()
+Base.Iterators.IteratorEltype(::Type{<:SignalFunction}) = Iterators.HasEltype()
 Base.eltype(::Type{<:SignalFunction{Fn,Fr,El}}) where {Fn,Fr,El} = El
-Base.IteratorSize(::Type{<:SignalFunction}) = Iterators.HasLength()
+Base.Iterators.IteratorSize(::Type{<:SignalFunction}) = Iterators.IsInfinite()
 
 function signal(fn::Function,samplerate;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
     SignalFunction(fn,wrap(fn(0)),inHz(ω),
         Float64(inradians(ϕ)/2π),
-        Float64(inHz(samplerate)))
+        Float64(inHz(samplerate)),0)
 end
 
 # TODO: handle missing sample rates more broadly for functions

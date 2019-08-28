@@ -10,26 +10,26 @@ struct ItrApply{S,Fn} <: WrappedSignal
 end
 childsignal(x::ItrApply) = x.signal
 SignalTrait(x::ItrApply) = SignalTrait(x.signal)
-Base.IteratorSize(::Type{<:TakeApply}) = Iterators.HasLength()
 
-function itersetup(x::ItrApply)
-    itr = x.fn(samples(x.signal),x.time)
-    state = iterate(itr)
-    itr, state
-end
-
-function Base.iterate(x::ItrApply,(itr,state) = itersetup(x))
-    if !isnothing(state)
-        val, state = iterate(itr,state)
-        val, (itr, state)
+function wrapresult(smp, result)
+    if !isnothing(result)
+        val, state = result
+        val, (smp, state)
     end
 end
 
+function Base.iterate(x::ItrApply)
+    smp = x.fn(samples(x.signal),x.time)
+    wrapresult(smp,iterate(smp))
+end
+Base.iterate(x::ItrApply,(smp,state)) = wrapresult(smp, iterate(smp,state))
+       
 const TakeApply{S} = ItrApply{S,typeof(Iterators.take)}
 until(time) = x -> until(x,time)
 function until(x,time)
     ItrApply(x,inframes(Int,time,samplerate(x)),Iterators.take)
 end
+Base.Iterators.IteratorSize(::Type{<:TakeApply}) = Iterators.HasLength()
 
 const DropApply{S} = ItrApply{S,typeof(Iterators.drop)}
 after(time) = x -> after(x,time)
@@ -38,14 +38,20 @@ function after(x,time)
 end
 
 # TODO fix this, need to elikminate signal_length
-function length(x::TakeApply)
+function Base.length(x::TakeApply)
     take = x.time
-    len = inframes(Int,signal_length(x.signal),samplerate(x))
-    min(len,take)
+    if infsignal(x.signal)
+        take
+    else
+        min(nsamples(x.signal),take)
+    end
 end
 
-function length(x::DropApply)
+function Base.length(x::DropApply)
     drop = x.time
-    len = inframes(Int,signal_length(x.signal),samplerate(x))
-    (len - drop)
+    if infsignal(x.signal)
+        error("Infinite signal!")
+    else
+        (min(nsamples(x.signal)) - drop)
+    end
 end

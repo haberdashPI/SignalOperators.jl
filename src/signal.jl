@@ -1,4 +1,4 @@
-export duration, nsamples, samplerate, samples, nchannels, signal
+export duration, nsamples, samplerate, samples, nchannels, signal, infsignal
 using MetaArrays
 using FileIO
 
@@ -22,13 +22,14 @@ end
 duration(x) = nsamples(x) / samplerate(x)
 nsamples(x) = length(samples(x))
 
-infsigal(x) = infsigal(x,SignalTrait(x))
+infsignal(x) = infsignal(x,SignalTrait(x))
 infsignal(x,s::IsSignal) = infsignal(x,s,Iterators.IteratorSize(samples(x)))
 infsignal(x,::IsSignal,::Iterators.HasLength) = false
 infsignal(x,::IsSignal,::Iterators.IsInfinite) = true
 infsignal(x,::Nothing) = error("Value is not a signal: $x")
 
 samplerate(x) = samplerate(x,SignalTrait(x))
+samplerate(x,s::IsSignal) = s.samplerate
 samplerate(x,::Nothing) = error("Value is not a signal: $x")
 
 checksamplerate(fs,_fs) = isnothing(fs) || _fs == fs

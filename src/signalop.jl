@@ -45,15 +45,15 @@ function Base.iterate(x::SignalOp,(use_val,states) = x.state)
         if any(isnothing,results)
             nothing
         else
-            vals = map(@λa(_[1]),results)
+            vals = map(@λ(_[1]),results)
             x.fn.(vals...), (false,map(@λ(_[2]),results))
         end
     end
 end
-Base.IteratorEltype(x::SignalOp) = HasEltype()
-Base.eltype(x::SignalOp{<:Any,El}) where El = El
-Base.IteratorSize(x::SignalOp{<:Any,<:Any,Nothing}) = IsInfinite()
-Base.IteratorSize(x::SignalOp{<:Any,<:Any,Int}) = HasLength()
+Base.Iterators.IteratorEltype(::Type{<:SignalOp}) = HasEltype()
+Base.eltype(::Type{<:SignalOp{<:Any,El}}) where El = El
+Base.Iterators.IteratorSize(::Type{SignalOp{<:Any,<:Any,Nothing}}) = IsInfinite()
+Base.Iterators.IteratorSize(::Type{SignalOp{<:Any,<:Any,Int}}) = HasLength()
 Base.length(x::SignalOp) = x.len
 
 default_pad(::typeof(+)) = zero
