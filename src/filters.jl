@@ -25,7 +25,7 @@ end
 # filter to infinite signal
 filtersignal(x,s::IsSignal,f,m) = filtersignal(x,s,digitalfilter(f,m))
 function filtersignal(x,s::IsSignal,h)
-    result = mapreduce(hcat,asarray(x)) do ch
+    result = mapreduce(hcat,sink(x)) do ch
         filt(h,ch)
     end
 
@@ -34,6 +34,6 @@ end
 
 # TODO: allow this to be applied iteratively for application to infinite signal
 function normpower(x)
-    x = asarray(x)
+    x = sink(x)
     x ./ sqrt.(mean(x.^2,dims=1))
 end

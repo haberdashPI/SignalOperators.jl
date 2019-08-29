@@ -5,5 +5,5 @@ function SignalTrait(x::SampleBuf)
 end
 samples(x::SampleBuf) = TimeSlices{nchannels(x)}(x)
 
-SampleBuf(x::AbstractSignal) = SampleBuf(asarray(x),samplerate(x))
-SampleBuf(x::MetaArray{<:Any,IsSignal}) = SampleBuf(asarray(x),samplerate(x))
+SampleBuf(x::AbstractSignal) = SampleBuf(sink(x),samplerate(x))
+SampleBuf(x::MetaArray{<:Any,IsSignal}) = SampleBuf(sink(x),samplerate(x))

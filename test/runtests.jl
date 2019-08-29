@@ -1,6 +1,7 @@
 using SignalOperators
 using SignalOperators.Units
 using Test
+using Statistics
 
 using SignalOperators: SignalTrait, IsSignal
 
@@ -49,7 +50,7 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Convert to arrays" begin
-        tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> Array
+        tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> sink
         @test tone[1] .< tone[110] # verify bump of sine wave
     end
 
@@ -57,17 +58,16 @@ using SignalOperators: SignalTrait, IsSignal
         # TODO: the length of the signal is being incorrently computed
         # (is 500, should be 700)
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s) |> pad(zero) |> 
-            until(7s) |> Array
+            until(7s) |> sink
         @test mean(abs.(tone[1:500])) > 0
         @test mean(abs.(tone[501:700])) == 0
     end
         
     @testset "Appending" begin
+        # TODO: append iterator type isn't yet work
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
-        b = signal(sin,50Hz,ω=10Hz) |> until(5s)
-        # TODO: problem, why is this causing a call to resample??
-        tones = a |> append(b) |> Array
-        # TODO: create a test for this
+        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        tones = a |> append(b) |> sink
     end
         
 

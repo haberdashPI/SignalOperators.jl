@@ -18,7 +18,7 @@ function samples(x::AxisArray)
     end
 end
 
-function asarray(x::AxisArray)
+function sink(x::AxisArray)
     if axisdim(x,Axis{:time}) == 1
         x
     else
@@ -29,5 +29,5 @@ end
 function AxisArray(x::AbstractSignal)
     times = Axis{:time}(range(0s,length=nsamples(x),step=s/samplerate(x)))
     channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(asarray(x),times,channels)
+    AxisArray(sink(x),times,channels)
 end

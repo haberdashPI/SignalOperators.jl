@@ -1,3 +1,4 @@
+export sink
 using MetaArrays
 
 # signals can be arrays with some metadata
@@ -29,10 +30,7 @@ Base.Iterators.take(x::TimeSlices{N,2},n) where N =
     TimeSlices{N,1}(@views(x[:,1:n]))
 Base.Iterators.drop(x::TimeSlices{N,2},n) where N =
     TimeSlices{N,2}(@views(x[:,n+1:end]))
-Base.Iterators.IteratorEltype(::Type{<:TimeSlices}) = Iterators.HasEltype()
 Base.eltype(::Type{TimeSlices{N,D,A}}) where {N,D,A} = NTuple{N,eltype(A)}
 Base.Iterators.IteratorSize(::Type{<:TimeSlices}) = Iterators.HasLength()
 Base.length(x::TimeSlices) = length(x.data)
-
-Base.Array(x::AbstractSignal) = asarray(x)
-Base.Array(x::MetaArray{<:Any,<:IsSignal}) = asarray(x)
+Base.Iterators.IteratorEltype(::Type{<:TimeSlices}) = Iterators.HasEltype()
