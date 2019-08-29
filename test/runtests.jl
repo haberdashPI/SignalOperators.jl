@@ -1,5 +1,6 @@
 using SignalOperators
 using SignalOperators.Units
+using LambdaFn
 using Test
 using Statistics
 
@@ -67,17 +68,63 @@ using SignalOperators: SignalTrait, IsSignal
         # TODO: append iterator type isn't yet work
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
-        tones = a |> append(b) |> sink
+        tones = a |> append(b)
+        @test duration(tones) == 10
+        @test length(sink(tones)) == 1000
     end
-        
+
+    @testset "Mixing" begin
+        a = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        complex = mix(a,b)
+        @test duration(complex) == 5
+        @test length(sink(complex)) == 500
+    end 
+
+    @testset "Filtering" begin
+        a = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        complex = mix(a,b)
+        high = complex |> highpass(8Hz,method=Elliptic(20,0.05,0.1)) |> sink
+        low = complex |> lowpass(6Hz,method=Butterworth(5)) |> sink
+        @test length(high) == 500
+        @test length(low) == 500
+        @test length(highlow) == 500
+        @test mean(high) < 0.01
+        @test mean(low) < 0.02
+        @test mean(highlow) 
+    end
+
+    @testset "Ramps" begin
+        tone = signal(sin,100Hz,ω=10Hz) |> until(5s) 
+        ramped = signal(sin,100Hz,ω=10Hz) |> until(5s) |> ramp(100ms) |> sink
+        @test mean(abs,ramped[1:5]) < mean(abs,ramped[6:10])
+        @test mean(abs,ramped) < mean(abs,sink(tone))
+        @test mean(ramped) < 1e-4
+    end
+
+    @testset "Resmapling" begin
+        tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        resamp = tosamplerate(tone,500Hz)
+        @test samplerate(resamp) == 500Hz
+    end
+
+    # TODO: mapsignal returns raw number, not a tuple fix that, re-run tests,
+    # and then come back to how to change the number of channels
+    @testset "Change Channel Count"
+        tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        n = tone |> tochannels(2) |> nchannels
+        @test n==2
+        data = tone |> tochannels(2) |> sink
+        @test size(data,2) == 2
+        data2 = signal(data,100Hz) |> tochannels(1) |> sink
+        @test size(data2,1)
+    end
+
+    # TODO: mix signals into separate channels
 
 
     ## TODO:
-    # extending
-    # filters
-    # binaryop
-    # ramps
-    # reformatting
     # automatic reformatting
-    # handling of non-signals
+    # clean handling of non-signals
 end

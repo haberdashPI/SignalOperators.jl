@@ -25,6 +25,7 @@ nsamples(x) = length(samples(x))
 infsignal(x) = infsignal(x,SignalTrait(x))
 infsignal(x,s::IsSignal) = infsignal(x,s,Iterators.IteratorSize(samples(x)))
 infsignal(x,::IsSignal,::Iterators.HasLength) = false
+infsignal(x,::IsSignal,::Iterators.HasShape) = false
 infsignal(x,::IsSignal,::Iterators.IsInfinite) = true
 infsignal(x,::Nothing) = error("Value is not a signal: $x")
 

@@ -4,8 +4,9 @@ export append, prepend, pad
 # appending signals
 
 # TODO: work on this datatype
-struct IteratorSignal{T}
+struct IteratorSignal{T,L} <: AbstractSignal
     samples::T
+    len::L
     samplerate::Float64
 end
 
@@ -13,15 +14,20 @@ append(y) = x -> append(x,y)
 prepend(x) = y -> prepend(x,y)
 function append(xs...)
     xs = uniform(xs,channels=true)
-    IteratorSignal(Iterators.flatten(samples.(xs)), samplerate(xs[1]))
+    len = any(infsignal,xs) ? nothing : sum(nsamples,xs)
+    IteratorSignal(Iterators.flatten(samples.(xs)), len, samplerate(xs[1]))
 end
 SignalTrait(x::IteratorSignal{T}) where T = IsSignal{eltype(T)}(x.samplerate)
 Base.eltype(::Type{<:IteratorSignal{T}}) where T = eltype(T)
-Base.Iterators.IteratorSize(::Type{<:IteratorSignal{T}}) where T = 
-    Iterators.IteratorSize(T)
-Base.length(x::IteratorSignal) = length(x.samples)
+Base.Iterators.IteratorSize(::Type{<:IteratorSignal{T,Nothing}}) where T = 
+   Iterators.IsInfinite()
+Base.Iterators.IteratorSize(::Type{<:IteratorSignal{T,Int}}) where T = 
+   Iterators.HasLength()
+Base.length(x::IteratorSignal) = x.len
 Base.Iterators.IteratorEltype(::Type{<:IteratorSignal{T}}) where T = 
     Iterators.IteratorEltype(T)
+Base.iterate(itr::IteratorSignal) = iterate(itr.samples)
+Base.iterate(itr::IteratorSignal,state) = iterate(itr.samples, state)
 
 ################################################################################
 # padding

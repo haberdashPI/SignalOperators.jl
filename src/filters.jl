@@ -1,20 +1,20 @@
 export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
-lowpass(x,low;method=Butterworth(order),order=5) = 
-    filter_helper(x,Lowpass(inHz(low),samplerate(x)),method)
+lowpass(x,low;order=5,method=Butterworth(order)) = 
+    filtersignal(x,Lowpass(inHz(low),fs=samplerate(x)),method)
 
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
-highpass(x,high;method=Butterworth(order),order=5) = 
-    filter_helper(x,Highpass(inHz(high),samplerate(x)),method)
+highpass(x,high;order=5,method=Butterworth(order)) = 
+    filtersignal(x,Highpass(inHz(high),fs=samplerate(x)),method)
 
-bandpass(low,high;kwds...) = x->highpass(x,low,high;kwds...)
-bandpass(x,low,high;method=Butterworth(order),order=5) = 
-    filter_helper(x,Bandpass(inHz(high),samplerate(x)),method)
+bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
+bandpass(x,low,high;order=5,method=Butterworth(order)) = 
+    filtersignal(x,Bandpass(inHz(high),fs=samplerate(x)),method)
 
-bandstop(low,high;kwds...) = x->highpass(x,low,high;kwds...)
-bandstop(x,low,high;method=Butterworth(order),order=5) = 
-    filter_helper(x,Bandstop(inHz(high),samplerate(x)),method)
+bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
+bandstop(x,low,high;order=5,method=Butterworth(order)) = 
+    filtersignal(x,Bandstop(inHz(high),fs=samplerate(x)),method)
 
 filtersignal(x,filter,method) = filtersignal(x,SignalTrait(x),filter,method)
 function filtersignal(x,::Nothing,args...)
@@ -25,11 +25,10 @@ end
 # filter to infinite signal
 filtersignal(x,s::IsSignal,f,m) = filtersignal(x,s,digitalfilter(f,m))
 function filtersignal(x,s::IsSignal,h)
-    result = mapreduce(hcat,sink(x)) do ch
-        filt(h,ch)
-    end
-
-    signal(result,s.samplerate)
+    data = sink(x)
+    mapreduce(hcat,1:nchannels(x)) do ch
+        filt(h,data[:,ch])
+    end |> @λ(signal(_,s.samplerate))
 end
 
 # TODO: allow this to be applied iteratively for application to infinite signal

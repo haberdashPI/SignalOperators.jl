@@ -10,7 +10,7 @@ sinramp(x) = sinpi(0.5x)
 rampon(fun::Function) = rampon(10ms,fun)
 rampon(len::Number=10ms,fun::Function=sinramp) = x -> rampon(x,len,fun)
 function rampon(x,len::Number=10ms,fun::Function=sinramp)
-    signal(rampon_fn(len,fun),samplerate(x)) |> amplify(x)
+    signal(rampon_fn(x,len,fun),samplerate(x)) |> amplify(x)
 end
 
 function rampoff_fn(x,len,fun)
@@ -22,12 +22,12 @@ end
 rampoff(fun::Function) = rampoff(10ms,fun)
 rampoff(len::Number=10ms,fun::Function=sinramp) = x -> rampoff(x,len,fun)
 function rampoff(x,len::Number=10ms,fun::Function=sinramp)
-    signal(rampoff_fn(len),samplerate(x)) |> amplify(x)
+    signal(rampoff_fn(x,len,fun),samplerate(x)) |> amplify(x)
 end
 
 ramp(fun::Function) = ramp(10ms,fun)
 ramp(len::Number=10ms,fun::Function=sinramp) = x -> ramp(x,len,fun)
-function ramp(x,len::Number,fun::Function)
+function ramp(x,len::Number=10ms,fun::Function=sinramp)
     x |> rampon(len,fun) |> rampoff(len,fun)
 end
 

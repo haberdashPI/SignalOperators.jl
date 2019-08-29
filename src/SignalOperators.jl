@@ -20,7 +20,7 @@ include("units.jl")
 include("cutting.jl")
 include("extending.jl")
 include("filters.jl")
-include("signalop.jl")
+include("mapsignal.jl")
 include("reformatting.jl")
 include("ramps.jl")
 

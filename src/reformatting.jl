@@ -8,7 +8,7 @@ tosamplerate(x,::Nothing,fs) =
 
 function tosamplerate(x,s::IsSignal{N},fs) where N
     # copieded and modified from DSP's `resample`
-    ratio = rationalize(fs/samplerate(x))
+    ratio = rationalize(inHz(fs)/samplerate(x))
     if ratio == 1
         x
     else
@@ -25,7 +25,7 @@ function tosamplerate(x,s::IsSignal{N},fs) where N
             x
         end
 
-        filtersignal(x,IsSignal{N}(fs),self)
+        filtersignal(x,IsSignal{N}(inHz(fs)),self)
     end
 end
 
@@ -39,7 +39,7 @@ function tochannels(x,::IsSignal,ch)
     elseif ch == 1
         mix((channel(x,ch) for ch in 1:nchannels(x))...)
     elseif nchannels(x) == 1
-        signalop(x -> tuple((x for _ in 1:ch)...),x)
+        mapsignal(x -> tuple((x for _ in 1:ch)...),x)
     else
         error("No rule to convert signal with $(size(data,2)) channels to",
             " a signal with $ch channels.")
@@ -60,9 +60,9 @@ any_samplerate(x,::Nothing) = 0.0
 
 any_nchannels(x,fs) = any_nchannels(x,SignalTrait(x),fs)
 any_nchannels(x,s::IsSignal,fs) = nchannels(x)
-any_nchannels(x,::Nothing,fs) = any_nchannels(signal(x,fs))
+any_nchannels(x,::Nothing,fs) = any_nchannels(signal(x,fs),fs)
 
-maybe_format(x,fs,ch=any_nchannels(x)) = maybe_format(x,SignalTrait(x),fs,ch)
+maybe_format(x,fs,ch=any_nchannels(x,fs)) = maybe_format(x,SignalTrait(x),fs,ch)
 maybe_format(x,::Nothing,fs,ch) = maybe_format(signal(x,fs),fs,ch)
 function maybe_format(x,s::IsSignal,fs,ch) 
     format(x,fs,ch)
