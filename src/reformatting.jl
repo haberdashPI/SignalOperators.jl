@@ -39,7 +39,7 @@ function tochannels(x,::IsSignal,ch)
     elseif ch == 1
         mix((channel(x,ch) for ch in 1:nchannels(x))...)
     elseif nchannels(x) == 1
-        mapsignal(x -> tuple((x for _ in 1:ch)...),x)
+        mapsignal(x -> tuple((x[1] for _ in 1:ch)...),x,across_channels=true)
     else
         error("No rule to convert signal with $(size(data,2)) channels to",
             " a signal with $ch channels.")

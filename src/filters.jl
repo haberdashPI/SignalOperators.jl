@@ -10,11 +10,11 @@ highpass(x,high;order=5,method=Butterworth(order)) =
 
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order)) = 
-    filtersignal(x,Bandpass(inHz(high),fs=samplerate(x)),method)
+    filtersignal(x,Bandpass(inHz(low),inHz(high),fs=samplerate(x)),method)
 
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order)) = 
-    filtersignal(x,Bandstop(inHz(high),fs=samplerate(x)),method)
+    filtersignal(x,Bandstop(inHz(low),inHz(high),fs=samplerate(x)),method)
 
 filtersignal(x,filter,method) = filtersignal(x,SignalTrait(x),filter,method)
 function filtersignal(x,::Nothing,args...)

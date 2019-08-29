@@ -33,7 +33,7 @@ samplerate(x) = samplerate(x,SignalTrait(x))
 samplerate(x,s::IsSignal) = s.samplerate
 samplerate(x,::Nothing) = error("Value is not a signal: $x")
 
-checksamplerate(fs,_fs) = isnothing(fs) || _fs == fs
+checksamplerate(fs,_fs) = ismissing(fs) || _fs == fs
 
 samples(x) = samples(x,SignalTrait(x))
 samples(x,::IsSignal) = x
@@ -47,6 +47,7 @@ signal_eltype(x) = signal_eltype(x,SignalTrait(x))
 signal_eltype(x,::IsSignal{NTuple{<:Any,T}}) where T = T
 signal_eltype(x,::Nothing) = error("value is not a signal: $x")
 
+signal(fs::Quantity) = x -> signal(x,fs)
 signal(x,fs) = signal(x,SignalTrait(x),fs)
 signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 function signal(x,::IsSignal,fs)

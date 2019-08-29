@@ -1,17 +1,26 @@
 using Statistics
+using WAV
 
 zero_helper(sig) = zero_helper(eltype(sig),length(sig))
 zero_helper(x::Type{<:NTuple{M,T}},N) where {M,T} = zeros(T,N,M)
 
 
 """
-    sink(signal)
+    sink(to=Array])
+    sink(signal,to=Array])
 
-Converts any signal into an array, with time as the rows and channels as
-the columns.
+Creats a given type of object from a signal. By default it is an array with
+time as the rows and channels as the columns. If a filename is specified, the
+signal is written to the given file. If given a type (e.g. `AxisArray`) the
+signal is written to that type. 
+
+If no signal is given, creates a single argument function which, when called,
+sends the given signal to the sink. (e.g. `mysignal |> sink("result.wav")`)
+
 """
 sink(x::AbstractArray) = x
 sink(x) = sink(x,SignalTrait(x))
+
 function sink(x,s::IsSignal) 
     smp = samples(x)
     sink(x,s,smp,Iterators.IteratorSize(x))

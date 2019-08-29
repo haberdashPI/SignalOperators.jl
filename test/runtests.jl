@@ -1,8 +1,10 @@
 using SignalOperators
 using SignalOperators.Units
+using DSP
 using LambdaFn
 using Test
 using Statistics
+using WAV
 
 using SignalOperators: SignalTrait, IsSignal
 
@@ -36,9 +38,20 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Basic signals" begin
         @test SignalTrait(signal([1,2,3,4],10Hz)) isa IsSignal
         @test SignalTrait(signal(1:100,10Hz)) isa IsSignal
-        @test SignalTrait(signal("test.wav")) isa IsSignal
+
         @test SignalTrait(signal(1,10Hz)) isa IsSignal
         @test SignalTrait(signal(sin,10Hz)) isa IsSignal
+    end
+
+    @testset "Sink to arrays" begin
+        tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> sink
+        @test tone[1] .< tone[110] # verify bump of sine wave
+    end
+
+    @testset "Files as signals" begin
+        tone = signal(range(0,1,length=4),10Hz) |> sink("test.wav")
+        @test SignalTrait(signal("test.wav")) isa IsSignal
+        @test isapprox(signal("test.wav"), range(0,1,length=4),rtol=1e-6)
     end
 
     @testset "Cutting Operators" begin
@@ -48,11 +61,6 @@ using SignalOperators: SignalTrait, IsSignal
 
         aftered = tone |> after(2s) 
         @test nsamples(aftered) == 44100*3
-    end
-
-    @testset "Convert to arrays" begin
-        tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> sink
-        @test tone[1] .< tone[110] # verify bump of sine wave
     end
 
     @testset "Padding" begin
@@ -85,14 +93,23 @@ using SignalOperators: SignalTrait, IsSignal
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
         complex = mix(a,b)
-        high = complex |> highpass(8Hz,method=Elliptic(20,0.05,0.1)) |> sink
+        high = complex |> highpass(8Hz,method=Chebyshev1(5,1)) |> sink
         low = complex |> lowpass(6Hz,method=Butterworth(5)) |> sink
+        highlow = low |>  highpass(8Hz,method=Chebyshev1(5,1)) |> sink
+        bandp1 = complex |> bandpass(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
+        bandp2 = complex |> bandpass(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
+        bands1 = complex |> bandstop(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
+        bands2 = complex |> bandstop(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
+
         @test length(high) == 500
         @test length(low) == 500
         @test length(highlow) == 500
         @test mean(high) < 0.01
         @test mean(low) < 0.02
-        @test mean(highlow) 
+        @test 10mean(abs,highlow) < mean(abs,low)
+        @test 10mean(abs,highlow) < mean(abs,high)
+        @test 10mean(abs,bandp1) < mean(abs,bandp2)
+        @test 10mean(abs,bands2) < mean(abs,bands1)
     end
 
     @testset "Ramps" begin
@@ -106,25 +123,33 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Resmapling" begin
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
         resamp = tosamplerate(tone,500Hz)
-        @test samplerate(resamp) == 500Hz
+        @test samplerate(resamp) == 500
     end
 
-    # TODO: mapsignal returns raw number, not a tuple fix that, re-run tests,
-    # and then come back to how to change the number of channels
-    @testset "Change Channel Count"
+    @testset "Change channel Count" begin
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
         n = tone |> tochannels(2) |> nchannels
         @test n==2
         data = tone |> tochannels(2) |> sink
         @test size(data,2) == 2
         data2 = signal(data,100Hz) |> tochannels(1) |> sink
-        @test size(data2,1)
+        @test size(data2,2) == 1
     end
 
-    # TODO: mix signals into separate channels
+    @testset "Automatic reformatting" begin
+        a = signal(sin,200Hz,ω=10Hz) |> until(5s) |> tochannels(2)
+        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        complex = mix(a,b)
+        @test nchannels(complex) == 2
+        @test samplerate(complex) == 200
+    end
 
-
-    ## TODO:
-    # automatic reformatting
-    # clean handling of non-signals
+    @testset "Handling of non-sigals" begin
+        # AbstractArrays
+        tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
+        @test all(tone[1:10] .>= 10.0*(1:10))
+        # Numbers
+        tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
+        @test all(tone .>= 0.5)
+    end
 end

@@ -1,5 +1,5 @@
 module SignalOperators
-using Requires, DSP, LambdaFn
+using Requires, DSP, LambdaFn, Unitful
 
 # basic defintions
 include("signal.jl")
@@ -32,5 +32,11 @@ include("ramps.jl")
 # @require AxisArrays = "TODO" begin
 #     include("AxisArrays.jl")
 # end
+
+function __init__()
+    @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
+        include("WAV.jl")
+    end
+end
 
 end # module

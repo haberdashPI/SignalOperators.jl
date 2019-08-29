@@ -8,9 +8,9 @@ struct SignalFunction{Fn,Fr,El} <: AbstractSignal
     samplerate::Float64
     offset::Int
 end
-wrap(x::Number) = (x,)
-wrap(x::Tuple) = x
-wrap(x) = error("Function must return number or tuple of numbers.")
+astuple(x::Number) = (x,)
+astuple(x::Tuple) = x
+astuple(x) = error("Function must return number or tuple of numbers.")
 
 SignalFunction(fn,ω,ϕ,samplerate) = SignalFunction(fn,ω,ϕ,samplerate,0)
 SignalTrait(x::SignalFunction{<:Any,<:Any,T}) where T =
@@ -20,7 +20,7 @@ function Base.iterate(x::SignalFunction,i=x.offset)
         x.first, i+1
     else
         t = i/x.samplerate
-        wrap(x.fn(2π*(t*x.ω + x.ϕ)),), i+1
+        astuple(x.fn(2π*(t*x.ω + x.ϕ)),), i+1
     end
 end
 function Base.iterate(x::SignalFunction{typeof(sin),Float64},i=x.offset) 
@@ -36,7 +36,7 @@ function Base.iterate(x::SignalFunction{<:Any,Missing},i=x.offset)
         x.first, i+1
     else
         t = i/x.samplerate
-        wrap(x.fn(t + x.ϕ)), i+1
+        astuple(x.fn(t + x.ϕ)), i+1
     end
 end
 function Base.Iterators.drop(x::SignalFunction,n)
@@ -50,13 +50,13 @@ Base.Iterators.IteratorSize(::Type{<:SignalFunction}) = Iterators.IsInfinite()
 function signal(fn::Function,samplerate;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
-    SignalFunction(fn,wrap(fn(0)),inHz(ω),
+    SignalFunction(fn,astuple(fn(0)),inHz(ω),
         Float64(inradians(ϕ)/2π),
         Float64(inHz(samplerate)),0)
 end
 
 # TODO: handle missing sample rates more broadly for functions
-signal(x::typeof(randn),fs=nothing) = SignalFunction(x,(rand(),),nothing,0.0,0.0)
+signal(x::typeof(randn),fs=missing) = SignalFunction(x,(rand(),),nothing,0.0,0.0)
 function Base.iterate(x::SignalFunction{typeof(randn)},i=0)
     (randn(),), 0
 end
