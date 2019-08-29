@@ -23,7 +23,7 @@ function Base.iterate(x::SignalFunction,i=x.offset)
         astuple(x.fn(2π*(t*x.ω + x.ϕ)),), i+1
     end
 end
-function Base.iterate(x::SignalFunction{typeof(sin),Float64},i=x.offset) 
+function Base.iterate(x::SignalFunction{typeof(sin),<:Number},i=x.offset) 
     if iszero(i)
         x.first, i+1
     else
@@ -56,8 +56,9 @@ function signal(fn::Function,samplerate;
 end
 
 # TODO: handle missing sample rates more broadly for functions
-signal(x::typeof(randn),fs=missing) = SignalFunction(x,(rand(),),nothing,0.0,0.0)
-function Base.iterate(x::SignalFunction{typeof(randn)},i=0)
+signal(x::typeof(randn),fs=missing) =
+    SignalFunction(x,(rand(),),fs,0.0,Float64(inHz(fs)),0)
+function Base.iterate(x::SignalFunction{typeof(randn),Fs,El},i=0) where {Fs,El}
     (randn(),), 0
 end
 
@@ -65,12 +66,12 @@ end
 # via unify
 signal(fn::typeof(zero),x) = signal(fn,x,SignalTrait(x))
 function signal(fn::typeof(zero),x,::IsSignal)
-    signal(zero(signal_eltype(x)),samplerate(x))
+    signal(zero(channel_eltype(x)),samplerate(x))
 end
 signal(fn::typeof(zero),x,::Nothing) = error("Value is not a signal: $x")
 
 signal(fn::typeof(one),x) = signal(fn,x,SignalTrait(x))
 function signal(fn::typeof(one),x,::IsSignal)
-    signal(one(signal_eltype(x)),samplerate(x))
+    signal(one(channel_eltype(x)),samplerate(x))
 end
 signal(fn::typeof(one),x,::Nothing) = error("Value is not a signal: $x")

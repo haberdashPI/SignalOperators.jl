@@ -54,7 +54,7 @@ samplerate(x::WrappedSignal) = samplerate(childsignal(x))
 SignalTrait(x::WrappedSignal) = SignalTrait(childsignal(x))
 
 Base.Iterators.IteratorEltype(::Type{<:WrappedSignal}) = Iterators.HasEltype()
-Base.eltype(::Type{<:WrappedSignal{T}}) where T = eltype(T)
+Base.eltype(::Type{<:WrappedSignal{T}}) where T = signal_eltype(T)
 Base.Iterators.IteratorSize(::Type{<:WrappedSignal{T}}) where T =
     Iterators.IteratorSize(T)
 Base.length(x::WrappedSignal) = length(childsignal(x))

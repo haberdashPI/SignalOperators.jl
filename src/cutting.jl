@@ -24,17 +24,23 @@ function Base.iterate(x::ItrApply)
 end
 Base.iterate(x::ItrApply,(smp,state)) = wrapresult(smp, iterate(smp,state))
        
-const TakeApply{S} = ItrApply{S,typeof(Iterators.take)}
+take_(x,n) = Iterators.take(x,n)
+take_(x::WrappedSignal,n) = take_(childsignal(x),n)
+const TakeApply{S} = ItrApply{S,typeof(take_)}
+take_(x::TakeApply,n) = Iterators.take(x,n)
 until(time) = x -> until(x,time)
 function until(x,time)
-    ItrApply(x,inframes(Int,time,samplerate(x)),Iterators.take)
+    ItrApply(x,inframes(Int,time,samplerate(x)),take_)
 end
 Base.Iterators.IteratorSize(::Type{<:TakeApply}) = Iterators.HasLength()
 
-const DropApply{S} = ItrApply{S,typeof(Iterators.drop)}
+drop_(x,n) = Iterators.drop(x,n)
+drop_(x::WrappedSignal,n) = drop_(childsignal(x),n)
+const DropApply{S} = ItrApply{S,typeof(drop_)}
+drop_(x::DropApply,n) = Iterators.drop(x,n)
 after(time) = x -> after(x,time)
 function after(x,time)
-    ItrApply(x,inframes(Int,time,samplerate(x)),Iterators.drop)
+    ItrApply(x,inframes(Int,time,samplerate(x)),drop_)
 end
 
 # TODO fix this, need to elikminate signal_length

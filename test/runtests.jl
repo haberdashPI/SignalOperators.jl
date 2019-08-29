@@ -14,10 +14,32 @@ using SignalOperators: SignalTrait, IsSignal
 
     @testset "Unit Conversions" begin
         @test SignalOperators.inframes(1s,44.1kHz) == 44100
+        @test SignalOperators.inframes(Int,0.5s,44.1kHz) == 22050
+        @test SignalOperators.inframes(Int,5frames) == 5
+        @test SignalOperators.inframes(Int,5) == 5
         @test SignalOperators.inframes(1.0s,44.1kHz) isa Float64
+        @test ismissing(SignalOperators.inframes(missing))
+        @test ismissing(SignalOperators.inframes(Int,missing))
+        @test ismissing(SignalOperators.inframes(Int,missing,5))
+
+        @test_throws ErrorException SignalOperators.inframes(10s)
+
+        @test SignalOperators.inHz(10) === 10
+        @test SignalOperators.inHz(10Hz) === 10
+        @test ismissing(SignalOperators.inHz(missing))
+
         @test SignalOperators.inseconds(50ms) == 1//20
+        @test SignalOperators.inseconds(50ms,10Hz) == 1//20
         @test SignalOperators.inseconds(10frames,10Hz) == 1
         @test SignalOperators.inseconds(1s,44.1kHz) == 1
+        @test SignalOperators.inseconds(1,44.1kHz) == 1
+        @test SignalOperators.inseconds(1) == 1
+        @test ismissing(SignalOperators.inseconds(missing)) 
+
+
+        @test SignalOperators.inradians(15) == 15
+        @test SignalOperators.inradians(15frames) == 15
+        @test SignalOperators.inradians(180°) ≈ π
         @test_throws ErrorException SignalOperators.inseconds(2frames)
     end
 
@@ -38,9 +60,16 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Basic signals" begin
         @test SignalTrait(signal([1,2,3,4],10Hz)) isa IsSignal
         @test SignalTrait(signal(1:100,10Hz)) isa IsSignal
-
         @test SignalTrait(signal(1,10Hz)) isa IsSignal
         @test SignalTrait(signal(sin,10Hz)) isa IsSignal
+        @test SignalTrait(signal(randn,10Hz)) isa IsSignal
+        @test_throws ErrorException signal(x -> [1,2],5Hz) 
+        noise = signal(randn,44.1kHz) |> until(5s) 
+        @test isapprox(noise |> sink |> mean,0,atol=1e-2)
+        z = signal(zero,noise) |> until(5s)
+        @test all(z |> sink .== 0)
+        o = signal(one,noise) |> until(5s)
+        @test all(o |> sink .== 1)
     end
 
     @testset "Sink to arrays" begin
@@ -64,8 +93,6 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Padding" begin
-        # TODO: the length of the signal is being incorrently computed
-        # (is 500, should be 700)
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s) |> pad(zero) |> 
             until(7s) |> sink
         @test mean(abs.(tone[1:500])) > 0
@@ -92,14 +119,14 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Filtering" begin
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
-        complex = mix(a,b)
-        high = complex |> highpass(8Hz,method=Chebyshev1(5,1)) |> sink
-        low = complex |> lowpass(6Hz,method=Butterworth(5)) |> sink
+        cmplx = mix(a,b)
+        high = cmplx |> highpass(8Hz,method=Chebyshev1(5,1)) |> sink
+        low = cmplx |> lowpass(6Hz,method=Butterworth(5)) |> sink
         highlow = low |>  highpass(8Hz,method=Chebyshev1(5,1)) |> sink
-        bandp1 = complex |> bandpass(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
-        bandp2 = complex |> bandpass(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
-        bands1 = complex |> bandstop(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
-        bands2 = complex |> bandstop(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
+        bandp1 = cmplx |> bandpass(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
+        bandp2 = cmplx |> bandpass(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
+        bands1 = cmplx |> bandstop(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
+        bands2 = cmplx |> bandstop(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
 
         @test length(high) == 500
         @test length(low) == 500
@@ -110,6 +137,9 @@ using SignalOperators: SignalTrait, IsSignal
         @test 10mean(abs,highlow) < mean(abs,high)
         @test 10mean(abs,bandp1) < mean(abs,bandp2)
         @test 10mean(abs,bands2) < mean(abs,bands1)
+
+        @test mean(abs,cmplx |> amplify(10) |> normpower |> sink) < 
+            mean(abs,cmplx |> amplify(10) |> sink)
     end
 
     @testset "Ramps" begin
@@ -118,6 +148,8 @@ using SignalOperators: SignalTrait, IsSignal
         @test mean(abs,ramped[1:5]) < mean(abs,ramped[6:10])
         @test mean(abs,ramped) < mean(abs,sink(tone))
         @test mean(ramped) < 1e-4
+
+        # TODO: test fadeto
     end
 
     @testset "Resmapling" begin
@@ -138,18 +170,25 @@ using SignalOperators: SignalTrait, IsSignal
 
     @testset "Automatic reformatting" begin
         a = signal(sin,200Hz,ω=10Hz) |> until(5s) |> tochannels(2)
-        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        b = signal(sin,100Hz,ω=5Hz) |> until(3s)
         complex = mix(a,b)
         @test nchannels(complex) == 2
         @test samplerate(complex) == 200
+        @test size(complex |> sink,1) == 1000
+        more = mix(a,b,1)
+        @test size(more |> sink,1) == 1000
     end
 
     @testset "Handling of non-sigals" begin
         # AbstractArrays
         tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
         @test all(tone[1:10] .>= 10.0*(1:10))
+        samples = signal(10.0.*(1:10),5Hz) |> until(1s) |> collect
+        @test samples isa Array{Tuple{Float64}}
         # Numbers
         tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
         @test all(tone .>= 0.5)
+        samples = signal(1,5Hz) |> until(5s) |> collect
+        @test samples isa Array{Tuple{Int}}
     end
 end

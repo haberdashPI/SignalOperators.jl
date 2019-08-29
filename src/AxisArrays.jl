@@ -6,7 +6,7 @@ function SignalTrait(x::AxisArray)
     IsSignal(1/step(times))
 end
 
-function samples(x::AxisArray) 
+function samples(x::AxisArray,::IsSignal) 
     if 1 ≤ ndims(x) ≤ 2
         error("Expected AxisArray to have one or two dimensions")
     end

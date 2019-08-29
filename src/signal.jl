@@ -36,16 +36,19 @@ samplerate(x,::Nothing) = error("Value is not a signal: $x")
 checksamplerate(fs,_fs) = ismissing(fs) || _fs == fs
 
 samples(x) = samples(x,SignalTrait(x))
-samples(x,::IsSignal) = x
+samples(x::AbstractSignal,::IsSignal) = x
 samples(x,::Nothing) = error("value is not a signal: $x")
 
 nchannels(x) = nchannels(x,SignalTrait(x))
 nchannels(x,::IsSignal{<:NTuple{N}}) where N = N
 nchannels(x,::Nothing) = error("value is not a signal: $x")
 
-signal_eltype(x) = signal_eltype(x,SignalTrait(x))
-signal_eltype(x,::IsSignal{NTuple{<:Any,T}}) where T = T
-signal_eltype(x,::Nothing) = error("value is not a signal: $x")
+channel_eltype(x::T) where T = channel_eltype(T)
+channel_eltype(::Type{T}) where T = ntuple_T(signal_eltype(T))
+ntuple_T(::Type{<:NTuple{<:Any,T}}) where T = T
+
+signal_eltype(::Type{T}) where T <: AbstractSignal = eltype(T)
+signal_eltype(::T) where T = signal_eltype(T)
 
 signal(fs::Quantity) = x -> signal(x,fs)
 signal(x,fs) = signal(x,SignalTrait(x),fs)

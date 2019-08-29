@@ -22,13 +22,13 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     fs = samplerate(xs[1])
     finite = findall(!infsignal,xs)
     if !isempty(finite)
-        if any(!=(xs[finite[1]]),xs[finite[2:end]])
+        if any(@λ(!=(xs[finite[1]],_)),xs[finite[2:end]])
             longest = argmax(map(i -> nsamples(xs[i]),finite))
             xs = (map(pad(padding),xs[1:longest-1])..., xs[longest],
                   map(pad(padding),xs[longest+1:end])...)
             len = nsamples(xs[longest])
         else
-            len = nsamples(xs[1])
+            len = nsamples(xs[finite[1]])
         end
     else
         len = nothing

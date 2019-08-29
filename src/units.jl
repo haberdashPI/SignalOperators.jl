@@ -33,16 +33,11 @@ julia> inframes(0.5s, 44100Hz)
 22050.0
 
 """
-inframes(::Type{T}, frame::FrameQuant, rate=nothing) where T <: Integer =
-    round(T, ustrip(uconvert(frames, frame)))
+inframes(::Type{T},frame::FrameQuant, rate=nothing) where T = ustrip(uconvert(frames, frame))
 inframes(frame::FrameQuant, rate=nothing) = ustrip(uconvert(frames, frame))
 inframes(::Type{T}, time::Unitful.Time, rate) where T <: Integer =
     round(T, inseconds(time)*inHz(rate))
 inframes(time::Unitful.Time, rate) = inseconds(time)*inHz(rate)
-inframes(::Type{T}, freq::Unitful.Frequency, rate) where T <: Integer =
-    round(T, inHz(freq)*inseconds(rate))
-inframes(freq::Unitful.Frequency, rate) = inHz(freq)*inseconds(rate)
-inframes(::Type, frame::Quantity) = error("Unknown sample rate")
 inframes(frame::Quantity) = error("Unknown sample rate")
 inframes(::Type{T}, frame::Real) where T = T(frame)
 inframes(frame::Real) = frame
@@ -74,14 +69,9 @@ julia> inHz(1.0kHz)
 1000.0
 
 """
-inHz(x::Unitful.Frequency, rate=nothing) = ustrip(uconvert(Hz, x))
-inHz(x::FrameQuant) = error("Unknown sample rate")
-# assume we have a spectrum buffer with a sample rate in seconds
-inHz(x::FrameQuant, rate) = inHz(inframes(x) / rate)
-inHz(x::Real, rate) = x
+inHz(x::Unitful.Frequency) = ustrip(uconvert(Hz, x))
 inHz(x::Real) = x
 inHz(::Missing) = missing
-inHz(::Missing,rate) = missing
 
 """
    inseconds(quantity[, rate])
@@ -106,14 +96,12 @@ inseconds(x::Unitful.Time, rate=nothing) = ustrip(uconvert(s,x))
 inseconds(x::FrameQuant) = error("Unknown sample rate")
 # assume we have a time buffer with sample rate in hz
 inseconds(x::FrameQuant, rate) = inframes(x,rate) / inHz(rate)
-inseconds(x::Real, rate) = x
-inseconds(x::Real) = x
+inseconds(x::Real, rate=nothing) = x
 
 # inseconds(::InfiniteLength) = infinite_length
 # inseconds(::InfiniteLength,fs) = infinite_length
 
-inseconds(::Missing) = missing
-inseconds(::Missing,r) = missing
+inseconds(::Missing,r=nothing) = missing
 
 # inseconds(x, rate::Quantity) = inseconds(x,inHz(rate))
 # inseconds(x::FrameQuant, rate::Real) = (ustrip(x) / rate)
