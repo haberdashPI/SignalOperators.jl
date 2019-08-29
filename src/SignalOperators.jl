@@ -1,5 +1,5 @@
 module SignalOperators
-using Requires, DSP, LambdaFn, Unitful
+using Requires, DSP, LambdaFn, Unitful, Compat
 
 # basic defintions
 include("signal.jl")
