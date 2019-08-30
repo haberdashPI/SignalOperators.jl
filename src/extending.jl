@@ -3,7 +3,6 @@ export append, prepend, pad
 ################################################################################
 # appending signals
 
-# TODO: work on this datatype
 struct IteratorSignal{T,L} <: AbstractSignal
     samples::T
     len::L

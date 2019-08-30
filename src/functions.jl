@@ -55,7 +55,6 @@ function signal(fn::Function,samplerate;
         Float64(inHz(samplerate)),0)
 end
 
-# TODO: handle missing sample rates more broadly for functions
 signal(x::typeof(randn),fs=missing) =
     SignalFunction(x,(rand(),),fs,0.0,Float64(inHz(fs)),0)
 function Base.iterate(x::SignalFunction{typeof(randn),Fs,El},i=0) where {Fs,El}

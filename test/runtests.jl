@@ -8,8 +8,6 @@ using WAV
 
 using SignalOperators: SignalTrait, IsSignal
 
-# TODO: last stopped, need to specify eltype for SignalFunction
-
 @testset "SignalOperators.jl" begin
 
     @testset "Unit Conversions" begin

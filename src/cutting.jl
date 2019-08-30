@@ -45,7 +45,6 @@ Base.Iterators.IteratorSize(::Type{<:DropApply{S}}) where S =
     Iterators.IsInfinite() :
     Iterators.HasLength()
 
-# TODO fix this, need to elikminate signal_length
 function Base.length(x::TakeApply)
     take = x.time
     if infsignal(x.signal)

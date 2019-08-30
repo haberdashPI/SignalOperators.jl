@@ -15,10 +15,6 @@ SignalTrait(x) = nothing
 abstract type AbstractSignal
 end
 
-# TODO: change of definitions
-# just use length(samples(x)) to define all three of these
-# (change all other definitions of these functions throughout)
-
 duration(x) = nsamples(x) / samplerate(x)
 nsamples(x) = length(samples(x))
 
