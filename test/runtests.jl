@@ -88,6 +88,15 @@ using SignalOperators: SignalTrait, IsSignal
         @test !infsignal(tone)
         @test nsamples(tone) == 44100*5
 
+        x = rand(6)
+        cutarray = signal(x,6Hz) |> after(0.25s) |> until(0.5s)
+        @test nsamples(cutarray) == 3
+        cutarray = signal(x,6Hz) |> until(0.5s) |> after(0.25s) 
+        @test nsamples(cutarray) == 1
+        cutarray = signal(x,6Hz) |> until(0.5s) |> until(0.25s) 
+        cutarray2 = signal(x,6Hz) |> until(0.25s) 
+        @test sink(cutarray) == sink(cutarray2)
+
         aftered = tone |> after(2s) 
         @test nsamples(aftered) == 44100*3
     end
