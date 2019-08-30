@@ -125,7 +125,6 @@ using SignalOperators: SignalTrait, IsSignal
     end
         
     @testset "Appending" begin
-        # TODO: append iterator type isn't yet work
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
         tones = a |> append(b)
