@@ -185,6 +185,13 @@ using SignalOperators: SignalTrait, IsSignal
         @test all(tone[1:10] .>= 10.0*(1:10))
         samples = signal(10.0.*(1:10),5Hz) |> until(1s) |> collect
         @test samples isa Array{Tuple{Float64}}
+        @test signal(10.0.*(1:10),5Hz) |> SignalOperators.signal_eltype == 
+            Tuple{Float64}
+
+        stereo = signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
+        @test stereo |> nchannels == 2
+        @test stereo |> sink |> size == (10,2)
+        
         # Numbers
         tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
         @test all(tone .>= 0.5)
