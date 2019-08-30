@@ -37,7 +37,7 @@ maybeseconds(n::Number) = n*s
 maybeseconds(n::Quantity) = n
 function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
     n = inframes(Int,maybeseconds(len),samplerate(x))
-    silence = signal(zero,x) |> until(nsamples(x) - n)
+    silence = signal(zero,y) |> until((nsamples(x) - n)*frames)
     y = y |> rampon(len,fun) |> prepend(silence)
     x |> rampoff(len,fun) |> mix(y)
 end

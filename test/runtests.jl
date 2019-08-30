@@ -171,11 +171,10 @@ using SignalOperators: SignalTrait, IsSignal
         @test mean(abs,ramped) < mean(abs,sink(tone))
         @test mean(ramped) < 1e-4
 
-        # TODO: get fadeto working
-        a = signal(sin,100Hz,ω=10Hz) |> until(5s)
-        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
-        fading = fadeto(a,b,100ms)
-        @test nsamples(fading) == (5*5-0.1)*100
+        x = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        y = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        fading = fadeto(x,y,100ms)
+        @test nsamples(fading) == (5+5-0.1)*100
     end
 
     @testset "Resmapling" begin

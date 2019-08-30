@@ -12,7 +12,9 @@ end
 append(y) = x -> append(x,y)
 prepend(x) = y -> append(x,y)
 function append(xs...)
-    xs = uniform(xs,channels=true)
+    xs = uniform(xs,channels=true) 
+    El = promote_type(channel_eltype.(xs)...)
+    xs = mapsignal.(x -> convert(El,x),xs)
     len = any(infsignal,xs) ? nothing : sum(nsamples,xs)
     IteratorSignal(Iterators.flatten(samples.(xs)), len, samplerate(xs[1]))
 end
