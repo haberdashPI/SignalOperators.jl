@@ -242,7 +242,8 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Handling of infinite signals" begin
-        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames) |> after(2frames)
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames) |> 
+            after(2frames)
         @test nsamples(tone) == 3
         @test size(sink(tone)) == (3,1)
 
