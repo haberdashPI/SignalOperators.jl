@@ -33,7 +33,7 @@ samplerate(x) = samplerate(x,SignalTrait(x))
 samplerate(x,s::IsSignal) = s.samplerate
 samplerate(x,::Nothing) = error("Value is not a signal: $x")
 
-checksamplerate(fs,_fs) = ismissing(fs) || _fs == fs
+checksamplerate(fs,_fs) = ismissing(fs) || _fs == inHz(fs)
 
 samples(x) = samples(x,SignalTrait(x))
 samples(x::AbstractSignal,::IsSignal) = x
@@ -54,6 +54,8 @@ signal(fs::Quantity) = x -> signal(x,fs)
 signal(x,fs) = signal(x,SignalTrait(x),fs)
 signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 function signal(x,::IsSignal,fs)
-    checksamplerate(fs,samplerate(x))
+    if !checksamplerate(fs,samplerate(x))
+        error("Signal expected to have sample rate of $fs Hz.")
+    end
     x
 end

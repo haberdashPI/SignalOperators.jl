@@ -31,11 +31,11 @@ function Base.Iterators.take(x::TimeSlices{N,1},n::Integer) where N
 end
 function Base.Iterators.drop(x::TimeSlices{N,1},n::Integer) where N
     view = @views(getcontents(x.data)[n+1:end,:])
-    TimeSlices{N,2}(MetaArray(SignalTrait(x.data),view))
+    TimeSlices{N,1}(MetaArray(SignalTrait(x.data),view))
 end
 function Base.Iterators.take(x::TimeSlices{N,2},n::Integer) where N
     view = @views(getcontents(x.data)[:,1:n])
-    TimeSlices{N,1}(MetaArray(SignalTrait(x.data),view))
+    TimeSlices{N,2}(MetaArray(SignalTrait(x.data),view))
 end
 function Base.Iterators.drop(x::TimeSlices{N,2},n::Integer) where N
     view = @views(getcontents(x.data)[:,n+1:end])
@@ -43,5 +43,5 @@ function Base.Iterators.drop(x::TimeSlices{N,2},n::Integer) where N
 end
 Base.eltype(::Type{<:TimeSlices{N,D,A}}) where {N,D,A} = NTuple{N,eltype(A)}
 Base.Iterators.IteratorSize(::Type{<:TimeSlices}) = Iterators.HasLength()
-Base.length(x::TimeSlices) = length(x.data)
+Base.length(x::TimeSlices{<:Any,D}) where D = size(x.data,D)
 Base.Iterators.IteratorEltype(::Type{<:TimeSlices}) = Iterators.HasEltype()

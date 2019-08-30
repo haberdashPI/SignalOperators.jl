@@ -1,8 +1,7 @@
 using Statistics
-using WAV
 
-zero_helper(sig) = zero_helper(eltype(sig),length(sig))
-zero_helper(x::Type{<:NTuple{M,T}},N) where {M,T} = zeros(T,N,M)
+similar_helper(sig) = similar_helper(eltype(sig),length(sig))
+similar_helper(x::Type{<:NTuple{M,T}},N) where {M,T} = Array{T}(undef,N,M)
 
 
 """
@@ -27,7 +26,7 @@ function sink(x,s::IsSignal)
 end
 sink(x, ::Nothing) = error("Don't know how to interpret value as an array: $x")
 function sink(xs,::IsSignal,smp,::Iterators.HasLength)
-    result = zero_helper(smp)
+    result = similar_helper(smp)
     samples_to_result!(result,smp)
 end
 function samples_to_result!(result,smp)

@@ -17,10 +17,12 @@ using SignalOperators: SignalTrait, IsSignal
         @test SignalOperators.inframes(Int,0.5s,44.1kHz) == 22050
         @test SignalOperators.inframes(Int,5frames) == 5
         @test SignalOperators.inframes(Int,5) == 5
+        @test SignalOperators.inframes(5) == 5
         @test SignalOperators.inframes(1.0s,44.1kHz) isa Float64
         @test ismissing(SignalOperators.inframes(missing))
         @test ismissing(SignalOperators.inframes(Int,missing))
         @test ismissing(SignalOperators.inframes(Int,missing,5))
+        @test ismissing(SignalOperators.inframes(missing,5))
 
         @test_throws ErrorException SignalOperators.inframes(10s)
 
@@ -106,6 +108,20 @@ using SignalOperators: SignalTrait, IsSignal
             until(7s) |> sink
         @test mean(abs.(tone[1:500])) > 0
         @test mean(abs.(tone[501:700])) == 0
+
+        tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        tone2 = addchannel(tone,tone) |> pad(zero) |> until(7s) |> sink
+        @test mean(abs.(tone2[1:500,:])) > 0
+        @test mean(abs.(tone2[501:700,:])) == 0
+
+        tone3 = addchannel(tone,tone,tone) |> pad(zero) |> until(7s) |> sink
+        @test mean(abs.(tone3[1:500,:])) > 0
+        @test mean(abs.(tone3[501:700,:])) == 0
+
+        tone = signal(sin,100Hz,ω=10Hz) |> until(5s) |> pad(0) |> 
+            until(7s) |> sink
+        @test mean(abs.(tone[1:500])) > 0
+        @test mean(abs.(tone[501:700])) == 0
     end
         
     @testset "Appending" begin
@@ -158,7 +174,11 @@ using SignalOperators: SignalTrait, IsSignal
         @test mean(abs,ramped) < mean(abs,sink(tone))
         @test mean(ramped) < 1e-4
 
-        # TODO: test fadeto
+        # TODO: get fadeto working
+        a = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        fading = fadeto(a,b,100ms)
+        @test nsamples(fading) == (5*5-0.1)*100
     end
 
     @testset "Resmapling" begin
@@ -175,6 +195,8 @@ using SignalOperators: SignalTrait, IsSignal
         @test size(data,2) == 2
         data2 = signal(data,100Hz) |> tochannels(1) |> sink
         @test size(data2,2) == 1
+
+        @test_throws ErrorException tone |> tochannels(2) |> tochannels(3)
     end
 
     @testset "Automatic reformatting" begin
@@ -188,7 +210,7 @@ using SignalOperators: SignalTrait, IsSignal
         @test size(more |> sink,1) == 1000
     end
 
-    @testset "Handling of non-sigals" begin
+    @testset "Handling of arrays" begin
         # AbstractArrays
         tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
         @test all(tone[1:10] .>= 10.0*(1:10))
@@ -196,15 +218,61 @@ using SignalOperators: SignalTrait, IsSignal
         @test samples isa Array{Tuple{Float64}}
         @test signal(10.0.*(1:10),5Hz) |> SignalOperators.signal_eltype == 
             Tuple{Float64}
+    end
 
+    @testset "Operating over empty signals" begin
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> until(0frames)
+        @test nsamples(tone) == 0
+        @test mapsignal(-,tone) |> nsamples == 0
+    end
+
+    @testset "Handling of arrays" begin
         stereo = signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
         @test stereo |> nchannels == 2
         @test stereo |> sink |> size == (10,2)
+        @test stereo |> SignalOperators.samples |> collect |> size == (10,)
+        @test stereo |> until(5frames) |> collect |> size == (5,)
+        @test stereo |> after(5frames) |> collect |> size == (5,)
         
         # Numbers
         tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
         @test all(tone .>= 0.5)
         samples = signal(1,5Hz) |> until(5s) |> collect
         @test samples isa Array{Tuple{Int}}
+    end
+
+    @testset "Handling of infinite signals" begin
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames) |> after(2frames)
+        @test nsamples(tone) == 3
+        @test size(sink(tone)) == (3,1)
+
+        tone = signal(sin,200Hz,ω=10Hz) |> after(5frames) |> until(5frames)
+        @test nsamples(tone) == 5
+        @test size(sink(tone)) == (5,1)
+        @test sink(tone)[1] > 0.9
+
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames)
+        @test nsamples(tone) == 5
+        @test size(sink(tone)) == (5,1)
+        @test sink(tone)[1] > 0.9
+
+        @test_throws ErrorException signal(sin,200Hz) |> sink
+        @test_throws ErrorException signal(zero,10)
+        @test_throws ErrorException signal(one,10)
+    end
+
+    @testset "Non-signal errors" begin
+        # TODO: at some point some of these will be legal once we can combine
+        # samplerate information across signals (allowing for a missing sample
+        # rate)
+        @test_throws ErrorException infsignal(5) 
+        @test_throws ErrorException samplerate(5) 
+        @test_throws ErrorException nsamples(5) 
+        @test_throws ErrorException 10 |> sink
+        @test_throws ErrorException signal(signal(sin,200Hz),100Hz)
+        @test_throws ErrorException lowpass(5,10Hz)
+        @test_throws ErrorException tosamplerate(5,10Hz)
+        @test_throws ErrorException tochannels(5,2)
+        @test samplerate(signal(signal(sin,200Hz),200Hz)) == 200
     end
 end

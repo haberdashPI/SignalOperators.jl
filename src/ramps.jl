@@ -33,8 +33,10 @@ end
 
 fadeto(y,fun::Function) = fadeto(y,10ms,fun)
 fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
+maybeseconds(n::Number) = n*s
+maybeseconds(n::Quantity) = n
 function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
-    n = inframes(Int,len,samplerate(x))
+    n = inframes(Int,maybeseconds(len),samplerate(x))
     silence = signal(zero,x) |> until(nsamples(x) - n)
     y = y |> rampon(len,fun) |> prepend(silence)
     x |> rampoff(len,fun) |> mix(y)

@@ -83,7 +83,9 @@ amplify(x) = y -> amplify(x,y)
 amplify(xs...) = mapsignal(*,xs...)
 
 addchannel(y) = x -> addchannel(x,y)
-addchannel(xs...) = mapsignal(tuple,xs...;across_channels=true)
+addchannel(xs...) = mapsignal(tuplecat,xs...;across_channels=true)
+tuplecat(a,b) = (a...,b...)
+tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
 
 channel(n) = x -> channel(x,n)
 channel(x,n) = mapsignal(@λ(_[1]), x,across_channels=true)

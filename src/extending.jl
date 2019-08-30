@@ -11,7 +11,7 @@ struct IteratorSignal{T,L} <: AbstractSignal
 end
 
 append(y) = x -> append(x,y)
-prepend(x) = y -> prepend(x,y)
+prepend(x) = y -> append(x,y)
 function append(xs...)
     xs = uniform(xs,channels=true)
     len = any(infsignal,xs) ? nothing : sum(nsamples,xs)

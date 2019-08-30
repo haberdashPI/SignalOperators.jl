@@ -41,7 +41,7 @@ function tochannels(x,::IsSignal,ch)
     elseif nchannels(x) == 1
         mapsignal(x -> tuple((x[1] for _ in 1:ch)...),x,across_channels=true)
     else
-        error("No rule to convert signal with $(size(data,2)) channels to",
+        error("No rule to convert signal with $(nchannels(x)) channels to",
             " a signal with $ch channels.")
     end
 end

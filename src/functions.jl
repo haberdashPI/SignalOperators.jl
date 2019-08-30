@@ -39,8 +39,8 @@ function Base.iterate(x::SignalFunction{<:Any,Missing},i=x.offset)
         astuple(x.fn(t + x.ϕ)), i+1
     end
 end
-function Base.Iterators.drop(x::SignalFunction,n)
-    SignalFunction(x.fn,x.first,x.ω,x.ϕ,x.samplerate,x.n+n)
+function Base.Iterators.drop(x::SignalFunction,n::Int)
+    SignalFunction(x.fn,x.first,x.ω,x.ϕ,x.samplerate,x.offset+n)
 end
 
 Base.Iterators.IteratorEltype(::Type{<:SignalFunction}) = Iterators.HasEltype()
