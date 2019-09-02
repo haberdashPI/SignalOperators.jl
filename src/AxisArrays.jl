@@ -1,4 +1,3 @@
-using AxisArrays
 
 # signals can be an AxisArray
 function SignalTrait(x::AxisArray)

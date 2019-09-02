@@ -5,6 +5,7 @@ using LambdaFn
 using Test
 using Statistics
 using WAV
+using AxisArrays
 
 using SignalOperators: SignalTrait, IsSignal
 
@@ -215,6 +216,13 @@ using SignalOperators: SignalTrait, IsSignal
         @test signal(10.0.*(1:10),5Hz) |> SignalOperators.signal_eltype == 
             Tuple{Float64}
     end
+
+    @tewstset "Axis Arrays" begin
+        x = AxisArray(1:10,Axis{:time}(range(0s,1s,length=10)))
+        proc = signal(x) |> ramp(x) |> sink
+
+    end
+
 
     @testset "Operating over empty signals" begin
         tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> until(0frames)
