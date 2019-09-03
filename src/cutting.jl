@@ -43,7 +43,7 @@ Base.iterate(x::ItrApply,(smp,state)) = wrapresult(smp, iterate(smp,state))
 const TakeApply{S,T} = ItrApply{S,T,typeof(Iterators.take)}
 until(time) = x -> until(x,time)
 function until(x,time)
-    ItrApply(x,time,Iterators.take)
+    ItrApply(signal(x),time,Iterators.take)
 end
 
 drop_(x,n) = Iterators.drop(x,n)
@@ -53,7 +53,7 @@ drop_(x::DropApply,n) = drop_(childsignal(x),x.time+n)
 drop_(x::TakeApply,n) = Iterators.take(drop_(childsignal(x),n),x.time - n)
 after(time) = x -> after(x,time)
 function after(x,time)
-    ItrApply(x,time,drop_)
+    ItrApply(signal(x),time,drop_)
 end
 Base.Iterators.IteratorSize(::Type{<:DropApply{S}}) where S = 
     Iterators.IteratorSize(S) isa Iterators.IsInfinite ? 

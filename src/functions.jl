@@ -44,7 +44,7 @@ end
 function Base.Iterators.drop(x::SignalFunction,n::Int)
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,x.samplerate,x.offset+n)
 end
-tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs=missing) = 
+tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs) = 
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(fs,x.fs),x.offset)
 
 function signal(fn::Function,samplerate=missing;

@@ -18,11 +18,16 @@ bandstop(x,low,high;order=5,method=Butterworth(order)) =
 
 filtersignal(x,filter,method) = filtersignal(x,SignalTrait(x),filter,method)
 function filtersignal(x,::Nothing,args...)
-    error("Value is not a signal $x.")
+    filtersignal(signal(x),args...)
 end
 
 # TODO: allow the filter to be applied iteratively to allow application of
 # filter to infinite signal
+
+# TODO: before we do that... define a very simple WrappedSignal object, instead
+# of just sinking to data: this way we can allow missing samplerates to pass
+# through filter operations
+
 filtersignal(x,s::IsSignal,f,m) = filtersignal(x,s,digitalfilter(f,m))
 function filtersignal(x,s::IsSignal,h)
     data = sink(x)

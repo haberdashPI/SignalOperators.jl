@@ -4,18 +4,32 @@ export mapsignal, mix, amplify, addchannel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,El,L,S,A} <: AbstractSignal
+struct SignalOp{Fn,Fs,El,L,S,A,Args,Pd} <: AbstractSignal
     fn::Fn
     val::El
     len::L
     state::S
     samples::A
-    samplerate::Float64
+    samplerate::Fs
+    args::Args
+    padding::Pd
 end
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:SignalOp{<:Any,El}}) where El = IsSignal{El}(x.samplerate)
+SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} = IsSignal{El,Fs,L}()
+nsamples(x::SignalOp) = x.len
+nchannels(x::SignalOp) = length(x.state)
+samplerate(x::SignalOp) = x.samplerate
+function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs)
+    if ismissing(x.samplerate) || ismissing(fs) || fs < x.samplerate
+        # resample input if we are downsampling 
+        mapsignal(x.fn,tosamplerate.(x.args,fs)...,padding=x.padding)
+    else
+        # resample output if we are upsampling
+        tosamplerate(x,s,DataSignal(),fs)
+    end
+end
 
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     xs = uniform(xs)   
@@ -42,11 +56,11 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
             fnbr(vals...) = fn.(vals...)
             vals = map(@λ(_[1]),results)
             y = astuple(fnbr(vals...))
-            SignalOp(fnbr,y,len,(true,map(@λ(_[2]),results)),sm,fs)
+            SignalOp(fnbr,y,len,(true,map(@λ(_[2]),results)),sm,xs,fs)
         else
             vals = map(@λ(_[1]),results)
             y = astuple(fn(vals...))
-            SignalOp(fn,y,len,(true,map(@λ(_[2]),results)),sm,fs)
+            SignalOp(fn,y,len,(true,map(@λ(_[2]),results)),sm,xs,fs,padding)
         end
     end
 end

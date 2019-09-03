@@ -53,26 +53,13 @@ function format(x,fs,ch)
     end
 end
 
-any_samplerate(x) = any_samplerate(x,SignalTrait(x))
-any_samplerate(x,s::IsSignal) = s.samplerate
-any_samplerate(x,::Nothing) = 0.0
-
-any_nchannels(x,fs) = any_nchannels(x,SignalTrait(x),fs)
-any_nchannels(x,s::IsSignal,fs) = nchannels(x)
-any_nchannels(x,::Nothing,fs) = any_nchannels(signal(x,fs),fs)
-
-maybe_format(x,fs,ch=any_nchannels(x,fs)) = maybe_format(x,SignalTrait(x),fs,ch)
-maybe_format(x,::Nothing,fs,ch) = maybe_format(signal(x,fs),fs,ch)
-function maybe_format(x,s::IsSignal,fs,ch) 
-    format(x,fs,ch)
-end
-
 function uniform(xs;channels=false)
-    samplerate = maximum(any_samplerate.(xs))
+    xs = signal.(xs)
+    samplerate = maximum(skipmissing(samplerate.(xs)))
     if !channels
-        maybe_format.(xs,samplerate)
+        format.(xs,samplerate)
     else
-        ch = maximum(any_nchannels.(xs,samplerate))
-        maybe_format.(xs,samplerate,ch)
+        ch = maximum(skipmissing(nchannels.(xs)))
+        format.(xs,samplerate,ch)
     end
 end

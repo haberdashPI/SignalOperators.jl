@@ -47,7 +47,10 @@ tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs) =
     PaddedSignal(tosamplerate(x.x,fs),x.pad)
 
 pad(p) = x -> pad(x,p)
-pad(x,p) = infsignal(x) ? x : PaddedSignal(x,p)
+function pad(x,p) 
+    x = signal(x)
+    infsignal(x) ? x : PaddedSignal(x,p)
+end
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
 usepad(x::PaddedSignal,s::IsSignal{<:NTuple{1,<:Any}}) = (usepad(x,s,x.pad),)
