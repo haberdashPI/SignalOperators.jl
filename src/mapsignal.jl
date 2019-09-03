@@ -15,7 +15,7 @@ end
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::SignalOp{<:Any,El}) where El = IsSignal{El}(x.samplerate)
+SignalTrait(x::Type{<:SignalOp{<:Any,El}}) where El = IsSignal{El}(x.samplerate)
 
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     xs = uniform(xs)   
@@ -50,6 +50,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
         end
     end
 end
+
 Base.iterate(x::SignalOp{<:Any,NoValues}) = nothing
 function Base.iterate(x::SignalOp,(use_val,states) = x.state)
     if use_val
@@ -64,11 +65,6 @@ function Base.iterate(x::SignalOp,(use_val,states) = x.state)
         end
     end
 end
-Base.Iterators.IteratorEltype(::Type{<:SignalOp}) = Iterators.HasEltype()
-Base.eltype(::Type{<:SignalOp{<:Any,El}}) where El = El
-Base.Iterators.IteratorSize(::Type{<:SignalOp{<:Any,<:Any,Nothing}}) = Iterators.IsInfinite()
-Base.Iterators.IteratorSize(::Type{<:SignalOp{<:Any,<:Any,Int}}) = Iterators.HasLength()
-Base.length(x::SignalOp) = x.len
 
 default_pad(x) = zero
 default_pad(::typeof(+)) = zero

@@ -14,8 +14,28 @@ end
 using .Units
 using .Units: FrameQuant
 
+"""
+    inradians([Type],x)
+
+Given an angle value, convert to a value of Type (defaults to Float64) in
+radians. Unitless numbers are assumed to be in radians and are silently
+passed through.
+
+## Examples
+julia> inradians(180°) 
+3.141592653589793
+
+julia> inradians(2π)
+6.283185307179586
+
+julia> inradians(0.5π*rad)
+1.5707963267948966
+
+"""
 inradians(x::Number) = x
 inradians(x::Quantity) = ustrip(uconvert(rad, x))
+inradians(::Type{T},x::Number) where T <: Integer = trunc(T,x)
+inradians(::Type{T},x::Number) where T = convert(T,x)
 
 """
     inframes([Type,]quantity[, rate])
@@ -33,27 +53,20 @@ julia> inframes(0.5s, 44100Hz)
 22050.0
 
 """
-inframes(::Type{T},frame::FrameQuant, rate=nothing) where T = ustrip(uconvert(frames, frame))
-inframes(frame::FrameQuant, rate=nothing) = ustrip(uconvert(frames, frame))
-inframes(::Type{T}, time::Unitful.Time, rate) where T <: Integer =
-    round(T, inseconds(time)*inHz(rate))
-inframes(time::Unitful.Time, rate) = inseconds(time)*inHz(rate)
-inframes(frame::Quantity) = error("Unknown sample rate")
-inframes(::Type{T}, frame::Real) where T = T(frame)
-inframes(frame::Real) = frame
+inframes(frame::FrameQuant, rate=missing) = ustrip(uconvert(frames, frame))
+inframes(time::Quantity, rate=missing) = inseconds(time)*inHz_(rate)
+inframes(frame::Number, rate=missing) = frame
+inframes(::Type{T}, frame::Number, rate=missing) where T <: Integer =
+    trunc(T,frame)
+inframes(::Type{T}, frame::Number, rate=missing) = convert(T,frame)
+inframes(::Missing,fs=missing) = missing
+inframes(::Type,::Missing,fs=missing) = missing
 
-# inframes(::InfiniteLength) = infinite_length
-# inframes(::Type, ::InfiniteLength) = infinite_length
-# inframes(::InfiniteLength,fs) = infinite_length
-# inframes(::Type, ::InfiniteLength,fs) = infinite_length
-
-inframes(::Missing) = missing
-inframes(::Type,::Missing) = missing
-inframes(::Type,::Missing,fs) = missing
-inframes(::Missing,fs) = missing
+inHz_(::Missing) = error("Unspecified samplerate")
+inHz_(x::Number) = inHz(x)
 
 """
-    inHz(quantity[, rate])
+    inHz(quantity)
 
 Translate a particular quantity (usually a frequency) to a (unitless) value in
 Hz.
@@ -61,17 +74,18 @@ Hz.
 If the given quantity is Unitful, we use the given units. If it is not we assume
 it is already a value in Hz.
 
-For some units (e.g. frames) you will need to specify a sample rate:
-
-# Example
+## Examples
 
 julia> inHz(1.0kHz)
 1000.0
 
 """
-inHz(x::Unitful.Frequency) = ustrip(uconvert(Hz, x))
-inHz(x::Real) = x
+inHz(x::Quantity) = ustrip(uconvert(Hz, x))
+inHz(x::Number) = x
 inHz(::Missing) = missing
+inHz(::Type{T},x) where T <: Integer = trunc(T,inHz(x))
+inHz(::Type{T},x) where T = convert(T,inHz(x))
+inHz(::Type,x::Missing) = missing
 
 """
    inseconds(quantity[, rate])
@@ -84,7 +98,7 @@ it is already a value in seconds.
 
 For some units (e.g. frames) you will need to specify a sample rate:
 
-# Examples
+## Examples
 julia> inseconds(50.0ms)
 0.05
 
@@ -92,17 +106,7 @@ julia> inseconds(441frames, 44100Hz)
 0.01
 
 """
-inseconds(x::Unitful.Time, rate=nothing) = ustrip(uconvert(s,x))
-inseconds(x::FrameQuant) = error("Unknown sample rate")
-# assume we have a time buffer with sample rate in hz
-inseconds(x::FrameQuant, rate) = inframes(x,rate) / inHz(rate)
-inseconds(x::Real, rate=nothing) = x
-
-# inseconds(::InfiniteLength) = infinite_length
-# inseconds(::InfiniteLength,fs) = infinite_length
-
-inseconds(::Missing,r=nothing) = missing
-
-# inseconds(x, rate::Quantity) = inseconds(x,inHz(rate))
-# inseconds(x::FrameQuant, rate::Real) = (ustrip(x) / rate)
-# inseconds(x::Quantity, rate::Real) = ustrip(uconvert(s,x))
+inseconds(x::Quantity, rate=missing) = ustrip(uconvert(s,x))
+inseconds(x::FrameQuant, rate=missing) = inframes(x,rate) / inHz_(rate)
+inseconds(x::Number, rate=missing) = x
+inseconds(::Missing,r=missing) = missing

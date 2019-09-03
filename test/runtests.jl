@@ -213,8 +213,8 @@ using SignalOperators: SignalTrait, IsSignal
         @test all(tone[1:10] .>= 10.0*(1:10))
         samples = signal(10.0.*(1:10),5Hz) |> until(1s) |> collect
         @test samples isa Array{Tuple{Float64}}
-        @test signal(10.0.*(1:10),5Hz) |> SignalOperators.signal_eltype == 
-            Tuple{Float64}
+        @test signal(10.0.*(1:10),5Hz) |> SignalOperators.channel_eltype == 
+            Float64
     end
 
     @testset "Axis Arrays" begin

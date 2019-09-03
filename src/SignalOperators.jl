@@ -4,14 +4,14 @@ using Requires, DSP, LambdaFn, Unitful, Compat
 # basic defintions
 include("signal.jl")
 
+# handy internal utilities
+include("util.jl")
+
 # types of signals
 include("numbers.jl")
 include("arrays.jl")
 include("functions.jl")
 include("files.jl")
-
-# handy internal utilities
-include("util.jl")
 
 # handling of units
 include("units.jl")

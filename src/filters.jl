@@ -35,5 +35,5 @@ end
 function normpower(x)
     fs = samplerate(x)
     x = sink(x)
-    x ./ sqrt.(mean(x.^2,dims=1)) |> signal(fs*Hz)
+    x ./ sqrt.(mean(x.^2,dims=1)) |> signal(fs)
 end

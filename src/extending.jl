@@ -3,42 +3,51 @@ export append, prepend, pad
 ################################################################################
 # appending signals
 
-struct IteratorSignal{T,L} <: AbstractSignal
-    samples::T
+struct AppendSignals{Si,Rst,T,L} <: WrappedSignal{Si,T}
+    first::Si
+    rest::Rst
     len::L
-    samplerate::Float64
 end
+SignalTrait(x::Type{T}) where T <: AppendSignals =
+    SignalTrait(x,SignalTrait(T))
+function SignalTrait(x::Type{<:AppendSignals{Si,Rst,T,L}},
+        ::IsSignal{T,Fs}) where {Si,Rst,T,L,Fs}
+    SignalTrait{T,Fs,L}()
+end
+childsignal(x::AppendSignals) = x.xs[1]
+nsamples(x::AppendSignals,::IsSignal) = x.len
 
 append(y) = x -> append(x,y)
 prepend(x) = y -> append(x,y)
 function append(xs...)
+    if any(infsignal,xs[1:end-1])
+        error("Cannot append to the end of an infinite signal")
+    end
     xs = uniform(xs,channels=true) 
     El = promote_type(channel_eltype.(xs)...)
     xs = mapsignal.(x -> convert(El,x),xs)
-    len = any(infsignal,xs) ? nothing : sum(nsamples,xs)
-    IteratorSignal(Iterators.flatten(samples.(xs)), len, samplerate(xs[1]))
+    len = infsignal(xs[end]) ? nothing : sum(nsamples,xs)
+    AppendSignals(xs[1], xs[2:end], len, samplerate(xs))
 end
-SignalTrait(x::IteratorSignal{T}) where T = IsSignal{eltype(T)}(x.samplerate)
-Base.eltype(::Type{<:IteratorSignal{T}}) where T = eltype(T)
-Base.Iterators.IteratorSize(::Type{<:IteratorSignal{T,Nothing}}) where T = 
-   Iterators.IsInfinite()
-Base.Iterators.IteratorSize(::Type{<:IteratorSignal{T,Int}}) where T = 
-   Iterators.HasLength()
-Base.length(x::IteratorSignal) = x.len
-Base.Iterators.IteratorEltype(::Type{<:IteratorSignal{T}}) where T = 
-    Iterators.IteratorEltype(T)
-Base.iterate(itr::IteratorSignal) = iterate(itr.samples)
-Base.iterate(itr::IteratorSignal,state) = iterate(itr.samples, state)
+samples(x::AppendSignals,::IsSignal) = Iterators.flatten((x.first,x.rest...))
+tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
+    append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
 
 ################################################################################
 # padding
-struct PaddedSignal{S,T} <: WrappedSignal{S}
+struct PaddedSignal{S,T} <: WrappedSignal{S,T}
     x::S
     pad::T
 end
+SignalTrait(x::Type{T}) where T <: PaddedSignal = SignalTrait(x,SignalTrait(T))
+SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs,L}) =
+    SignalTrait{T,Fs,Nothing}()
+nsamples(x::PaddedSignal) = nothing
+tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs) =
+    PaddedSignal(tosamplerate(x.x,fs),x.pad)
+
 pad(p) = x -> pad(x,p)
 pad(x,p) = infsignal(x) ? x : PaddedSignal(x,p)
-Base.Iterators.IteratorSize(::Type{<:PaddedSignal}) = Iterators.IsInfinite()
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
 usepad(x::PaddedSignal,s::IsSignal{<:NTuple{1,<:Any}}) = (usepad(x,s,x.pad),)

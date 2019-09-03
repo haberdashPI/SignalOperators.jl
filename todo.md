@@ -3,8 +3,12 @@
 - allow for missing sample rates, which can be resolved during
 a signal operator, or during the call to `sink` (not technically breaking
 but makes a big difference in terms of API flexibility, so should be done soon)
+- once missing sample rates work, allow for non-signal objects in more cases (and implicity assume a missing samplerate)
 
 # More tests (before registration)
+- test with frame units 
+- verify exact cutting of stimuli by frames
+- test with fixed point numbers
 - make more thorough tests of various combinations of signals: resampling
 in multiple places, changing length in multiple places, different channel
 counts, etc... just to exercise the various combinations that will

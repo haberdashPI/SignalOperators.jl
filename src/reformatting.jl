@@ -2,12 +2,11 @@ using DSP: FIRFilter, resample_filter
 export tosamplerate, tochannels, format, uniform
 
 tosamplerate(fs) = x -> tosamplerate(x,fs)
-tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),fs)
-tosamplerate(x,::Nothing,fs) = 
-    error("Don't know how to set sample rate of non signal: $x")
+tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),EvalTrait(x),fs)
+tosamplerate(x,::Nothing,ev,fs) = nosignal(x)
 
-function tosamplerate(x,s::IsSignal{N},fs) where N
-    # copieded and modified from DSP's `resample`
+function tosamplerate(x,s::IsSignal{T},::DataSignal,fs) where T
+    # copied and modified from DSP's `resample`
     ratio = rationalize(inHz(fs)/samplerate(x))
     if ratio == 1
         x
@@ -25,7 +24,7 @@ function tosamplerate(x,s::IsSignal{N},fs) where N
             x
         end
 
-        filtersignal(x,IsSignal{N}(inHz(fs)),self)
+        filtersignal(x,IsSignal{T}(inHz(fs)),self)
     end
 end
 
