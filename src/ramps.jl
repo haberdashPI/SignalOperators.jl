@@ -2,8 +2,6 @@
 export rampon, rampoff, ramp, fadeto
 
 function rampon_fn(x,len,fun)
-    @show x
-    @show typeof(x)
     time = inseconds(len,samplerate(x))
     x -> x ≤ time ? fun(x/time) : 1.0
 end

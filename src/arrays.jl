@@ -4,24 +4,39 @@ using AxisArrays
 # signals can be arrays with some metadata
 const ArraySignal{El} = MetaArray{<:AxisArray,<:IsSignal{El}} where El
 function signal(x::AbstractArray,fs) 
-    if !(1 ≤ ndims(x) ≤ 2)
+    times = range(0s,length=size(x,1),step=s/inHz(fs))
+    if ndims(x) == 1
+        ax = AxisArray(x,Axis{:time}(times))
+    elseif ndims(x) == 2
+        channels = 1:size(x,2)
+        ax = AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
+    else
         error("To treat an array as a signal it must have 1 or 2 dimensions")
     end
-    times = range(0s,length=size(x,1),step=s/inHz(fs))
-    channels = 1:size(x,2)
-    ax = AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
+
     MetaArray(IsSignal{NTuple{size(x,2),eltype(x)}}(inHz(fs)),ax)
 end
 function signal(x::AxisArray,fs=missing)
-    if !(1 ≤ ndims(x) ≤ 2)
-        error("Expected AxisArray to have one or two dimensions")
-    end
     times = axisvalues(AxisArrays.axes(x,Axis{:time}))[1]
     !checksamplerate(inHz(fs),inHz(1/step(times)))
     fs = inHz(1/step(times))
-
     time ∈ axisnames(x)
-    chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
+
+    if ndims(x) == 1
+        chdim = 2
+        ax = AxisArray(x,Axis{:time}(times))
+    elseif ndims(x) == 2
+        chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
+        channels = 1:size(x,chdim)
+        if chdim == 1
+            ax = AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
+        else
+            ax = AxisArray(x,Axis{:channel}(channels),Axis{:time}(times))
+        end
+    else
+        error("To treat an array as a signal it must have 1 or 2 dimensions")
+    end
+
     MetaArray(IsSignal{NTuple{size(x,chdim),eltype(x)}}(fs),x)
 end
 signal(x::ArraySignal) = x
@@ -35,9 +50,9 @@ TimeSlices{N}(x::A) where{N,A} = TimeSlices{N,1,A}(x)
 TimeSlices{N,D}(x::A) where{N,D,A} = TimeSlices{N,D,A}(x)
 function samples(x::ArraySignal,::IsSignal) 
     if axisdim(x,Axis{:time}) == 1
-        TimeSlices{size(x,1)}(x,samplerate(x))
+        TimeSlices{size(x,2)}(x)
     else
-        TimeSlices{size(x,1),2}(x,samplerate(x))
+        TimeSlices{size(x,1),2}(x)
     end
 end
 

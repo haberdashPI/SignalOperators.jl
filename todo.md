@@ -1,5 +1,5 @@
 # Breaking
-- use AxisArrays (not MetaArray) for better signal array representation
++ use AxisArrays (not MetaArray) for better signal array representation
 - allow for missing sample rates, which can be resolved during
 a signal operator, or during the call to `sink` (not technically breaking
 but makes a big difference in terms of API flexibility, so should be done soon)

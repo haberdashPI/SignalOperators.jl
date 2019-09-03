@@ -33,6 +33,7 @@ end
 
 # TODO: allow this to be applied iteratively for application to infinite signal
 function normpower(x)
+    fs = samplerate(x)
     x = sink(x)
-    x ./ sqrt.(mean(x.^2,dims=1))
+    x ./ sqrt.(mean(x.^2,dims=1)) |> signal(fs*Hz)
 end

@@ -217,10 +217,9 @@ using SignalOperators: SignalTrait, IsSignal
             Tuple{Float64}
     end
 
-    @tewstset "Axis Arrays" begin
-        x = AxisArray(1:10,Axis{:time}(range(0s,1s,length=10)))
-        proc = signal(x) |> ramp(x) |> sink
-
+    @testset "Axis Arrays" begin
+        x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
+        proc = signal(x) |> ramp |> sink
     end
 
 

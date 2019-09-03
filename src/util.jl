@@ -19,12 +19,12 @@ sends the given signal to the sink. (e.g. `mysignal |> sink("result.wav")`)
 """
 sink(x) = sink(x,SignalTrait(x))
 
-function sink(x,s::IsSignal{El}) where El
+function sink(x,sig::IsSignal{El}) where El
     smp = samples(x)
-    times = Axis{:time}(range(0s,length=nsamples(x),step=s/samplerate(x)))
+    result = sink(x,sig,smp,Iterators.IteratorSize(x))
+    times = Axis{:time}(range(0s,length=size(result,1),step=s/samplerate(x)))
     channels = Axis{:channel}(1:nchannels(x))
-    result = sink(x,s,smp,Iterators.IteratorSize(x))
-    MetaArray(IsSignal{El}(samplerate(x)),result)
+    MetaArray(IsSignal{El}(samplerate(x)),AxisArray(result,times,channels))
 end
 sink(x, ::Nothing) = error("Don't know how to interpret value as an array: $x")
 function sink(xs,::IsSignal,smp,::Iterators.HasLength)
