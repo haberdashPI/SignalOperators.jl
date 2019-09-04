@@ -81,3 +81,58 @@ end
 function tosamplerate(x::ItrApply,s::IsSignal,c::ComputedSignal,fs)
     tosamplerate(childsignal(x),s,c,fs)
 end
+
+@Base.propagate_inbounds function signal_setindex!(result,x::ItrApply,i)
+    signal_setindex!(result,childsignal(x),i)
+end
+group_length(x) = length(x)
+signal_indices(x::ItrApply,range::Range) =
+    signal_indices(childsignal(x),x.fn(range,resolvelen(x)))
+signal_indices(x::ItrApply,groups) =
+    signal_indices(childsignal(x),limited_partition(x.fn,groups,resolvelen(x)))
+function limited_partition(::typeof(Iterators.drop),groups,limit)
+    groups = Array{eltype(groups)}(undef,0)
+    n, result = reduce(groups,init=(0,groups)) do ((n,groups),group)
+        if n < limit
+            new_n = max(limit,n+group_length(group))
+        else
+            new_n = limit
+        end
+        if new_n == limit
+            k = limit - n
+            if k > 0
+                new_groups = vcat(groups,Iterators.drop(group,k))
+            else
+                new_groups = vcat(groups,group)
+            end
+        else
+            new_groups = groups
+        end
+        (new_n,new_groups)
+    end
+
+    result
+end
+function limited_partition(::typeof(Iterators.take),groups,limit)
+    groups = Array{eltype(groups)}(undef,0)
+    n, result = reduce(groups,init=(0,groups)) do ((n,groups),group)
+        if n < limit
+            new_n = max(limit,n+group_length(group))
+        else
+            new_n = limit
+        end
+        if new_n == limit
+            k = limit - n
+            if k > 0
+                new_groups = vcat(groups,Iterators.take(group,k))
+            else
+                new_groups = groups
+            end
+        else
+            new_groups = vcat(groups,group)
+        end
+        (new_n,new_groups)
+    end
+
+    result
+end

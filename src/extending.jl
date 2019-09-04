@@ -3,9 +3,9 @@ export append, prepend, pad
 ################################################################################
 # appending signals
 
-struct AppendSignals{Si,Rst,T,L} <: WrappedSignal{Si,T}
+struct AppendSignals{Si,All,T,L} <: WrappedSignal{Si,T}
     first::Si
-    rest::Rst
+    all::All
     len::L
 end
 SignalTrait(x::Type{T}) where T <: AppendSignals =
@@ -27,9 +27,18 @@ function append(xs...)
     El = promote_type(channel_eltype.(xs)...)
     xs = mapsignal.(x -> convert(El,x),xs)
     len = infsignal(xs[end]) ? nothing : sum(nsamples,xs)
-    AppendSignals(xs[1], xs[2:end], len, samplerate(xs))
+    AppendSignals(xs[1], xs, len, samplerate(xs))
 end
-samples(x::AppendSignals,::IsSignal) = Iterators.flatten((x.first,x.rest...))
+struct AppendGroup{T}
+    group_i::Int
+    indices::T
+end
+AppendGroup(x::Tuple) = AppendGroup(x[1],x[2])
+group_length(x::AppendGroup) = length(x.indices)
+signal_indices(x::AppendSignals,i) = 
+    AppendGroup.(enumerate(signal_indices.((x.all...))))
+signal_setindex!(result,x::AppendSignals,i::AppendGroup) = 
+    signal_setindex!(result,x.all[i.group_i],i.indices)
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
     append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
 
@@ -83,11 +92,6 @@ function padresult(x,smp,result)
     end
 end
 
-function Base.iterate(x::PaddedSignal)
-    smp = samples(x.x)
-    padresult(x,smp,iterate(smp))
-end
-Base.iterate(x::PaddedSignal,(smp,state)::Tuple{<:Any,UsePad}) = 
-    usepad(x), (smp, use_pad)
-Base.iterate(x::PaddedSignal,(smp,state)) = 
-    padresult(x,smp,iterate(smp,state))
+@Base.propagate_inbounds function signal_setindex!(result,x::PaddedSignal,i::Number)
+    result[i,:]
+    

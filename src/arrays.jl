@@ -32,39 +32,13 @@ function samplerate(x::AxisArray)
     inHz(1/step(times))
 end
 
-struct TimeSlices{D,A <: AbstractArray} 
-    data::A
+const WithAxes{Tu} = AxisArrays{<:Any,<:Any,<:Any,Tu}
+@Base.propagate_inbounds function signal_setindex!(result,x::WithAxes{<:Tuple{Axis{:time,<:Any},<:Any}},i)
+    result[i,:] .= x[i,:]
 end
-TimeSlices(x::A) where{A} = TimeSlices{1,A}(x)
-TimeSlices{D}(x::A) where{D,A} = TimeSlices{D,A}(x)
-function samples(x::AxisArray,::IsSignal) 
-    axisdim(x,Axis{:time}) == 1 ? TimeSlices(x) : TimeSlices{2}(x)
+@Base.propagate_inbounds function signal_setindex!(result,x::WithAxes{<:Tuple{<:Any,Axis{:time,<:Any}}},i)
+    result[i,:] .= x[:,i]
 end
-
-function sink(x::AxisArray,::IsSignal)
-    axisdim(x,Axis{:time}) == 1 ? x : permutedims(x,[2,1])
+@Base.propagate_inbounds function signal_setindex!(result,x::WithAxes{<:Tuple{Axis{:time}}},i)
+    result[i,:] .= x[i]
 end
-
-Base.iterate(x::TimeSlices{<:Any,1},i=1) =
-    i ≤ size(x.data,1) ? (Tuple(view(getcontents(x.data),i,:)), i+1) : nothing
-Base.iterate(x::TimeSlices{<:Any,2},i=1) =
-    i ≤ size(x.data,2) ? (Tuple(view(getcontents(x.data),:,i)), i+1) : nothing
-
-function Base.Iterators.take(x::TimeSlices{N,1},n::Integer) where N
-    view = @views(getcontents(x.data)[1:n,:])
-    TimeSlices{N,1}(view)
-end
-function Base.Iterators.drop(x::TimeSlices{N,1},n::Integer) where N
-    view = @views(getcontents(x.data)[n+1:end,:])
-    TimeSlices{N,1}(view)
-end
-function Base.Iterators.take(x::TimeSlices{N,2},n::Integer) where N
-    view = @views(getcontents(x.data)[:,1:n])
-    TimeSlices{N,2}(view)
-end
-function Base.Iterators.drop(x::TimeSlices{N,2},n::Integer) where N
-    view = @views(getcontents(x.data)[:,n+1:end])
-    TimeSlices{N,2}(view)
-end
-Base.Iterators.IteratorSize(::Type{<:TimeSlices}) = Iterators.HasLength()
-Base.length(x::TimeSlices{<:Any,D}) where D = size(x.data,D)

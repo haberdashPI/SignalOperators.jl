@@ -4,12 +4,11 @@ export mapsignal, mix, amplify, addchannel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,S,A,Args,Pd} <: AbstractSignal
+struct SignalOp{Fn,Fs,El,L,S,Args,Pd} <: AbstractSignal
     fn::Fn
     val::El
     len::L
     state::S
-    samples::A
     samplerate::Fs
     args::Args
     padding::Pd
@@ -65,19 +64,14 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     end
 end
 
-Base.iterate(x::SignalOp{<:Any,NoValues}) = nothing
-function Base.iterate(x::SignalOp,(use_val,states) = x.state)
-    if use_val
-        x.val, (false,states)
-    else
-        results = iterate.(x.samples,states)
-        if any(isnothing,results)
-            nothing
-        else
-            vals = map(@λ(_[1]),results)
-            astuple(x.fn(vals...)), (false,map(@λ(_[2]),results))
-        end
+@Base.propagate_inbounds function signal_setindex!(result,x::SignalOp,indices)
+    @inbounds for i in indices
+        signal_setindex!(result,x,i)
     end
+end
+@Base.propagate_inbounds function signal_setindex!(result,x::SignalOp,i::Number)
+    vals = signal_setindex(x.vals,i)
+    result[i,:] .= x.fn(vals...)
 end
 
 default_pad(x) = zero

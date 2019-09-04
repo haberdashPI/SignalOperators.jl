@@ -22,22 +22,20 @@ nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
 nsamples(x::SignalFunction) = nothing
 samplerate(x::SignalFunction) = x.samplerate
 
-function Base.iterate(x::SignalFunction{Fn,Fr},i=x.offset) where {Fn,Fr}
-    if iszero(i)
-        x.first, i+1
-    elseif Fn <: typeof(sin) && 
-        t = i/x.samplerate
+function signal_setindex!(result,x::SignalFunction{Fn,Fr},i) where {Fn,Fr}
+    if Fn <: typeof(sin) && 
+        t = i./x.samplerate
         if Fr <: Missing
-            (sinpi(2*(t+x.ϕ)),), i+1
+            result[i,:] .= @. sinpi(2*(t+x.ϕ))
         else
-            (sinpi(2*(t*x.ω + x.ϕ)),), i+1
+            result[i,:] .= @. sinpi(2*(t*x.ω + x.ϕ))
         end
     else
-        t = i/x.samplerate
+        t = i./x.samplerate
         if Fr <: Missing
-            astuple(x.fn(t + x.ϕ)), i+1
+            result[i,:] .= @. x.fn(t + x.ϕ)
         else
-            astuple(x.fn(2π*(t*x.ω + x.ϕ)),), i+1
+            result[i,:] .= @. x.fn(2π*(t*x.ω + x.ϕ))
         end
     end
 end
@@ -57,4 +55,5 @@ end
 
 signal(x::typeof(randn),fs=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(x,(randn(rng),),fs,missing,inHz(Float64,fs),0)
-Base.iterate(x::SignalFunction{typeof(randn)},i=blank) = (randn(),), blank
+@Base.propagate_inbounds signal_setindex!(result,x::SignalFunction{typeof(randn)},i) = 
+    result[i,:] .= randn(length(i))

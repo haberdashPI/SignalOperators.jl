@@ -5,6 +5,9 @@ tosamplerate(fs) = x -> tosamplerate(x,fs)
 tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),EvalTrait(x),fs)
 tosamplerate(x,::Nothing,ev,fs) = nosignal(x)
 
+tosamplerate(x,::IsSignal,::DataSignal,::Missing) = x
+tosamplerate(x,::IsSignal,::ComputedSignal,::Missing) = x
+
 function tosamplerate(x,s::IsSignal{T},::DataSignal,fs) where T
     # copied and modified from DSP's `resample`
     ratio = rationalize(inHz(fs)/samplerate(x))

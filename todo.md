@@ -1,5 +1,9 @@
 # Breaking (before registration)
 + use AxisArrays (not MetaArray) for better signal array representation
+- hold on, a much easier way to do this is to skip the 
+iterator interface, and have each signal define the loop
+used to create the signal, with some inner function allowed
+before writing
 - allow for missing sample rates, which can be resolved during
 a signal operator, or during the call to `sink` (not technically breaking
 but makes a big difference in terms of API flexibility, so should be done soon)
