@@ -12,7 +12,7 @@ samplerate(x::NumberSignal,::IsSignal) = x.samplerate
 tosamplerate(x::NumberSignal,::IsSignal,::ComputedSignal,fs=missing) = 
     NumberSignal(x,fs)
 
-@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::NumberSignal,
+@Base.propagate_inbounds function sampleat!(result::AbstractArray,x::NumberSignal,
     ::IsSignal,i::Number,j::Number)
 
     result[i,:] .= x.val

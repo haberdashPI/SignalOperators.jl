@@ -32,30 +32,28 @@ end
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
     append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
 
-block_length(x::AppendSignals) = Block()
-init_block(x::AppendSignals) = 
-    (offsets=cumsum(nsamples.(x.[1:end-1])), 
-     child_data=init_block.(x.all))
-
-function sinkblock!(result::AbstractArray,x::AppendSignals,sig::IsSignal, 
-    (offsets, child_data), sink_offset::Number, block::Block)
-
-    rlen = size(result,1)
-    start = findfirst(@λ(_ > sink_offset), offsets)
-    count = 1
-    for (i,cur) in enumerate(x.all[start:end])
-        count ≤ size(result,1) || break
-        offset = start > 1 ? sink_offset - offsets[start-1] : sink_offset
-
-        curlen = infsignal(cur) ? rlen-count : min(rlen-count,nsamples(cur))
-        until = min(rlen,count+curlen)
-
-        sinkblock!(@views(result[count:until,:]),
-            cur,SignalTrait(cur),child_data[i],offset,block_length(cur))
-
-        count = until
-    end
+struct AppendCheckpoint <: AbstractCheckpoint
+    n::Int
+    sig_index::Int
 end
+cindex(x::AppendCheckpoint) = x.n
+sink_checkpoints(x::AppendSignals,n) = 
+    enumerate([1;cumsum(nsamples.(x.all[1:end-1])).+1]) |> 
+    @λ(map(((i,cum)) -> AppendCheckpoint(cum,i),_)) |>
+    @λ(filter(@λ(cindex(_) < n),_))
+function sample_init(x::AppendSignals)
+    (sig_index=1,offset=0,child=sample_init(childsignal(x)))
+end
+function sampleat!(result,x,sig,i,j,data)
+    sampleat!(result,x.all[data.sig_index],i,j+data.offset,data.child)
+end
+function oncheckpoint(x::AppendSignals,check::AppendCheckpoint,data)
+    (sig_index=check.sig_index,offset=-check.n+1,child=data.child)
+end
+function oncheckpoint(x::AppendSignals,check,data)
+    oncheckpoint(childsignal(x),check,data)
+end
+
 ################################################################################
 # padding
 struct PaddedSignal{S,T} <: WrappedSignal{S,T}

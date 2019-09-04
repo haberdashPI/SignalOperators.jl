@@ -91,34 +91,6 @@ end
 Base.size(x::OneSample) = (1,x.ch)
 Base.dotview(result::OneSample,::Number,::Colon) = result
 Base.copyto!(result::OneSample,vals::Broadcast.Broadcasted) = vals.args[1]
-sinkblock!(buffer::OneSample,x,::IsSignal,data,::Number) = nothing
-@Base.propagate_inbounds frombuffer(buffer::OneSample,x,sig,i,offset) = 
-    sinkat!(buffer,x,sig,1,i+offset)
-
-@Base.propagate_inbounds frombuffer(buffer::Array,x,sig,i,offset) =
-    view(buffer,i,:)
-
-init_block(result,x::SignalOp,::IsSignal,offset,block) =
-    (buffers=init_children.(x.args,block.max,block_length.(x.args)),
-     inits=init_block.(x.args))
-init_children(x,n,::NoBlock) = OneSample()
-init_children(x,n,block::Block) = Array{channel_eltype(x)}(undef,n,nchannels(x))
-
-function sinkblock!(result::AbstractArray,x::SignalOp,sig::IsSignal, 
-    (buffers, inits), offset::Number)
-
-    for (buffer,data,arg) in zip(buffers,inits,x.args)
-        sinkblock!(buffer,arg,SignalTrait(arg),data,offset)
-    end
-
-    @simd @inbounds for i in 1:size(result,1)
-        vals = map(zip(buffers,x.args)) do (buffer,arg)
-            @inbounds frombuffer(buffer,arg,SignalTrait(arg),i,offset)
-        end
-
-        result[i,:] .= x.fn(vals...)
-    end
-end
 
 @Base.propagate_inbounds function sinkat!(result::AbstractArray,x::SignalOp,
     ::IsSignal,i::Number,j::Number)
@@ -127,16 +99,6 @@ end
         sinkat!(OneSample,arg,SignalTrait(arg),1,j)
     end
     result[i,:] .= x.fn(vals...)
-end
-
-@Base.propagate_inbounds function signal_setindex!(result,ris,x::SignalOp,xis)
-    @inbounds for (ri,xi) in zip(ris,xis)
-        signal_setindex!(result,ri,x,xi)
-    end
-end
-@Base.propagate_inbounds function signal_setindex!(result,ri,x::SignalOp,xi::Number)
-    map(@λ(signal_setindex!(_argval,1,_arg,xi)),x.argvals,x.args)
-    result[ri,:] .= x.fn(x.argvals...)
 end
 
 default_pad(x) = zero

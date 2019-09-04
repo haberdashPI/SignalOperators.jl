@@ -101,7 +101,7 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;offset=0,
     end
     x = tochannels(x,size(result,2))
 
-    sink!(result,x,SignalTrait(x),offset,block_length(x))
+    sink!(result,x,SignalTrait(x),offset)
 end
 struct NoBlock
 end
@@ -117,17 +117,43 @@ Base.isless(::NoBlock,::Block) = true
 Base.isless(::Block,::NoBlock) = false
 Base.isless(x::Block,y::Block) = isless(x.max,y.max)
 
-function sink!(result,x,sig::IsSignal,offset::Number,::NoBlock)
+abstract type AbstractCheckpoint
+end
+isless(x::AbstractCheckpoint,y::AbstractCheckpoint) = isless(cindex(x),cindex(y))
+struct SimpleCheckpoint <: AbstractCheckpoint
+    n::Int
+end
+cindex(x::SimpleCheckpoint) = x.n
+sink_checkpoints(x,n) = SimpleCheckpoint(1),SimpleCheckpoint(n)
+
+sampleat_init(x,sig) = nothing
+function sampleat!(result,x,s::IsSignal,i::Number,j::Number,data)
+
+    sampleat!(reuslt,x,s,i,j)
+end
+
+function sink!(result,x,sig::IsSignal,offset::Number)
     if offset+size(result,1) ≤ nsamples(x)
         error("Requested too many samples from signal: $x")
     end
-    @simd @inbounds for i in Base.axes(result)[1]
-        sinkat!(result,x,sig,i,offset+i)
+    checkpoints = sort!(sink_checkpoints(x,size(result,1))) |> 
+        @λ(filter(@λ(cindex(_) >= offset),_))
+    data = sampleat_init(x,sig)
+    for (check,stop) in zip(checkpoints,Iterators.drop(checkpoints,1))
+        data = oncheckpoint(x,check,data)
+        @simd @inbounds for i in cindex(check):(cindex(stop)-1)
+            data = sampleat!(result,x,sig,i,offset+i,data)
+        end
     end
 end
 
+# New idea: rather than having blocks, have "checkpoints"
+# a signal can define check points, which will be used to perform
+# intermediate oeprations: all sinks must implement sinkat!
+# and can optionally implement sink_checkpoints oncheckpoint, and
+
 init_block(result,x,sig,offset,block) = nothing
-function sink!(result,x,sig::IsSignal,offset::Number,block::Block)
+function sink!(result,x,sig::IsSignal,offset::Number)
     data = init_block(result,x,sig,offset,block)
     rlen = size(result,1)
     step = block.max > 0 ? block.max : default_block_size

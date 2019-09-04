@@ -65,20 +65,6 @@ function tosamplerate(x::ItrApply,s::IsSignal,c::ComputedSignal,fs)
     tosamplerate(childsignal(x),s,c,fs)
 end
 
-function sinkblock!(result::AbstractArray,x::DropApply,sig::IsSignal,data,
-    sink_offset::Number, block::Block)
-
-    child = childsignal(x)
-    sinkblock!(result, child, SignalTrait(child), data, sink_offset+x.n, block)
-end
-
-function sinkblock!(result::AbstractArray,x::TakeApply,sig::IsSignal,data,
-    sink_offset::Number, block::Block)
-
-    child = childsignal(x)
-    sinkblock!(result, child, SignalTrait(child), data, sink_offset, block)
-end
-
 @Base.propagate_inbounds function sinkat!(result::AbstractArray,x::DropApply,
     sig::IsSignal,i::Number,j::Number)
 
