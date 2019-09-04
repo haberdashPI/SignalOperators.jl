@@ -25,3 +25,4 @@ EvalTrait(x::WrappedSignal) = EvalTrait(childsignal(x))
 nchannels(x::WrappedSignal,::IsSignal) = nchannels(childsignal(x))
 samplerate(x::WrappedSignal,::IsSignal) = samplerate(childsignal(x))
 block_length(x::WrappedSignal) = block_length(childsignal(x
+init_block(x::WrappedSignal) = init_block(childsignal(x))

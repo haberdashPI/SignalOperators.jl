@@ -30,6 +30,29 @@ function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs)
     end
 end
 
+"""
+    mapsignal(fn,arguments...;padding,across_channels)
+
+Apply `fn` across the samples of arguments, producing a signal of the output
+of `fn`. All arguments are first interpreted as signals and reformatted so
+they share the same sample rate and channel count. Shorter signals are padded
+to accomodate the longest finite-length signal. The function `fn` can return a
+single number or a tuple of numbers. In either case it is expected to be a
+type stable function.
+
+## Cross-channel functions
+
+The function is normally broadcast across channels, but if you wish to treate
+each channel seperately you can set `across_channels=true`.
+
+## Padding
+
+Padding determines how samples past the end of shorter signals are reported,
+and is set to a function specific default using `default_pad`. There is a
+fallback implementation which returns `zero`. `default_pad` should normally
+return a function of a type (normally either `one` or `zero`), but can
+optionally be a specific number.
+"""
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     xs = uniform(xs)   
     fs = samplerate(xs[1])
@@ -49,22 +72,18 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     if !isnothing(len) && len == 0
         SignalOp(fn,novalues,len,(true,nothing),sm,fs)
     else
+        vals = testvalue.(xs)
         if !across_channels
             fnbr(vals) = fn.(vals...)
-            y = astuple(fnbr(vals))
-            SignalOp(fnbr,y,len,xs,fs,padding)
+            SignalOp(fnbr,astuple(fnbr(vals)),len,xs,fs,padding)
         else
-            vals = map(@λ(_[1]),results)
-            y = astuple(fn(vals...))
-            SignalOp(fn,y,len,xs,fs,padding)
+            SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding)
         end
     end
 end
-block_length(x::SignalOp) = maximum(block_length.(x.args))
+testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
 
-init_block(x,n) = init_block(x,block_length(x))
-init_block(x,n,::NoBlock) = OneSample()
-init_block(x,n,block::Block) = Array{eltype(x)}(undef,n,nchannels(x))
+block_length(x::SignalOp) = minimum(block_length.(x.args))
 
 struct OneSample
     ch::Int
@@ -72,39 +91,32 @@ end
 Base.size(x::OneSample) = (1,x.ch)
 Base.dotview(result::OneSample,::Number,::Colon) = result
 Base.copyto!(result::OneSample,vals::Broadcast.Broadcasted) = vals.args[1]
-sink!(buffer::OneSample,x,sig,offset,block) = block.min
-
+sinkblock!(buffer::OneSample,x,::IsSignal,data,::Number) = nothing
 @Base.propagate_inbounds frombuffer(buffer::OneSample,x,sig,i,offset) = 
     sinkat!(buffer,x,sig,1,i+offset)
 
-load_buffer!(buffer::Array,x,sig,offset,block) = 
-    sink!(buffer,x,sig,offset,block)
 @Base.propagate_inbounds frombuffer(buffer::Array,x,sig,i,offset) =
     view(buffer,i,:)
 
-function sink!(result::AbstractArray,x::SignalOp,sig::IsSignal,offset::Number,
-    block::Block)
-    sink!(result,x,sig,offset,block,init_block.(x.args,n))
-end
+init_block(result,x::SignalOp,::IsSignal,offset,block) =
+    (buffers=init_children.(x.args,block.max,block_length.(x.args)),
+     inits=init_block.(x.args))
+init_children(x,n,::NoBlock) = OneSample()
+init_children(x,n,block::Block) = Array{channel_eltype(x)}(undef,n,nchannels(x))
 
-function sink!(result::AbstractArray,x::SignalOp,sig::IsSignal,
-    sink_offset::Number, block::Block, buffers)
+function sinkblock!(result::AbstractArray,x::SignalOp,sig::IsSignal, 
+    (buffers, inits), offset::Number)
 
-    offset = 0
-    while offset < size(result,1)
-        len = min(block.min,size(result,1) - offset)
-        mapreduce(min,zip(buffers,x.args);init=len) do (len,(buffer,arg))
-            min(len,sink!(buffer,arg,SignalTrait(arg),sink_offset + offset,block))
+    for (buffer,data,arg) in zip(buffers,inits,x.args)
+        sinkblock!(buffer,arg,SignalTrait(arg),data,offset)
+    end
+
+    @simd @inbounds for i in 1:size(result,1)
+        vals = map(zip(buffers,x.args)) do (buffer,arg)
+            @inbounds frombuffer(buffer,arg,SignalTrait(arg),i,offset)
         end
 
-        @simd @inbounds for i in 1:len
-            vals = map(zip(buffers,x.args)) do (buffer,arg)
-                frombuffer(buffer,arg,SignalTrait(arg),i,sink_offset + offset)
-            end
-
-            result[i+offset,:] .= x.fn(vals...)
-        end
-        offset += len
+        result[i,:] .= x.fn(vals...)
     end
 end
 

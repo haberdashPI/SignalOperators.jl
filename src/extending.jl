@@ -29,19 +29,33 @@ function append(xs...)
     len = infsignal(xs[end]) ? nothing : sum(nsamples,xs)
     AppendSignals(xs[1], xs, len, samplerate(xs))
 end
-struct AppendGroup{T}
-    group_i::Int
-    indices::T
-end
-AppendGroup(x::Tuple) = AppendGroup(x[1],x[2])
-group_length(x::AppendGroup) = length(x.indices)
-signal_indices(x::AppendSignals,i) = 
-    AppendGroup.(enumerate(signal_indices.((x.all...))))
-signal_setindex!(result,ri,x::AppendSignals,i::AppendGroup) = 
-    signal_setindex!(result,ri,x.all[i.group_i],i.indices)
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
     append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
 
+block_length(x::AppendSignals) = Block()
+init_block(x::AppendSignals) = 
+    (offsets=cumsum(nsamples.(x.[1:end-1])), 
+     child_data=init_block.(x.all))
+
+function sinkblock!(result::AbstractArray,x::AppendSignals,sig::IsSignal, 
+    (offsets, child_data), sink_offset::Number, block::Block)
+
+    rlen = size(result,1)
+    start = findfirst(@λ(_ > sink_offset), offsets)
+    count = 1
+    for (i,cur) in enumerate(x.all[start:end])
+        count ≤ size(result,1) || break
+        offset = start > 1 ? sink_offset - offsets[start-1] : sink_offset
+
+        curlen = infsignal(cur) ? rlen-count : min(rlen-count,nsamples(cur))
+        until = min(rlen,count+curlen)
+
+        sinkblock!(@views(result[count:until,:]),
+            cur,SignalTrait(cur),child_data[i],offset,block_length(cur))
+
+        count = until
+    end
+end
 ################################################################################
 # padding
 struct PaddedSignal{S,T} <: WrappedSignal{S,T}
@@ -91,7 +105,21 @@ function padresult(x,smp,result)
         val, (smp, state)
     end
 end
+block_length(x::PaddedSignal) = Block()
 
-@Base.propagate_inbounds function signal_setindex!(result,x::PaddedSignal,i::Number)
-    result[i,:]
+function sinkblock!(result,x::PaddedSignal,::IsSignal,data,offset::Number,
+    block::Block)
+
+    until = min(offset+size(result,1),nsamples(x.x)) - offset
+    if until ≥ 1
+        sinkblock!(@view(result[1:until,:]),x.x,SignalTrait(x.x),data,offset,
+            block_length(x.x))
+    end
+    if until < size(result,1)
+        result[max(1,until+1):end,:] .= usepad(x)
+    end
+end
+
+
+
     

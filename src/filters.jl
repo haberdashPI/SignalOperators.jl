@@ -1,26 +1,26 @@
 export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
-const defeault_block_size = 4096
+const default_block_size = 4096
 
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
-lowpass(x,low;order=5,method=Butterworth(order),blocksize=defeault_block_size) = 
+lowpass(x,low;order=5,method=Butterworth(order),blocksize=0) = 
     filtersignal(x,Lowpass(inHz(low),fs=samplerate(x)),method,
-    blocksize=defeault_block_size)
+    blocksize=0)
 
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
-highpass(x,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
+highpass(x,high;order=5,method=Butterworth(order),blocksize=0) = 
     filtersignal(x,Highpass(inHz(high),fs=samplerate(x)),method,
-        blocksize=default_block_size)
+        blocksize=0)
 
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
-bandpass(x,low,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
+bandpass(x,low,high;order=5,method=Butterworth(order),blocksize=0) = 
     filtersignal(x,Bandpass(inHz(low),inHz(high),fs=samplerate(x)),method,
-        blocksize=default_block_size)
+        blocksize=0)
 
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
-bandstop(x,low,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
+bandstop(x,low,high;order=5,method=Butterworth(order),blocksize=0) = 
     filtersignal(x,Bandstop(inHz(low),inHz(high),fs=samplerate(x)),method,
-        blocksize=default_block_size)
+        blocksize=0)
 
 filtersignal(x,filter,method;kwds...) = 
     filtersignal(x,SignalTrait(x),filter,method;kwds...)
@@ -35,7 +35,7 @@ end
 # of just sinking to data: this way we can allow missing samplerates to pass
 # through filter operations
 
-filtersignal(x,s::IsSignal,f,m;blocksize=defeault_block_size) = 
+filtersignal(x,s::IsSignal,f,m;blocksize=0) = 
     filtersignal(x,s,digitalfilter(f,m),blocksize=blocksize)
 function filtersignal(x::Si,s::IsSignal,h::H;blocksize) where {Si,H}
     FilteredSignal{channel_eltype(Si),Si,H}(x,h,blocksize)
@@ -45,14 +45,23 @@ struct FilteredSignal{T,Si,H} <: WrappedSignal{Si,T}
     h::H
     blocksize::Int
 end
-function signal_indices(x::FilteredSignal,ri::Range,xi::Range)
-    Iterators.partition(ri,x.blocksize), Iterators.partition(xi,x.blocksize)
+block_length(x::FilteredSignal) = Block(x.blocksize)
+function init_block(result,x::FilteredSignal,::IsSignal,offset,block) 
+    buffer = init_children(x,DSP.inputlength(x.h,block.max),block)
+    si = (DSP._zerossi(x.h,buffer) for _ in 1:nchannels(x.x))
+    child_state = init_block(result,x.x,SignalTrait(x.x),offset,block)
+    (buffer,si,child_state)
 end
-function signal_indices
-    data = sink(x)
-    mapreduce(hcat,1:nchannels(x)) do ch
-        filt(h,data[:,ch])
-    end |> @λ(signal(_,s.samplerate))
+
+function sinkblock!(result::AbstractArray,x::FilteredSignal,sig::IsSignal,
+        (buffer,si,child_state), offset::Number)
+    
+    # problem: inlen could be > size(buffer,1)
+    inlen = DSP.inputlength(x.h,result)
+    sinkblock!(@views(buffer[1:inlen,:]),x.x,SignalTrait(x.x), child_state, offset)
+    for ch in 1:nchannels(x)
+        @views(filt!(result[:,ch],x.h,buffer[1:inlen,ch],si[ch]))
+    end 
 end
 
 # TODO: allow this to be applied iteratively for application to infinite signal

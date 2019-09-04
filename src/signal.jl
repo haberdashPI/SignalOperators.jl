@@ -106,15 +106,16 @@ end
 struct NoBlock
 end
 struct Block
-    min::Int
+    max::Int
 end
+Block() = Block(0)
 noblocks(x) = noblocks(x,block_length(x))
 noblocks(x,::NoBlock) = true
 noblocks(x,::Block) = false
 block_length(x) = NoBlock()
 Base.isless(::NoBlock,::Block) = true
 Base.isless(::Block,::NoBlock) = false
-Base.isless(x::Block,y::Block) = isless(x.min,y.min)
+Base.isless(x::Block,y::Block) = isless(x.max,y.max)
 
 function sink!(result,x,sig::IsSignal,offset::Number,::NoBlock)
     if offset+size(result,1) ≤ nsamples(x)
@@ -123,7 +124,22 @@ function sink!(result,x,sig::IsSignal,offset::Number,::NoBlock)
     @simd @inbounds for i in Base.axes(result)[1]
         sinkat!(result,x,sig,i,offset+i)
     end
-    size(result,1)
+end
+
+init_block(result,x,sig,offset,block) = nothing
+function sink!(result,x,sig::IsSignal,offset::Number,block::Block)
+    data = init_block(result,x,sig,offset,block)
+    rlen = size(result,1)
+    step = block.max > 0 ? block.max : default_block_size
+    for i in 1:step:rlen
+        sinkblock!(@views(result[i:min(i+block.max,end),:]),x,sig,data,offset+i-1,
+            block)
+    end
+end
+function sinkblock!(result,x,sig::IsSignal,data::Nothing,offset::Number,::NoBlock)
+    @simd @inbounds for i in 1:len
+        sinkat!(result,x,sig,i,i+offset)
+    end
 end
 
 function sink(x,sig::IsSignal,::Nothing,T)
