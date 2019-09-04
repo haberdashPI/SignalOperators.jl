@@ -47,16 +47,17 @@ struct FilteredSignal{T,Si,H} <: WrappedSignal{Si,T}
 end
 block_length(x::FilteredSignal) = Block(x.blocksize)
 function init_block(result,x::FilteredSignal,::IsSignal,offset,block) 
-    buffer = init_children(x,DSP.inputlength(x.h,block.max),block)
+    n = DSP.inputlength(x.h,block.max)
+    buffer = init_children(x,n,block)
     si = (DSP._zerossi(x.h,buffer) for _ in 1:nchannels(x.x))
-    child_state = init_block(result,x.x,SignalTrait(x.x),offset,block)
+    # problem, the block may be too big (e.g. another filter with max block size)
+    child_state = init_block(result,x.x,SignalTrait(x.x),offset,Block(n))
     (buffer,si,child_state)
 end
 
 function sinkblock!(result::AbstractArray,x::FilteredSignal,sig::IsSignal,
         (buffer,si,child_state), offset::Number)
     
-    # problem: inlen could be > size(buffer,1)
     inlen = DSP.inputlength(x.h,result)
     sinkblock!(@views(buffer[1:inlen,:]),x.x,SignalTrait(x.x), child_state, offset)
     for ch in 1:nchannels(x)
