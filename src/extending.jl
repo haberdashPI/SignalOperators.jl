@@ -37,8 +37,8 @@ AppendGroup(x::Tuple) = AppendGroup(x[1],x[2])
 group_length(x::AppendGroup) = length(x.indices)
 signal_indices(x::AppendSignals,i) = 
     AppendGroup.(enumerate(signal_indices.((x.all...))))
-signal_setindex!(result,x::AppendSignals,i::AppendGroup) = 
-    signal_setindex!(result,x.all[i.group_i],i.indices)
+signal_setindex!(result,ri,x::AppendSignals,i::AppendGroup) = 
+    signal_setindex!(result,ri,x.all[i.group_i],i.indices)
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
     append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
 

@@ -4,13 +4,14 @@ export mapsignal, mix, amplify, addchannel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,S,Args,Pd} <: AbstractSignal
+struct SignalOp{Fn,Fs,El,L,S,Args,ArgV,Pd} <: AbstractSignal
     fn::Fn
     val::El
     len::L
     state::S
     samplerate::Fs
     args::Args
+    argvals::ArgV
     padding::Pd
 end
 struct NoValues
@@ -46,6 +47,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     else
         len = nothing
     end
+    # TODO: fix below for new interface
     sm = samples.(xs)
     results = iterate.(sm)
     if any(isnothing,results)
@@ -64,14 +66,14 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     end
 end
 
-@Base.propagate_inbounds function signal_setindex!(result,x::SignalOp,indices)
-    @inbounds for i in indices
-        signal_setindex!(result,x,i)
+@Base.propagate_inbounds function signal_setindex!(result,ris,x::SignalOp,xis)
+    @inbounds for (ri,xi) in zip(ris,xis)
+        signal_setindex!(result,ri,x,xi)
     end
 end
-@Base.propagate_inbounds function signal_setindex!(result,x::SignalOp,i::Number)
-    vals = signal_setindex(x.vals,i)
-    result[i,:] .= x.fn(vals...)
+@Base.propagate_inbounds function signal_setindex!(result,ri,x::SignalOp,xi::Number)
+    map(@λ(signal_setindex!(_argval,1,_arg,xi)),x.argvals,x.args)
+    result[ri,:] .= x.fn(x.argvals...)
 end
 
 default_pad(x) = zero

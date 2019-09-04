@@ -86,10 +86,12 @@ end
     signal_setindex!(result,childsignal(x),i)
 end
 group_length(x) = length(x)
-signal_indices(x::ItrApply,range::Range) =
-    signal_indices(childsignal(x),x.fn(range,resolvelen(x)))
-signal_indices(x::ItrApply,groups) =
-    signal_indices(childsignal(x),limited_partition(x.fn,groups,resolvelen(x)))
+signal_indices(x::ItrApply,ri::Range,xi::Range) =
+    signal_indices(childsignal(x),x.fn(ri,resolvelen(x)),x.fn(xi,resolvelen(x)))
+signal_indices(x::ItrApply,rgroups,xgroups) =
+    signal_indices(childsignal(x),
+        limited_partition(x.fn,rgroups,resolvelen(x)),
+        limited_partition(x.fn,xgroups,resolvelen(x)))
 function limited_partition(::typeof(Iterators.drop),groups,limit)
     groups = Array{eltype(groups)}(undef,0)
     n, result = reduce(groups,init=(0,groups)) do ((n,groups),group)

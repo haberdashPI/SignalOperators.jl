@@ -113,8 +113,12 @@ sink(x, ::Nothing, ::Type) = error("Don't know how to interpret value as a signa
 # code base. But I am just missing the ri, which needs to change differently
 # from xi (instead of using a signle index)
 
-signal_assignfn!(x,fn) = fn
-signal_indices(x,indices) = indices
+# this still needs a little rethinking: how do I deal with interacting
+# blocks, and how do I deal with the fact that I want some children
+# to use a block and some to use signle indices
+# theres' probably a simpler solution
+
+signal_indices(x,rindices,xindices) = rindices, xindices
 
 function samples_to_result!(result,signal,
         assignfn!=signal_assignfn!(signal,base_assignfn!))
