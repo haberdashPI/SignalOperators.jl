@@ -86,7 +86,7 @@ end
     signal_setindex!(result,childsignal(x),i)
 end
 group_length(x) = length(x)
-signal_indices(x::ItrApply,ri::Range,xi::Range) =
+signal_indices(x::ItrApply) = 
     signal_indices(childsignal(x),x.fn(ri,resolvelen(x)),x.fn(xi,resolvelen(x)))
 signal_indices(x::ItrApply,rgroups,xgroups) =
     signal_indices(childsignal(x),

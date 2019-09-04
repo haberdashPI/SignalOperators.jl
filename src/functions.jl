@@ -52,5 +52,5 @@ end
 
 signal(x::typeof(randn),fs=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(x,(randn(rng),),fs,missing,inHz(Float64,fs),0)
-@Base.propagate_inbounds signal_setindex!(result,x::SignalFunction{typeof(randn)},i) = 
-    result[i,:] .= randn(length(i))
+@Base.propagate_inbounds signal_setindex!(result,ri,x::SignalFunction{typeof(randn)},xi) = 
+    result[ri,:] .= randn(length(xi))

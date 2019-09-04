@@ -118,16 +118,33 @@ sink(x, ::Nothing, ::Type) = error("Don't know how to interpret value as a signa
 # to use a block and some to use signle indices
 # theres' probably a simpler solution
 
-signal_indices(x,rindices,xindices) = rindices, xindices
 
-function samples_to_result!(result,signal,
-        assignfn!=signal_assignfn!(signal,base_assignfn!))
+struct Indexed{F}
+    fn::F
+end
+Indexed() = Indexed(identity)
+struct Blocked{F}
+    fn::F
+    x::Int
+end
+Blocked(x) = Blocked(x,identity)
 
-    @inbounds for i in signal_indices(signal,1:size(result,1))
-        assignfn!(result,i,signal_getindex(signal,i))
+signal_indices(x) = Indexed()
+
+function samples_to_result!(result,signal,ixs::Indexed)
+    @inbounds for (ri,xi) in ixs.fn(1:size(result,1),1:size(result,1))
+        signal_setindex!(result,ri,signal,xi)
     end
     result
 end
+
+function sampled_to_result!(result,signal,b::Blocked)
+    blocks = Iterators.partition(1:size(result,1),b.block)
+    for (rblock,xblock) in b.fn(blocks,blocks)
+        signal_setindex!(result,rblock,signal,xblock)
+    end
+end
+
 function sink(x,::IsSignal,smp,::Iterators.IsInfinite)
     error("Cannot store infinite signal in an array. (Use `until`?)")
 end
