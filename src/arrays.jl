@@ -33,12 +33,16 @@ function samplerate(x::AxisArray)
 end
 
 const WithAxes{Tu} = AxisArrays{<:Any,<:Any,<:Any,Tu}
-@Base.propagate_inbounds function signal_setindex!(result,ri,x::WithAxes{<:Tuple{Axis{:time,<:Any},<:Any}},i)
-    result[ri,:] .= x[i,:]
+const AxTimeD1 = Union{WithAxes{<:Tuple{Axis{:time,<:Any},<:Any}},
+                     WithAxes{<:Tuple{Axis{:time},<:Any}}}
+const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time,<:Any}}}
+@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::AxTimeD1,
+    ::IsSignal,i::Number,j::Number)
+
+    result[i,:] .= x[:,j]
 end
-@Base.propagate_inbounds function signal_setindex!(result,ri,x::WithAxes{<:Tuple{<:Any,Axis{:time,<:Any}}},i)
-    result[ri,:] .= x[:,i]
-end
-@Base.propagate_inbounds function signal_setindex!(result,ri,x::WithAxes{<:Tuple{Axis{:time}}},i)
-    result[ri,:] .= x[i]
+@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::AxTimeD2,
+    ::IsSignal,i::Number,j::Number)
+
+    result[i,:] .= x[j,:]
 end

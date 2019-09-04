@@ -4,20 +4,19 @@ export mapsignal, mix, amplify, addchannel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,S,Args,ArgV,Pd} <: AbstractSignal
+struct SignalOp{Fn,Fs,El,L,Args,Pd} <: AbstractSignal
     fn::Fn
     val::El
     len::L
-    state::S
-    samplerate::Fs
     args::Args
-    argvals::ArgV
+    samplerate::Fs
     padding::Pd
 end
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} = IsSignal{El,Fs,L}()
+SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} = 
+    IsSignal{numpte_T(El),Fs,L}()
 nsamples(x::SignalOp) = x.len
 nchannels(x::SignalOp) = length(x.state)
 samplerate(x::SignalOp) = x.samplerate
@@ -47,23 +46,75 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
     else
         len = nothing
     end
-    # TODO: fix below for new interface
-    sm = samples.(xs)
-    results = iterate.(sm)
-    if any(isnothing,results)
+    if !isnothing(len) && len == 0
         SignalOp(fn,novalues,len,(true,nothing),sm,fs)
     else
         if !across_channels
-            fnbr(vals...) = fn.(vals...)
-            vals = map(@λ(_[1]),results)
-            y = astuple(fnbr(vals...))
-            SignalOp(fnbr,y,len,(true,map(@λ(_[2]),results)),sm,xs,fs)
+            fnbr(vals) = fn.(vals...)
+            y = astuple(fnbr(vals))
+            SignalOp(fnbr,y,len,xs,fs,padding)
         else
             vals = map(@λ(_[1]),results)
             y = astuple(fn(vals...))
-            SignalOp(fn,y,len,(true,map(@λ(_[2]),results)),sm,xs,fs,padding)
+            SignalOp(fn,y,len,xs,fs,padding)
         end
     end
+end
+block_length(x::SignalOp) = maximum(block_length.(x.args))
+
+init_block(x,n) = init_block(x,block_length(x))
+init_block(x,n,::NoBlock) = OneSample()
+init_block(x,n,block::Block) = Array{eltype(x)}(undef,n,nchannels(x))
+
+struct OneSample
+    ch::Int
+end
+Base.size(x::OneSample) = (1,x.ch)
+Base.dotview(result::OneSample,::Number,::Colon) = result
+Base.copyto!(result::OneSample,vals::Broadcast.Broadcasted) = vals.args[1]
+sink!(buffer::OneSample,x,sig,offset,block) = block.min
+
+@Base.propagate_inbounds frombuffer(buffer::OneSample,x,sig,i,offset) = 
+    sinkat!(buffer,x,sig,1,i+offset)
+
+load_buffer!(buffer::Array,x,sig,offset,block) = 
+    sink!(buffer,x,sig,offset,block)
+@Base.propagate_inbounds frombuffer(buffer::Array,x,sig,i,offset) =
+    view(buffer,i,:)
+
+function sink!(result::AbstractArray,x::SignalOp,sig::IsSignal,offset::Number,
+    block::Block)
+    sink!(result,x,sig,offset,block,init_block.(x.args,n))
+end
+
+function sink!(result::AbstractArray,x::SignalOp,sig::IsSignal,
+    sink_offset::Number, block::Block, buffers)
+
+    offset = 0
+    while offset < size(result,1)
+        len = min(block.min,size(result,1) - offset)
+        mapreduce(min,zip(buffers,x.args);init=len) do (len,(buffer,arg))
+            min(len,sink!(buffer,arg,SignalTrait(arg),sink_offset + offset,block))
+        end
+
+        @simd @inbounds for i in 1:len
+            vals = map(zip(buffers,x.args)) do (buffer,arg)
+                frombuffer(buffer,arg,SignalTrait(arg),i,sink_offset + offset)
+            end
+
+            result[i+offset,:] .= x.fn(vals...)
+        end
+        offset += len
+    end
+end
+
+@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::SignalOp,
+    ::IsSignal,i::Number,j::Number)
+
+    vals = map(x.args) do arg
+        sinkat!(OneSample,arg,SignalTrait(arg),1,j)
+    end
+    result[i,:] .= x.fn(vals...)
 end
 
 @Base.propagate_inbounds function signal_setindex!(result,ris,x::SignalOp,xis)

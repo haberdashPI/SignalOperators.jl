@@ -60,10 +60,13 @@ signal(fs::Quantity) = x -> signal(x,fs)
 signal(x,fs::Union{Number,Missing}=missing) = signal(x,SignalTrait(x),fs)
 signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 function signal(x,::IsSignal,fs)
-    if !isconsistent(fs,samplerate(x))
+    if ismissing(samplerate(x))
+        tosamplerate(x,fs)
+    elseif !isconsistent(fs,samplerate(x))
         error("Signal expected to have sample rate of $fs Hz.")
+    else
+        x
     end
-    x
 end
 
 """
@@ -85,10 +88,43 @@ function sink(x::T,::Type{A}=AxisArray;
         length=nsamples(x)*frames,
         samplerate=samplerate(x)) where {T,A}
 
-    x = tosamplerate(x,samplerate)
+    x = signal(x,samplerate)
     sink(x,SignalTrait(T),inframes(Int,length,samplerate(x)),A)
 end
 sink_init(sig) = Array{channel_eltype(sig)}(undef,nsamples(sig),nchannels(sig))
+function sink!(result::Union{AbstractVector,AbstractMatrix},x;offset=0,
+    samplerate=SignalOperators.samplerate(x)) 
+    x = signal(x,samplerate)
+
+    if nsamples(x)-offset < size(result,1)
+        error("Signal is too short to fill buffer of length $(size(result,1)).")
+    end
+    x = tochannels(x,size(result,2))
+
+    sink!(result,x,SignalTrait(x),offset,block_length(x))
+end
+struct NoBlock
+end
+struct Block
+    min::Int
+end
+noblocks(x) = noblocks(x,block_length(x))
+noblocks(x,::NoBlock) = true
+noblocks(x,::Block) = false
+block_length(x) = NoBlock()
+Base.isless(::NoBlock,::Block) = true
+Base.isless(::Block,::NoBlock) = false
+Base.isless(x::Block,y::Block) = isless(x.min,y.min)
+
+function sink!(result,x,sig::IsSignal,offset::Number,::NoBlock)
+    if offset+size(result,1) ≤ nsamples(x)
+        error("Requested too many samples from signal: $x")
+    end
+    @simd @inbounds for i in Base.axes(result)[1]
+        sinkat!(result,x,sig,i,offset+i)
+    end
+    size(result,1)
+end
 
 function sink(x,sig::IsSignal,::Nothing,T)
     error("Cannot store infinite signal in an array.",
@@ -96,7 +132,7 @@ function sink(x,sig::IsSignal,::Nothing,T)
 end
 function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
     result = Array{El}(undef,len,nchannels(x))
-    samples_to_result!(result,x)
+    sink!(result,x,sig)
 end
 function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
     result = sink(x,sig,len,Array)
@@ -104,7 +140,7 @@ function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
     channels = Axis{:channel}(1:nchannels(x))
     AxisArray(result,times,channels)
 end
-sink(x, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
+sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
 
 # TODO: we need just one function
 # signal_setindex!(result,ri,x,xi)
@@ -117,37 +153,6 @@ sink(x, ::Nothing, ::Type) = error("Don't know how to interpret value as a signa
 # blocks, and how do I deal with the fact that I want some children
 # to use a block and some to use signle indices
 # theres' probably a simpler solution
-
-
-struct Indexed{F}
-    fn::F
-end
-Indexed() = Indexed(identity)
-struct Blocked{F}
-    fn::F
-    x::Int
-end
-Blocked(x) = Blocked(x,identity)
-
-signal_indices(x) = Indexed()
-
-function samples_to_result!(result,signal,ixs::Indexed)
-    @inbounds for (ri,xi) in ixs.fn(1:size(result,1),1:size(result,1))
-        signal_setindex!(result,ri,signal,xi)
-    end
-    result
-end
-
-function sampled_to_result!(result,signal,b::Blocked)
-    blocks = Iterators.partition(1:size(result,1),b.block)
-    for (rblock,xblock) in b.fn(blocks,blocks)
-        signal_setindex!(result,rblock,signal,xblock)
-    end
-end
-
-function sink(x,::IsSignal,smp,::Iterators.IsInfinite)
-    error("Cannot store infinite signal in an array. (Use `until`?)")
-end
 
 Base.zero(x::AbstractSignal) = signal(zero(channel_eltype(x)),samplerate(x))
 Base.one(x::AbstractSignal) = signal(one(channel_eltype(x)),samplerate(x))

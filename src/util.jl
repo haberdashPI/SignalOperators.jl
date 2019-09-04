@@ -24,4 +24,4 @@ SignalTrait(::Type{<:WrappedSignal{C}}) where C = SignalTrait(C)
 EvalTrait(x::WrappedSignal) = EvalTrait(childsignal(x))
 nchannels(x::WrappedSignal,::IsSignal) = nchannels(childsignal(x))
 samplerate(x::WrappedSignal,::IsSignal) = samplerate(childsignal(x))
-signal_indices(x::WrappedSignal) = signal_indices(childsignal(x))
+block_length(x::WrappedSignal) = block_length(childsignal(x

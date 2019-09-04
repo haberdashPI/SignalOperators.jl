@@ -26,19 +26,6 @@ end
     
 childsignal(x::ItrApply) = x.signal
 resolvelen(x::ItrApply) = inframes(Int,maybeseconds(x.time),samplerate(x))
-
-function wrapresult(smp, result)
-    if !isnothing(result)
-        val, state = result
-        val, (smp, state)
-    end
-end
-
-function Base.iterate(x::ItrApply)
-    smp = x.fn(samples(x.signal),resolvelen(x))
-    wrapresult(smp,iterate(smp))
-end
-Base.iterate(x::ItrApply,(smp,state)) = wrapresult(smp, iterate(smp,state))
        
 const TakeApply{S,T} = ItrApply{S,T,typeof(Iterators.take)}
 until(time) = x -> until(x,time)
@@ -55,10 +42,6 @@ after(time) = x -> after(x,time)
 function after(x,time)
     ItrApply(signal(x),time,drop_)
 end
-Base.Iterators.IteratorSize(::Type{<:DropApply{S}}) where S = 
-    Iterators.IteratorSize(S) isa Iterators.IsInfinite ? 
-    Iterators.IsInfinite() :
-    Iterators.HasLength()
 
 function nsamples(x::TakeApply,::IsSignal)
     take = resolvelen(x)
@@ -82,59 +65,30 @@ function tosamplerate(x::ItrApply,s::IsSignal,c::ComputedSignal,fs)
     tosamplerate(childsignal(x),s,c,fs)
 end
 
-@Base.propagate_inbounds function signal_setindex!(result,x::ItrApply,i)
-    signal_setindex!(result,childsignal(x),i)
-end
-group_length(x) = length(x)
-signal_indices(x::ItrApply) = 
-    signal_indices(childsignal(x),x.fn(ri,resolvelen(x)),x.fn(xi,resolvelen(x)))
-signal_indices(x::ItrApply,rgroups,xgroups) =
-    signal_indices(childsignal(x),
-        limited_partition(x.fn,rgroups,resolvelen(x)),
-        limited_partition(x.fn,xgroups,resolvelen(x)))
-function limited_partition(::typeof(Iterators.drop),groups,limit)
-    groups = Array{eltype(groups)}(undef,0)
-    n, result = reduce(groups,init=(0,groups)) do ((n,groups),group)
-        if n < limit
-            new_n = max(limit,n+group_length(group))
-        else
-            new_n = limit
-        end
-        if new_n == limit
-            k = limit - n
-            if k > 0
-                new_groups = vcat(groups,Iterators.drop(group,k))
-            else
-                new_groups = vcat(groups,group)
-            end
-        else
-            new_groups = groups
-        end
-        (new_n,new_groups)
-    end
+function sink!(result::AbstractArray,x::DropApply,sig::IsSignal,
+    sink_offset::Number, block::Block)
 
-    result
+    child = childsignal(x)
+    sink!(result,child,SignalTrait(child),sig,sink_offset + x.n, block)
 end
-function limited_partition(::typeof(Iterators.take),groups,limit)
-    groups = Array{eltype(groups)}(undef,0)
-    n, result = reduce(groups,init=(0,groups)) do ((n,groups),group)
-        if n < limit
-            new_n = max(limit,n+group_length(group))
-        else
-            new_n = limit
-        end
-        if new_n == limit
-            k = limit - n
-            if k > 0
-                new_groups = vcat(groups,Iterators.take(group,k))
-            else
-                new_groups = groups
-            end
-        else
-            new_groups = vcat(groups,group)
-        end
-        (new_n,new_groups)
-    end
 
-    result
+function sink!(result::AbstractArray,x::TakeApply,sig::IsSignal,
+    sink_offset::Number, block::Block)
+
+    child = childsignal(x)
+    sink!(result,child,SignalTrait(child),sig,sink_offset, block)
+end
+
+@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::DropApply,
+    sig::IsSignal,i::Number,j::Number)
+
+    child = childsignal(x)
+    sinkat!(result,child,SignalTrait(child),i,j)
+end
+
+@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::DropApply,
+    sig::IsSignal,i::Number,j::Number)
+
+    child = childsignal(x)
+    sinkat!(result,child,SignalTrait(child),i,j+x.n)
 end
