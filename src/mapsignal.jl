@@ -4,7 +4,7 @@ export mapsignal, mix, amplify, addchannel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,Args,Pd} <: AbstractSignal
+struct SignalOp{Fn,Fs,El,L,Args,Pd,T} <: AbstractSignal{T}
     fn::Fn
     val::El
     len::L
@@ -12,6 +12,14 @@ struct SignalOp{Fn,Fs,El,L,Args,Pd} <: AbstractSignal
     samplerate::Fs
     padding::Pd
 end
+
+function SignalOp(fn::Fn,val::El,len::L,args::Args,
+    samplerate::Fs,padding::Pd) where {Fn,El,L,Args,Fs,Pd}
+
+    SignalOp{Fn,El,L,Args,Fs,Pd,ntuple_T(El)}(fn,val,len,args,
+        samplerate,padding)
+end
+
 struct NoValues
 end
 novalues = NoValues()

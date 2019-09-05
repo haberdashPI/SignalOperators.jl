@@ -73,7 +73,7 @@ struct PaddedSignal{S,T} <: WrappedSignal{S,T}
     pad::T
 end
 SignalTrait(x::Type{T}) where T <: PaddedSignal = SignalTrait(x,SignalTrait(T))
-SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs,L}) =
+SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     SignalTrait{T,Fs,Nothing}()
 nsamples(x::PaddedSignal) = nothing
 tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs) =
@@ -129,7 +129,7 @@ function sinkchunk!(result,x::PaddedSignal,::IsSignal,offset::Number,check,last)
     if !check.usepad
         sinkchunk!(result,x.x,SignalTrait(x.x),offset,check,last)
     else
-        @simd @inbounds for i in checkindex(check):last
+        @inbounds @simd for i in checkindex(check):last
             writesink(result,i,usepad(x))
         end
     end

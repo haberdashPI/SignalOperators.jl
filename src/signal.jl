@@ -89,9 +89,25 @@ function sink(x::T,::Type{A}=AxisArray;
         samplerate=samplerate(x)) where {T,A}
 
     x = signal(x,samplerate)
-    sink(x,SignalTrait(T),inframes(Int,length,samplerate(x)),A)
+    sink(x,SignalTrait(T),inframes(Int,length,SignalOperators.samplerate(x)),A)
 end
-sink_init(sig) = Array{channel_eltype(sig)}(undef,nsamples(sig),nchannels(sig))
+
+function sink(x,sig::IsSignal,::Nothing,T) where T 
+    error("Cannot store infinite signal in an array.",
+           " Specify a length when calling `sink`.")
+end
+function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
+    result = Array{El}(undef,len,nchannels(x))
+    sink!(result,x;kwds...)
+end
+function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
+    result = sink(x,sig,len,Array)
+    times = Axis{:time}(range(0s,length=size(result,1),step=s/samplerate(x)))
+    channels = Axis{:channel}(1:nchannels(x))
+    AxisArray(result,times,channels)
+end
+sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
+
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;offset=0,
     samplerate=SignalOperators.samplerate(x)) 
     x = signal(x,samplerate)
@@ -127,27 +143,6 @@ function sinkchunk!(result,x,sig,offset,check,last)
         sampleat!(result,x,sig,i-offset,i,check)
     end
 end
-
-# New idea: rather than having blocks, have "checkpoints"
-# a signal can define check points, which will be used to perform
-# intermediate oeprations: all sinks must implement sampleat!
-# and can optionally implement sink_checkpoints oncheckpoint, and
-
-function sink(x,sig::IsSignal,::Nothing,T)
-    error("Cannot store infinite signal in an array.",
-           " Specify a length when calling `sink`.")
-end
-function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
-    result = Array{El}(undef,len,nchannels(x))
-    sink!(result,x,sig)
-end
-function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
-    result = sink(x,sig,len,Array)
-    times = Axis{:time}(range(0s,length=size(result,1),step=s/samplerate(x)))
-    channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(result,times,channels)
-end
-sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
 writesink(result::AbstractArray,i,val) = result[i,:] .= val
 
 # TODO: we need just one function

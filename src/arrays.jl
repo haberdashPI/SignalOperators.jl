@@ -2,7 +2,7 @@ export sink
 using AxisArrays
 
 # signals can be arrays with some metadata
-function signal(x::AbstractArray,fs=missing) 
+function signal(x::AbstractArray,fs::Union{Missing,Number}=missing) 
     times = range(0s,length=size(x,1),step=s/inHz(fs))
     if ndims(x) == 1
         ax = AxisArray(x,Axis{:time}(times))
@@ -23,7 +23,7 @@ function signal(x::AxisArray,fs=missing)
 end
 SignalTrait(::Type{<:AxisArray{T}}) where T = IsSignal{T,Float64,Int}()
 nsamples(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time})[1])
-function nchannels(x::AxisArrays) 
+function nchannels(x::AxisArray) 
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
 end
@@ -32,7 +32,7 @@ function samplerate(x::AxisArray)
     inHz(1/step(times))
 end
 
-const WithAxes{Tu} = AxisArrays{<:Any,<:Any,<:Any,Tu}
+const WithAxes{Tu} = AxisArray{<:Any,<:Any,<:Any,Tu}
 const AxTimeD1 = Union{WithAxes{<:Tuple{Axis{:time,<:Any},<:Any}},
                      WithAxes{<:Tuple{Axis{:time},<:Any}}}
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time,<:Any}}}

@@ -13,7 +13,7 @@ ItrApply(signal::Si,::IsSignal{T},time::Tm,fn::Fn) where {Si,Tm,Fn,T} =
     ItrApply{Si,Tm,Fn,T}(signal,time,fn)
 
 function SignalTrait(::Type{<:ItrApply{Si,Tm,Fn}},::IsSignal{T,Fs,L}) where
-    {Si,Tm,T,Fs,L}
+    {Si,Tm,Fn,T,Fs,L}
 
     if Fs <: Missing
         SignalTrait{T,Missing,Missing}()

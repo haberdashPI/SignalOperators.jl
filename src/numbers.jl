@@ -1,4 +1,4 @@
-struct NumberSignal{T,S} <: AbstractSignal
+struct NumberSignal{T,S} <: AbstractSignal{T}
     val::T
     samplerate::S
 end
