@@ -1,5 +1,5 @@
 export duration, nsamples, samplerate, samples, nchannels, signal, infsignal
-using MetaArrays
+using AxisArrays
 using FileIO
 
 # Signals have a sample rate and some iterator element type
@@ -123,7 +123,7 @@ function sink!(result,x,sig::IsSignal,offset::Number)
     end
 end
 function sinkchunk!(result,x,sig,offset,check,last)
-    @simd @inbounds for i in checkindex(check):last
+    @inbounds @simd for i in checkindex(check):last
         sampleat!(result,x,sig,i-offset,i,check)
     end
 end
