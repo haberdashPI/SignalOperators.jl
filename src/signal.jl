@@ -103,19 +103,6 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;offset=0,
 
     sink!(result,x,SignalTrait(x),offset)
 end
-struct NoBlock
-end
-struct Block
-    max::Int
-end
-Block() = Block(0)
-noblocks(x) = noblocks(x,block_length(x))
-noblocks(x,::NoBlock) = true
-noblocks(x,::Block) = false
-block_length(x) = NoBlock()
-Base.isless(::NoBlock,::Block) = true
-Base.isless(::Block,::NoBlock) = false
-Base.isless(x::Block,y::Block) = isless(x.max,y.max)
 
 abstract type AbstractCheckpoint
 end
@@ -125,22 +112,19 @@ struct EmptyCheckpoint
     n::Int
 end
 checkindex(x::EmptyCheckpoint) = x.n
-beforecheckpoint(x,check) = check
-aftercheckpoint(x,check) = nothing
 
 sampleat!(result,x,s::IsSignal,i::Number,j::Number,data) = 
-    sampleat!(reuslt,x,s,i,j)
+    sampleat!(result,x,s,i,j)
+fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
-    if offset+size(result,1) ≤ nsamples(x)
-        error("Requested too many samples from signal: $x")
-    end
     checks = checkpoints(x,offset,size(result,1))
     for (check,next) in fold(checkpoints)
-        check = beforecheckpoint(x,check)
-        @simd @inbounds for i in checkindex(check):(checkindex(next)-1)
-            sampleat!(result,x,sig,i-offset,i)
-        end
-        aftercheckpoint(x,check)
+        sinkchunk!(result,x,sig,offset,check,checkindex(next)-1)
+    end
+end
+function sinkchunk!(result,x,sig,offset,check,last)
+    @simd @inbounds for i in checkindex(check):last
+        sampleat!(result,x,sig,i-offset,i,check)
     end
 end
 
@@ -148,22 +132,6 @@ end
 # a signal can define check points, which will be used to perform
 # intermediate oeprations: all sinks must implement sampleat!
 # and can optionally implement sink_checkpoints oncheckpoint, and
-
-init_block(result,x,sig,offset,block) = nothing
-function sink!(result,x,sig::IsSignal,offset::Number)
-    data = init_block(result,x,sig,offset,block)
-    rlen = size(result,1)
-    step = block.max > 0 ? block.max : default_block_size
-    for i in 1:step:rlen
-        sinkblock!(@views(result[i:min(i+block.max,end),:]),x,sig,data,offset+i-1,
-            block)
-    end
-end
-function sinkblock!(result,x,sig::IsSignal,data::Nothing,offset::Number,::NoBlock)
-    @simd @inbounds for i in 1:len
-        sampleat!(result,x,sig,i,i+offset)
-    end
-end
 
 function sink(x,sig::IsSignal,::Nothing,T)
     error("Cannot store infinite signal in an array.",

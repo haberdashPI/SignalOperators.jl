@@ -33,8 +33,7 @@ end
 
 tochannels(ch) = x -> tochannels(x,ch)
 tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
-tochannels(x,::Nothing,ch) = 
-    error("Don't know how to set number of channgles of non signal: $x")
+tochannels(x,::Nothing,ch) = tochannels(signal(x),ch)
 function tochannels(x,::IsSignal,ch) 
     if ch == nchannels(x)
         x

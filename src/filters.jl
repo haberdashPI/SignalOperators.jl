@@ -1,26 +1,27 @@
 export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
-const default_block_size = 4096
+const default_block_size = 2^12
+
 
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
-lowpass(x,low;order=5,method=Butterworth(order),blocksize=0) = 
+lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_block_size) = 
     filtersignal(x,Lowpass(inHz(low),fs=samplerate(x)),method,
-    blocksize=0)
+    blocksize=default_block_size)
 
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
-highpass(x,high;order=5,method=Butterworth(order),blocksize=0) = 
+highpass(x,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
     filtersignal(x,Highpass(inHz(high),fs=samplerate(x)),method,
-        blocksize=0)
+        blocksize=default_block_size)
 
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
-bandpass(x,low,high;order=5,method=Butterworth(order),blocksize=0) = 
+bandpass(x,low,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
     filtersignal(x,Bandpass(inHz(low),inHz(high),fs=samplerate(x)),method,
-        blocksize=0)
+        blocksize=default_block_size)
 
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
-bandstop(x,low,high;order=5,method=Butterworth(order),blocksize=0) = 
+bandstop(x,low,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
     filtersignal(x,Bandstop(inHz(low),inHz(high),fs=samplerate(x)),method,
-        blocksize=0)
+        blocksize=default_block_size)
 
 filtersignal(x,filter,method;kwds...) = 
     filtersignal(x,SignalTrait(x),filter,method;kwds...)
@@ -35,40 +36,69 @@ end
 # of just sinking to data: this way we can allow missing samplerates to pass
 # through filter operations
 
-filtersignal(x,s::IsSignal,f,m;blocksize=0) = 
+filtersignal(x,s::IsSignal,f,m;blocksize=default_block_size) = 
     filtersignal(x,s,digitalfilter(f,m),blocksize=blocksize)
 function filtersignal(x::Si,s::IsSignal,h::H;blocksize) where {Si,H}
-    FilteredSignal{channel_eltype(Si),Si,H}(x,h,blocksize)
+    n = DSP.inputlength(h,x.blocksize)
+    buffer = Array{channel_eltype(x)}(undef,n,nchannels(x))
+    si = (DSP._zerossi(h,buffer) for _ in 1:nchannels(x))
+
+    FilteredSignal{channel_eltype(x),Si,H}(x,h,buffer,si)
 end
-struct FilteredSignal{T,Si,H} <: WrappedSignal{Si,T}
+struct FilteredSignal{T,Si,H,A} <: WrappedSignal{Si,T}
     x::Si
     h::H
-    blocksize::Int
+    input::Matrix{T}
+    si::A
 end
 
-# TODO: use new check point API
+# TODO: report this as a ComputedSignal and implement tosamplerate
+# at the same time, I should have the filters computed lazily
+EvalTrait(x::FilteredSignal) = DataSignal()
 
-block_length(x::FilteredSignal) = Block(x.blocksize)
-function init_block(result,x::FilteredSignal,::IsSignal,offset,block) 
-    n = DSP.inputlength(x.h,block.max)
-    buffer = init_children(x,n,block)
-    si = (DSP._zerossi(x.h,buffer) for _ in 1:nchannels(x.x))
-    # problem, the block may be too big (e.g. another filter with max block size)
-    child_state = init_block(result,x.x,SignalTrait(x.x),offset,Block(n))
-    (buffer,si,child_state)
+struct FilterCheckpoint
+    n::Int
+    firstoffset::Int
+end
+function checkpoints(x::FilteredSignal,offset,len)
+    for i in eachindex(x.si)
+        x.si[i] .= 0
+    end
+
+    n = size(x.buffer,1)
+    mapreduce([1:x.blocksize:(len-1); len]) do i
+        FilterCheckpoint(i+offset,i == 1 ? offset : 0)
+    end
 end
 
-function sinkblock!(result::AbstractArray,x::FilteredSignal,sig::IsSignal,
-        (buffer,si,child_state), offset::Number)
-    
-    inlen = DSP.inputlength(x.h,result)
-    sinkblock!(@views(buffer[1:inlen,:]),x.x,SignalTrait(x.x), child_state, offset)
-    for ch in 1:nchannels(x)
-        @views(filt!(result[:,ch],x.h,buffer[1:inlen,ch],si[ch]))
-    end 
+struct NullBuffer
+    n::Int
+end
+Base.size(x::NullBuffer) = (x.n,1)
+writesink(x::NullBuffer,i,y) = y
+
+function sinkchunk!(result::AbstractArray,x::FilteredSignal,sig::IsSignal,
+    offset,check,last)
+
+    # if were at an offset, we still have to filter all of the samples
+    # before the offset, so run sink! up until the offset
+    if check.firstoffset > 0   
+        sink!(NullBuffer(offset),x,SignalTrait(x),0)
+    end
+
+    # now that the filter state is properly initialized
+    # apply the filter to the remaining samples
+    k = min(size(x.buffer,1),last-checkindex(check)+1)
+    @views begin 
+        sink!(x.buffer[1:k,:],x.x,SignalTrait(x.x),check.n)
+        for ch in 1:nchannels(x)
+            filter!(result[(checkindex(check):last) .- offset,ch],x.h,
+                x.buffer[1:k,ch])
+        end
+    end
 end
 
-# TODO: allow this to be applied iteratively for application to infinite signal
+# TODO: create an online version of normpower?
 function normpower(x)
     fs = samplerate(x)
     x = sink(x)
