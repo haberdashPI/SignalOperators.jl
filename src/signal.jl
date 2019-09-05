@@ -113,7 +113,7 @@ struct EmptyCheckpoint
 end
 checkindex(x::EmptyCheckpoint) = x.n
 
-sampleat!(result,x,s::IsSignal,i::Number,j::Number,data) = 
+sampleat!(result,x,s::IsSignal,i::Number,j::Number,check) = 
     sampleat!(result,x,s,i,j)
 fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)

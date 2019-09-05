@@ -63,11 +63,8 @@ function checkpoints(x::AppendSignals,offset,len)
 
     result
 end
-function sampleat!(result,x,sig,i,j,check)
+sampleat!(result,x,sig,i,j,check) =
     sampleat!(result,x.all[check.sig_index],i,j+check.offset,check.child)
-end
-beforecheckpoint(x,check::AppendCheckpoint) = beforecheckpoint(x,check.child)
-aftercheckpoint(x,check::AppendCheckpoint) = aftercheckpoint(x,check.child)
 
 ################################################################################
 # padding
@@ -128,9 +125,12 @@ function checkpoints(x::PaddedSignal,offset,len)
         PadCheckpoint(checkindex(child),usepad,child)
     end
 end
-function sampleat!(result,x::PaddedSignal,::IsSignal,i::Number,j::Number,check)
-    check.usepad ? writesink(result,i,usepad(x)) :
-        sampleat!(result,x.x,SignalTrait(x.x),i,j,check.child)
+function sinkchunk!(result,x::PaddedSignal,::IsSignal,offset::Number,check,last)
+    if !check.usepad
+        sinkchunk!(result,x.x,SignalTrait(x.x),offset,check,last)
+    else
+        @simd @inbounds for i in checkindex(check):last
+            writesink(result,i,usepad(x))
+        end
+    end
 end
-
-
