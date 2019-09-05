@@ -45,6 +45,9 @@ struct FilteredSignal{T,Si,H} <: WrappedSignal{Si,T}
     h::H
     blocksize::Int
 end
+
+# TODO: use new check point API
+
 block_length(x::FilteredSignal) = Block(x.blocksize)
 function init_block(result,x::FilteredSignal,::IsSignal,offset,block) 
     n = DSP.inputlength(x.h,block.max)

@@ -25,21 +25,21 @@ nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
 nsamples(x::SignalFunction) = nothing
 samplerate(x::SignalFunction) = x.samplerate
 
-@Base.propagate_inbounds function sinkat!(result::AbstractArray,
+@Base.propagate_inbounds function sampleat!(result,
     x::SignalFunction{Fn,Fr},::IsSignal,i,j) where {Fn,Fr}
 
     t = j/x.samplerate
     if Fn <: typeof(sin) && 
         if Fr <: Missing
-            result[i,:] .= @. sinpi(2*(t+x.ϕ))
+            writesink(result,i,@. sinpi(2*(t+x.ϕ)))
         else
-            result[i,:] .= @. sinpi(2*(t*x.ω + x.ϕ))
+            writesink(result,i,@. sinpi(2*(t*x.ω + x.ϕ)))
         end
     else
         if Fr <: Missing
-            result[i,:] .= @. x.fn(t + x.ϕ)
+            writesink(result,i,@. x.fn(t + x.ϕ))
         else
-            result[i,:] .= @. x.fn(2π*(t*x.ω + x.ϕ))
+            writesink(result,i,@. x.fn(2π*(t*x.ω + x.ϕ)))
         end
     end
 end
@@ -56,8 +56,8 @@ end
 
 signal(x::typeof(randn),fs=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(x,(randn(rng),),fs,missing,inHz(Float64,fs))
-@Base.propagate_inbounds function sinkat!(result::AbstractArray,
+@Base.propagate_inbounds function sampleat!(result::AbstractArray,
     x::SignalFunction{typeof(randn)},::IsSignal,i,j)
     
-    result[i,:] .= randn(rng)
+    writesink(result,i,randn(rng))
 end

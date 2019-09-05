@@ -86,19 +86,16 @@ testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
 block_length(x::SignalOp) = minimum(block_length.(x.args))
 
 struct OneSample
-    ch::Int
 end
-Base.size(x::OneSample) = (1,x.ch)
-Base.dotview(result::OneSample,::Number,::Colon) = result
-Base.copyto!(result::OneSample,vals::Broadcast.Broadcasted) = vals.args[1]
+writesink(::OneSample,i,val) = val
 
-@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::SignalOp,
+@Base.propagate_inbounds function sampleat!(result,x::SignalOp,
     ::IsSignal,i::Number,j::Number)
 
     vals = map(x.args) do arg
-        sinkat!(OneSample,arg,SignalTrait(arg),1,j)
+        sampleat!(OneSample,arg,SignalTrait(arg),1,j)
     end
-    result[i,:] .= x.fn(vals...)
+    writesink(result,i,x.fn(val...))
 end
 
 default_pad(x) = zero

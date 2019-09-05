@@ -32,27 +32,42 @@ end
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
     append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
 
-struct AppendCheckpoint <: AbstractCheckpoint
+struct AppendCheckpoint{C} <: AbstractCheckpoint
     n::Int
     sig_index::Int
+    offset::Int
+    child::C
 end
-cindex(x::AppendCheckpoint) = x.n
-sink_checkpoints(x::AppendSignals,n) = 
-    enumerate([1;cumsum(nsamples.(x.all[1:end-1])).+1]) |> 
-    @λ(map(((i,cum)) -> AppendCheckpoint(cum,i),_)) |>
-    @λ(filter(@λ(cindex(_) < n),_))
-function sample_init(x::AppendSignals)
-    (sig_index=1,offset=0,child=sample_init(childsignal(x)))
+checkindex(x::AppendCheckpoint) = x.n
+function checkpoints(x::AppendSignals,offset,len)
+    until = offset+len
+    indices = collect(enumerate([1;cumsum(nsamples.(x.all[1:end-1])).+1]))
+
+    result = mapreduce(vcat,x.all,indices) do (signal,(sig_index,index))
+        checks = checkpoints(signal,offset,nsamples(x.all))
+        [AppendCheckpoint(checkindex(c)+index-1,sig_index,-index+1,c) 
+            for c in checks]
+    end
+
+    # cut out any checkpoints not in the appropriate range
+    start = findlast(@λ(offset > checkindex(_)),result)
+    start = isnothing(start) ? 1 : start
+    stop = findlast(@λ(checkindex(_) < until),indices)
+    stop = isnothing(stop) ? length(indices) : stop
+
+    # if the first checkout has a negative index, revise it to have
+    # a positive index
+    result = result[start:stop]
+    result[1] = AppendCheckpoint(1,result[1].sig_index,
+        result[1].offset + (result[1].n - 1),result[1].child)
+
+    result
 end
-function sampleat!(result,x,sig,i,j,data)
-    sampleat!(result,x.all[data.sig_index],i,j+data.offset,data.child)
+function sampleat!(result,x,sig,i,j,check)
+    sampleat!(result,x.all[check.sig_index],i,j+check.offset,check.child)
 end
-function oncheckpoint(x::AppendSignals,check::AppendCheckpoint,data)
-    (sig_index=check.sig_index,offset=-check.n+1,child=data.child)
-end
-function oncheckpoint(x::AppendSignals,check,data)
-    oncheckpoint(childsignal(x),check,data)
-end
+beforecheckpoint(x,check::AppendCheckpoint) = beforecheckpoint(x,check.child)
+aftercheckpoint(x,check::AppendCheckpoint) = aftercheckpoint(x,check.child)
 
 ################################################################################
 # padding
@@ -95,29 +110,27 @@ struct UsePad
 end
 const use_pad = UsePad()
 
-function padresult(x,smp,result)
-    if isnothing(result)
-        usepad(x), (smp, use_pad)
-    else
-        val, state = result
-        val, (smp, state)
-    end
+struct PadCheckpoint{C}
+    n::Int
+    usepad::Bool
+    child::C
 end
-block_length(x::PaddedSignal) = Block()
-
-function sinkblock!(result,x::PaddedSignal,::IsSignal,data,offset::Number,
-    block::Block)
-
-    until = min(offset+size(result,1),nsamples(x.x)) - offset
-    if until ≥ 1
-        sinkblock!(@view(result[1:until,:]),x.x,SignalTrait(x.x),data,offset,
-            block_length(x.x))
-    end
-    if until < size(result,1)
-        result[max(1,until+1):end,:] .= usepad(x)
-    end
-end
-
-
-
+checkindex(c::PadCheckpoint) = c.n
+function checkpoints(x::PaddedSignal,offset,len)
+    child_len = nsamples(childsignal(x))-offset
+    child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
     
+    usepad = false
+    map(child_checks) do child
+        if checkindex(child) == child_len
+            usepad = true
+        end
+        PadCheckpoint(checkindex(child),usepad,child)
+    end
+end
+function sampleat!(result,x::PaddedSignal,::IsSignal,i::Number,j::Number,check)
+    check.usepad ? writesink(result,i,usepad(x)) :
+        sampleat!(result,x.x,SignalTrait(x.x),i,j,check.child)
+end
+
+

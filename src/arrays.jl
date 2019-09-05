@@ -36,13 +36,13 @@ const WithAxes{Tu} = AxisArrays{<:Any,<:Any,<:Any,Tu}
 const AxTimeD1 = Union{WithAxes{<:Tuple{Axis{:time,<:Any},<:Any}},
                      WithAxes{<:Tuple{Axis{:time},<:Any}}}
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time,<:Any}}}
-@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::AxTimeD1,
+@Base.propagate_inbounds function sampleat!(result,x::AxTimeD1,
     ::IsSignal,i::Number,j::Number)
 
-    result[i,:] .= x[:,j]
+    writesink(result,i,view(x,:,j))
 end
-@Base.propagate_inbounds function sinkat!(result::AbstractArray,x::AxTimeD2,
+@Base.propagate_inbounds function sampleat!(result,x::AxTimeD2,
     ::IsSignal,i::Number,j::Number)
 
-    result[i,:] .= x[j,:]
+    writesink(result,i,view(x,j,:))
 end

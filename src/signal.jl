@@ -119,37 +119,34 @@ Base.isless(x::Block,y::Block) = isless(x.max,y.max)
 
 abstract type AbstractCheckpoint
 end
-isless(x::AbstractCheckpoint,y::AbstractCheckpoint) = isless(cindex(x),cindex(y))
-struct SimpleCheckpoint <: AbstractCheckpoint
+isless(x::AbstractCheckpoint,y::AbstractCheckpoint) = isless(checkindex(x),checkindex(y))
+checkpoints(x,offset,len) = [EmptyCheckpoint(1),EmptyCheckpoint(len+1)]
+struct EmptyCheckpoint
     n::Int
 end
-cindex(x::SimpleCheckpoint) = x.n
-sink_checkpoints(x,n) = SimpleCheckpoint(1),SimpleCheckpoint(n)
+checkindex(x::EmptyCheckpoint) = x.n
+beforecheckpoint(x,check) = check
+aftercheckpoint(x,check) = nothing
 
-sampleat_init(x,sig) = nothing
-function sampleat!(result,x,s::IsSignal,i::Number,j::Number,data)
-
+sampleat!(result,x,s::IsSignal,i::Number,j::Number,data) = 
     sampleat!(reuslt,x,s,i,j)
-end
-
 function sink!(result,x,sig::IsSignal,offset::Number)
     if offset+size(result,1) ≤ nsamples(x)
         error("Requested too many samples from signal: $x")
     end
-    checkpoints = sort!(sink_checkpoints(x,size(result,1))) |> 
-        @λ(filter(@λ(cindex(_) >= offset),_))
-    data = sampleat_init(x,sig)
-    for (check,stop) in zip(checkpoints,Iterators.drop(checkpoints,1))
-        data = oncheckpoint(x,check,data)
-        @simd @inbounds for i in cindex(check):(cindex(stop)-1)
-            data = sampleat!(result,x,sig,i,offset+i,data)
+    checks = checkpoints(x,offset,size(result,1))
+    for (check,next) in fold(checkpoints)
+        check = beforecheckpoint(x,check)
+        @simd @inbounds for i in checkindex(check):(checkindex(next)-1)
+            sampleat!(result,x,sig,i-offset,i)
         end
+        aftercheckpoint(x,check)
     end
 end
 
 # New idea: rather than having blocks, have "checkpoints"
 # a signal can define check points, which will be used to perform
-# intermediate oeprations: all sinks must implement sinkat!
+# intermediate oeprations: all sinks must implement sampleat!
 # and can optionally implement sink_checkpoints oncheckpoint, and
 
 init_block(result,x,sig,offset,block) = nothing
@@ -164,7 +161,7 @@ function sink!(result,x,sig::IsSignal,offset::Number)
 end
 function sinkblock!(result,x,sig::IsSignal,data::Nothing,offset::Number,::NoBlock)
     @simd @inbounds for i in 1:len
-        sinkat!(result,x,sig,i,i+offset)
+        sampleat!(result,x,sig,i,i+offset)
     end
 end
 
@@ -183,6 +180,7 @@ function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
     AxisArray(result,times,channels)
 end
 sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
+writesink(result::AbstractArray,i,val) = result[i,:] .= val
 
 # TODO: we need just one function
 # signal_setindex!(result,ri,x,xi)
