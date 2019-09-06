@@ -1,14 +1,20 @@
 using DSP: FIRFilter, resample_filter
 export tosamplerate, tochannels, format, uniform
 
-tosamplerate(fs) = x -> tosamplerate(x,fs)
-tosamplerate(x,fs) = tosamplerate(x,SignalTrait(x),EvalTrait(x),fs)
-tosamplerate(x,::Nothing,ev,fs) = nosignal(x)
+tosamplerate(fs;blocksize=default_block_size) = 
+    x -> tosamplerate(x,fs;blocksize=blocksize)
+tosamplerate(x,fs;blocksize=default_block_size) = 
+    tosamplerate(x,SignalTrait(x),EvalTrait(x),fs;blocksize=blocksize)
+tosamplerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
 
-tosamplerate(x,::IsSignal,::DataSignal,::Missing) = x
-tosamplerate(x,::IsSignal,::ComputedSignal,::Missing) = x
+tosamplerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
+tosamplerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
 
-function tosamplerate(x,s::IsSignal{T},::DataSignal,fs) where T
+function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
+    if ismissing(samplerate(x))
+        signal(x,fs)
+    end
+
     # copied and modified from DSP's `resample`
     ratio = rationalize(inHz(fs)/samplerate(x))
     if ratio == 1
@@ -27,7 +33,7 @@ function tosamplerate(x,s::IsSignal{T},::DataSignal,fs) where T
             x
         end
 
-        filtersignal(x,IsSignal{T}(inHz(fs)),self)
+        filtersignal(x,s,_ -> self;blocksize=blocksize,newfs=inHz(fs))
     end
 end
 

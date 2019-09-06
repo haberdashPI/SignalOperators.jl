@@ -125,12 +125,13 @@ function checkpoints(x::PaddedSignal,offset,len)
         PadCheckpoint(checkindex(child),usepad,child)
     end
 end
-function sinkchunk!(result,x::PaddedSignal,::IsSignal,offset::Number,check,last)
+function sinkchunk!(result,off,x::PaddedSignal,::IsSignal,check,until)
     if !check.usepad
-        sinkchunk!(result,x.x,SignalTrait(x.x),offset,check,last)
+        sinkchunk!(result,off,x.x,SignalTrait(x.x),check,until)
     else
+        p = usepad(x)
         @inbounds @simd for i in checkindex(check):last
-            writesink(result,i,usepad(x))
+            writesink(result,i-off,p)
         end
     end
 end

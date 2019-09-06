@@ -15,7 +15,8 @@ IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 # nchannels(x) (may return nothing)
 # nsamples(x)
 # samplerate(x)
-# samples(x) (an iterator of samples)
+# sampleat! 
+# MAYBE sinkchunk! and/or checkpoints
 
 # not everything that's a signal belongs to this package, (hence the use of
 # trait-based dispatch), but everything that is in this package is a child of
@@ -37,10 +38,6 @@ infsignal(x,::Nothing) = nosignal(x)
 
 samplerate(x) = samplerate(x,SignalTrait(x))
 samplerate(x,::Nothing) = nosignal(x)
-
-samples(x) = samples(x,SignalTrait(x))
-samples(x::AbstractSignal,::IsSignal) = x
-samples(x,::Nothing) = nosignal(x)
 
 nchannels(x) = nchannels(x,SignalTrait(x))
 nchannels(x,::Nothing) = nosignal(x)
@@ -72,33 +69,42 @@ end
 """
     sink([signal],[to=Array];length,samplerate)
 
-Creates a given type of object from a signal. By default it is an `AxisArray`
-with time as the rows and channels as the columns. If a filename is specified
-for `to`, the signal is written to the given file. If given a type (e.g.
-`Array`) the signal is written to that type. The samplerate does not
-need to be specified unless `samplerate(signal)` is a missing value.
+Creates a given type of object (`to`) from a signal. By default it is an
+`AxisArray` with time as the rows and channels as the columns. If a filename
+is specified for `to`, the signal is written to the given file. If given a
+type (e.g. `Array`) the signal is written to that type. The sample rate does
+not need to be specified, it will use either the sample rate of `signal` or a
+default sample rate (which raises a warning). 
 
-If the signal is not specified, creates a single argument function which,
-when called, sends the given signal to the sink. (e.g. `mysignal |>
+You can specify a length for the signal, in seconds or frames. If the value
+is a unitless number, it is assumed to be the number of frames (and will be
+rounded as necessary). 
+
+If the signal is not specified, this creates a single argument function which,
+when called, sends the passed signal to the sink. (e.g. `mysignal |>
 sink("result.wav")`)
 
 """
 sink(to;kwds...) = x -> sink(x,to;kwds...)
 function sink(x::T,::Type{A}=AxisArray;
-        length=nsamples(x)*frames,
-        samplerate=samplerate(x)) where {T,A}
+        length=infsignal(x) ? nothing : nsamples(x)*frames,
+        samplerate=SignalOperators.samplerate(x)) where {T,A}
 
+    if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
+        @warn("No sample rate was specified, defaulting to 44.1 kHz.")
+        samplerate = 44.1kHz
+    end
     x = signal(x,samplerate)
+
     sink(x,SignalTrait(T),inframes(Int,length,SignalOperators.samplerate(x)),A)
 end
 
-function sink(x,sig::IsSignal,::Nothing,T) where T 
-    error("Cannot store infinite signal in an array.",
-           " Specify a length when calling `sink`.")
+function sink(x,sig::IsSignal,::Nothing,T)
+    error("Cannot store infinite signal. Specify a length when calling `sink`.")
 end
 function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
     result = Array{El}(undef,len,nchannels(x))
-    sink!(result,x;kwds...)
+    sink!(result,x)
 end
 function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
     result = sink(x,sig,len,Array)
@@ -108,11 +114,16 @@ function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
 end
 sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
 
-function sink!(result::Union{AbstractVector,AbstractMatrix},x;offset=0,
-    samplerate=SignalOperators.samplerate(x)) 
+function sink!(result::Union{AbstractVector,AbstractMatrix},x;
+    samplerate=SignalOperators.samplerate(x),offset=0) 
+
+    if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
+        @warn("No sample rate was specified, defaulting to 44.1 kHz.")
+        samplerate = 44.1kHz
+    end
     x = signal(x,samplerate)
 
-    if nsamples(x)-offset < size(result,1)
+    if !infsignal(x) && nsamples(x)-offset < size(result,1)
         error("Signal is too short to fill buffer of length $(size(result,1)).")
     end
     x = tochannels(x,size(result,2))
@@ -122,25 +133,29 @@ end
 
 abstract type AbstractCheckpoint
 end
-isless(x::AbstractCheckpoint,y::AbstractCheckpoint) = isless(checkindex(x),checkindex(y))
-checkpoints(x,offset,len) = [EmptyCheckpoint(1),EmptyCheckpoint(len+1)]
 struct EmptyCheckpoint
     n::Int
 end
 checkindex(x::EmptyCheckpoint) = x.n
+
+checkpoints(x,offset,len) = [EmptyCheckpoint(1),EmptyCheckpoint(len+1)]
+checkpoints(x,offset,len,saved_state) = checkpoints(x,offset,len)
 
 sampleat!(result,x,s::IsSignal,i::Number,j::Number,check) = 
     sampleat!(result,x,s,i,j)
 fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
     checks = checkpoints(x,offset,size(result,1))
+    n = 0
     for (check,next) in fold(checkpoints)
-        sinkchunk!(result,x,sig,offset,check,checkindex(next)-1)
+        sinkchunk!(result,n-checkindex(next),x,sig,check,checkindex(next)-1)
+        n += checkindex(check)
     end
+    result
 end
-function sinkchunk!(result,x,sig,offset,check,last)
-    @inbounds @simd for i in checkindex(check):last
-        sampleat!(result,x,sig,i-offset,i,check)
+function sinkchunk!(result,off,x,sig,check,until)
+    @inbounds @simd for i in checkindex(check):until
+        sampleat!(result,x,sig,i+off,i)
     end
 end
 writesink(result::AbstractArray,i,val) = result[i,:] .= val

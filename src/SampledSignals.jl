@@ -1,10 +1,16 @@
 using .SampledSignals: SampleBuf
 
-SignalTrait(x::SampleBuf{T}) where T = 
-    IsSignal{T,Float64,Int}(SampledSignals.samplerate(x),size(x,1))
-SignalTrait(::Type{<:SampleBuf{T}}) where T = IsSignal{T,Float64,Int}
-nchannels(x::SampleBuf,::IsSigal) = size(x,2)
-samples(x::SampleBuf,::IsSignal) = TimeSlices(x)
+SignalTrait(::Type{<:SampleBuf{T}}) where T = IsSignal{T,Float64,Int}()
+nsamples(x::SampleBuf,::IsSignal) = size(x,1)
+nchannels(x::SampleBuf,::IsSignal) = size(x,2)
+samplerate(x::SampleBuf,::IsSignal) = SampledSignals.samplerate(x)
 
-SampleBuf(x::AbstractSignal) = SampleBuf(sink(x),samplerate(x))
-SampleBuf(x::MetaArray{<:Any,IsSignal}) = SampleBuf(sink(x),samplerate(x))
+@Base.propagate_inbounds function sampleat!(result,x::SampleBuf,::IsSignal,i,j)
+    writesink(result,i,view(x,j,:))
+end
+
+function sink(x,sig::IsSignal{El},len::Number,::Type{<:SampleBuf}) where El
+    result = SampleBuf{El}(len,nchannels(x))
+    sink!(result,x)
+end
+

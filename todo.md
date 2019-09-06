@@ -13,9 +13,9 @@ but makes a big difference in terms of API flexibility, so should be done soon)
     - test it!
 + handle filters iteratively to allow for infinite signals
     - test it
-
-- allow for missing samplerates in filters (need to resolve
++ allow for missing samplerates in filters (need to resolve
     filter coefficeints lazzily)
+    - test it!
 - allow for SampleBuf's
 
 # More tests (before registration)
@@ -33,3 +33,4 @@ be useful, and make sure codebase is better tested
 - allow for unknown length signals, e.g. streaming to a device
     and reading from a file
 - allow online normpower
+- support LibSndFile
