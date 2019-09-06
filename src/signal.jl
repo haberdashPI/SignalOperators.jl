@@ -85,7 +85,7 @@ when called, sends the passed signal to the sink. (e.g. `mysignal |>
 sink("result.wav")`)
 
 """
-sink(to;kwds...) = x -> sink(x,to;kwds...)
+sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
 function sink(x::T,::Type{A}=AxisArray;
         length=infsignal(x) ? nothing : nsamples(x)*frames,
         samplerate=SignalOperators.samplerate(x)) where {T,A}
@@ -141,36 +141,25 @@ checkindex(x::EmptyCheckpoint) = x.n
 checkpoints(x,offset,len) = [EmptyCheckpoint(1),EmptyCheckpoint(len+1)]
 checkpoints(x,offset,len,saved_state) = checkpoints(x,offset,len)
 
-sampleat!(result,x,s::IsSignal,i::Number,j::Number,check) = 
-    sampleat!(result,x,s,i,j)
 fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
     checks = checkpoints(x,offset,size(result,1))
-    n = 0
-    for (check,next) in fold(checkpoints)
-        sinkchunk!(result,n-checkindex(next),x,sig,check,checkindex(next)-1)
+    n = 1
+    for (check,next) in fold(checks)
+        len = checkindex(next) - checkindex(check) - 1
+        sinkchunk!(result,n-checkindex(check),x,sig,check,len)
         n += checkindex(check)
     end
     result
 end
-function sinkchunk!(result,off,x,sig,check,until)
-    @inbounds @simd for i in checkindex(check):until
+function sinkchunk!(result,off,x,sig,check,len)
+    @inbounds @simd for i in checkindex(check):(checkindex(check)+len)
         sampleat!(result,x,sig,i+off,i)
     end
 end
-writesink(result::AbstractArray,i,val) = result[i,:] .= val
-
-# TODO: we need just one function
-# signal_setindex!(result,ri,x,xi)
-#
-# I have already defined the basic idea here and there throughout the
-# code base. But I am just missing the ri, which needs to change differently
-# from xi (instead of using a signle index)
-
-# this still needs a little rethinking: how do I deal with interacting
-# blocks, and how do I deal with the fact that I want some children
-# to use a block and some to use signle indices
-# theres' probably a simpler solution
+function writesink(result::AbstractArray,i,val) 
+    result[i,:] .= val
+end
 
 Base.zero(x::AbstractSignal) = signal(zero(channel_eltype(x)),samplerate(x))
 Base.one(x::AbstractSignal) = signal(one(channel_eltype(x)),samplerate(x))

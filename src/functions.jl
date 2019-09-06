@@ -30,7 +30,7 @@ samplerate(x::SignalFunction) = x.samplerate
     x::SignalFunction{Fn,Fr},::IsSignal,i,j) where {Fn,Fr}
 
     t = j/x.samplerate
-    if Fn <: typeof(sin) && 
+    if Fn <: typeof(sin)
         if Fr <: Missing
             writesink(result,i,@. sinpi(2*(t+x.ϕ)))
         else
@@ -55,10 +55,13 @@ function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
         inHz(Float64,samplerate))
 end
 
+struct RandFn{R}
+    rng::R
+end
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
-    SignalFunction(@λ(randn(rng)),(randn(rng),),missing,0.0,inHz(Float64,fs))
-@Base.propagate_inbounds function sampleat!(result::AbstractArray,
-    x::SignalFunction{typeof(randn)},::IsSignal,i,j)
-    
-    writesink(result,i,x.fn())
+    SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
+@Base.propagate_inbounds function sampleat!(result,
+    x::SignalFunction{<:RandFn},::IsSignal,i,j)
+
+    writesink(result,i,randn(x.fn.rng))
 end

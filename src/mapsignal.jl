@@ -97,6 +97,16 @@ struct OneSample
 end
 writesink(::OneSample,i,val) = val
 
+function checkpoints(x::SignalOp,offset,len)
+    # TODO: create checkpoints to limit block size 
+    # during the necessary buffer copies in sinkchunk! for functions
+    mapreduce(vcat,x.args) do arg
+        checkpoints(x,offset,len)
+    end
+end
+
+function sinkchunk!(result,off,x::SignalOp,::IsSignal)
+
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,
     ::IsSignal,i::Number,j::Number)
 

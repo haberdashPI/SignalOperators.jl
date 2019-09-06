@@ -63,8 +63,9 @@ function checkpoints(x::AppendSignals,offset,len)
 
     result
 end
-sampleat!(result,x,sig,i,j,check) =
-    sampleat!(result,x.all[check.sig_index],i,j+check.offset,check.child)
+function sinkchunk!(result,off,x::AppendSignals,sig::IsSignal,check,len)
+    sinkchunk!(result,off,x.all[check.sig_index],check.child,len)
+end
 
 ################################################################################
 # padding
@@ -72,9 +73,10 @@ struct PaddedSignal{S,T} <: WrappedSignal{S,T}
     x::S
     pad::T
 end
-SignalTrait(x::Type{T}) where T <: PaddedSignal = SignalTrait(x,SignalTrait(T))
+SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
+    SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
-    SignalTrait{T,Fs,Nothing}()
+    IsSignal{T,Fs,Nothing}()
 nsamples(x::PaddedSignal) = nothing
 tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs) =
     PaddedSignal(tosamplerate(x.x,fs),x.pad)
@@ -125,12 +127,12 @@ function checkpoints(x::PaddedSignal,offset,len)
         PadCheckpoint(checkindex(child),usepad,child)
     end
 end
-function sinkchunk!(result,off,x::PaddedSignal,::IsSignal,check,until)
+function sinkchunk!(result,off,x::PaddedSignal,::IsSignal,check,len)
     if !check.usepad
         sinkchunk!(result,off,x.x,SignalTrait(x.x),check,until)
     else
         p = usepad(x)
-        @inbounds @simd for i in checkindex(check):last
+        @inbounds @simd for i in checkindex(check):(checkindex(check) + len)
             writesink(result,i-off,p)
         end
     end

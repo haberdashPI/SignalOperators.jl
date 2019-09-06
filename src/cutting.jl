@@ -12,15 +12,17 @@ ItrApply(signal::T,time,fn) where T = ItrApply(signal,SignalTrait(T),time,fn)
 ItrApply(signal::Si,::IsSignal{T},time::Tm,fn::Fn) where {Si,Tm,Fn,T} = 
     ItrApply{Si,Tm,Fn,T}(signal,time,fn)
 
+SignalTrait(::Type{T}) where {Si,T <: ItrApply{Si}} =
+    SignalTrait(T,SignalTrait(Si))
 function SignalTrait(::Type{<:ItrApply{Si,Tm,Fn}},::IsSignal{T,Fs,L}) where
     {Si,Tm,Fn,T,Fs,L}
 
     if Fs <: Missing
-        SignalTrait{T,Missing,Missing}()
+        IsSignal{T,Missing,Missing}()
     elseif Fn <: typeof(Iterators.take)
-        SignalTrait{T,Float64,Int}()
+        IsSignal{T,Float64,Int}()
     elseif Fn <: typeof(drop_)
-        SignalTrait{T,Float64,L}()
+        IsSignal{T,Float64,L}()
     end
 end
     
@@ -65,16 +67,23 @@ function tosamplerate(x::ItrApply,s::IsSignal,c::ComputedSignal,fs)
     tosamplerate(childsignal(x),s,c,fs)
 end
 
-@Base.propagate_inbounds function sampleat!(result::AbstractArray,x::DropApply,
-    sig::IsSignal,i::Number,j::Number)
+struct DropCheckpoint{C}
+    n::Int
+    child::C
+end
+function checkpoints(x::DropApply,offset,len)
+    n = resolvelen(x)
+    children = checkpoints(x.signal,offset+n,len)
+    map(children) do child
+        DropCheckpoint(checkindex(child)-n,child)
+    end
+end
+checkpoints(x::TakeApply,offset,len) = checkpoints(x.signal,offset,len)
 
-    child = childsignal(x)
-    sampleat!(result,child,SignalTrait(child),i,j)
+function sinkchunk!(result,off,x::DropApply,sig::IsSignal,check,len)
+    sinkchunk!(result,off,x.signal,SignalTrait(x.signal),check.child,len)
 end
 
-@Base.propagate_inbounds function sampleat!(result::AbstractArray,x::DropApply,
-    sig::IsSignal,i::Number,j::Number)
-
-    child = childsignal(x)
-    sampleat!(result,child,SignalTrait(child),i,j+x.n)
+function sinkchunk!(result,off,x::TakeApply,sig::IsSignal,check,len)
+    sinkchunk!(result,off,x.signal,SignalTrait(x.signal),check,len)
 end

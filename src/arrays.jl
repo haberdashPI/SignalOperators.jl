@@ -16,13 +16,13 @@ function signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
     ax
 end
 
-function signal(x::AxisArray,fs=missing)
+function signal(x::AxisArray,fs::Union{Missing,Number}=missing)
     times = axisvalues(AxisArrays.axes(x,Axis{:time}))[1]
     !isconsistent(fs,1/step(times))
     x
 end
 SignalTrait(::Type{<:AxisArray{T}}) where T = IsSignal{T,Float64,Int}()
-nsamples(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time})[1])
+nsamples(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
 function nchannels(x::AxisArray) 
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
@@ -33,16 +33,17 @@ function samplerate(x::AxisArray)
 end
 
 const WithAxes{Tu} = AxisArray{<:Any,<:Any,<:Any,Tu}
-const AxTimeD1 = Union{WithAxes{<:Tuple{Axis{:time,<:Any},<:Any}},
-                     WithAxes{<:Tuple{Axis{:time},<:Any}}}
-const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time,<:Any}}}
+const AxTimeD1 = Union{
+    WithAxes{<:Tuple{Axis{:time}}},
+    WithAxes{<:Tuple{Axis{:time},<:Any}}}
+const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 @Base.propagate_inbounds function sampleat!(result,x::AxTimeD1,
     ::IsSignal,i::Number,j::Number)
 
-    writesink(result,i,view(x,:,j))
+    writesink(result,i,view(x,j,:))
 end
 @Base.propagate_inbounds function sampleat!(result,x::AxTimeD2,
     ::IsSignal,i::Number,j::Number)
 
-    writesink(result,i,view(x,j,:))
+    writesink(result,i,view(x,:,j))
 end

@@ -40,20 +40,20 @@ end
 # through filter operations
 
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
-    T,Si,Fn,Fs = float(channel_eltype(x)),Si,typeof(fn),typeof(newfs)
+    T,Fn,Fs = float(channel_eltype(x)),typeof(fn),typeof(newfs)
 
-    input = Array{channel_eltype(x.x)}(undef,1,1),
-    ouptut = Array{channel_eltype(x)}(undef,0,0),
+    input = Array{channel_eltype(x.x)}(undef,1,1)
+    ouptut = Array{channel_eltype(x)}(undef,0,0)
     h = x.fn(44.1kHz)
     dummy = FilterState(h,inHz(44.1kHz),0,0, si = [DSP._zerosi(h,input)])
-    FilteredSignal{T,Si,Fn,Fs}(x,fn,blocksize,newfs,Ref(dummy))
+    FilteredSignal{T,Si,Fn,typeof(newfs),typeof(dummy)}(x,fn,blocksize,newfs,Ref(dummy))
 end
-struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
+struct FilteredSignal{T,Si,Fn,Fs,St} <: WrappedSignal{Si,T}
     x::Si
     fn::Fn
     blocksize::Int
     samplerate::Fs
-    filter_state::Ref{FilterState}
+    filter_state::Ref{St}
 end
 EvalTrait(x::FilteredSignal) = ComputedSignal()
 
@@ -67,7 +67,7 @@ mutable struct FilterState{H,S,T,St}
     si::St
 end
 function FilterState(x::FilteredSignal)
-    h = x.fn(fs)
+    h = x.fn(samplerate(fs))
     len = inputlength(h,x.blocksize)
     input = Array{channel_eltype(x.x)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
@@ -84,7 +84,7 @@ function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs)
     if samplerate(x) == samplerate(x.x)
         FilteredSignal(tosamplerate(x.x),x.fn,x.blocksize,fs)
     else
-        tosamplerate(x.x,s,::DataSignal,fs)
+        tosamplerate(x.x,s,DataSignal(),fs)
     end
 end
         
@@ -103,8 +103,10 @@ struct FilterCheckpoint{H,T,S,St} <: AbstractCheckpoint
 end
 checkindex(c::FilterCheckpoint) = c.n
 
-inputlength(x::FIRKernel,n) = DSP.inputlength(x,n)
-outputlength(x::FIRKernel,n) = DSP.outputlength(x,n)
+inputlength(x::DSP.Filters.FIRKernel,n) = DSP.inputlength(x,n)
+outputlength(x::DSP.Filters.FIRKernel,n) = DSP.outputlength(x,n)
+inputlength(x,n) = n
+outputlength(x,n) = n
 function checkpoints(x::FilteredSignal,offset,len)
     map(FilterCheckpoint,[1:x.blocksize:(len-1); len])
 end
@@ -181,7 +183,7 @@ function sinkchunk(result,off,x::FilteredSignal,sig::IsSignal,
         end
         state.lastoutput += n
         state.lastoffset += n
-        dest == result && written += n
+        dest == result && (written += n)
     end
 end
 

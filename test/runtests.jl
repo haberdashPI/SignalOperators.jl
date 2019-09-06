@@ -67,9 +67,9 @@ using SignalOperators: SignalTrait, IsSignal
         @test_throws ErrorException signal(x -> [1,2],5Hz) 
         noise = signal(randn,44.1kHz) |> until(5s) 
         @test isapprox(noise |> sink |> mean,0,atol=1e-2)
-        z = signal(zero,noise) |> until(5s)
+        z = zero(noise) |> until(5s)
         @test all(z |> sink .== 0)
-        o = signal(one,noise) |> until(5s)
+        o = one(noise) |> until(5s)
         @test all(o |> sink .== 1)
     end
 
@@ -89,13 +89,13 @@ using SignalOperators: SignalTrait, IsSignal
         @test !infsignal(tone)
         @test nsamples(tone) == 44100*5
 
-        x = rand(6)
-        cutarray = signal(x,6Hz) |> after(0.25s) |> until(0.5s)
+        x = rand(12)
+        cutarray = signal(x,6Hz) |> after(0.5s) |> until(1s)
+        @test nsamples(cutarray) == 6
+        cutarray = signal(x,6Hz) |> until(1s) |> after(0.5s) 
         @test nsamples(cutarray) == 3
-        cutarray = signal(x,6Hz) |> until(0.5s) |> after(0.25s) 
-        @test nsamples(cutarray) == 1
-        cutarray = signal(x,6Hz) |> until(0.5s) |> until(0.25s) 
-        cutarray2 = signal(x,6Hz) |> until(0.25s) 
+        cutarray = signal(x,6Hz) |> until(1s) |> until(0.5s) 
+        cutarray2 = signal(x,6Hz) |> until(0.5s) 
         @test sink(cutarray) == sink(cutarray2)
 
         aftered = tone |> after(2s) 
@@ -163,6 +163,9 @@ using SignalOperators: SignalTrait, IsSignal
 
         @test mean(abs,cmplx |> amplify(10) |> normpower |> sink) < 
             mean(abs,cmplx |> amplify(10) |> sink)
+
+        # TODO: test proper filtering when using `after` (which should
+        # require filtering the earlier part of the signal)
     end
 
     @testset "Ramps" begin

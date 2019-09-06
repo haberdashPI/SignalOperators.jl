@@ -1,10 +1,11 @@
 
 using .WAV
 
-sink(x,to::String;length=nsamples(x)*frames,samplerate=samplerate(x)) = 
-    wavwrite(sink(x),file,Fs=samplerate(x))
+sink(to::String;kwds...) = x -> sink(x,to;kwds...)
+sink(x,to::String;length=nsamples(x)*frames,samplerate=SignalOperators.samplerate(x)) = 
+    wavwrite(sink(x,length=length,samplerate=samplerate),to,Fs=samplerate)
 
-function signal(x::String,fs=missing)
+function signal(x::String,fs::Union{Missing,Number}=missing)
     x,_fs = wavread(x)
     if !isconsistent(fs,_fs)
         error("Expected file $x to have samplerate $fs. If you wish to convert",

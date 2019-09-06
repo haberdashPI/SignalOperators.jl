@@ -24,3 +24,6 @@ SignalTrait(::Type{<:WrappedSignal{C}}) where C = SignalTrait(C)
 EvalTrait(x::WrappedSignal) = EvalTrait(childsignal(x))
 nchannels(x::WrappedSignal,::IsSignal) = nchannels(childsignal(x))
 samplerate(x::WrappedSignal,::IsSignal) = samplerate(childsignal(x))
+function sinkchunk!(result,off,x::WrappedSignal,::IsSignal,check,until)
+    error("Wrapped signals must implement `sinkchunk!`, in case its child does.")
+end
