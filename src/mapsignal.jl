@@ -11,13 +11,14 @@ struct SignalOp{Fn,Fs,El,L,Args,Pd,T} <: AbstractSignal{T}
     args::Args
     samplerate::Fs
     padding::Pd
+    blocksize::Int
 end
 
 function SignalOp(fn::Fn,val::El,len::L,args::Args,
-    samplerate::Fs,padding::Pd) where {Fn,El,L,Args,Fs,Pd}
+    samplerate::Fs,padding::Pd,blocksize::Int) where {Fn,El,L,Args,Fs,Pd}
 
     SignalOp{Fn,El,L,Args,Fs,Pd,ntuple_T(El)}(fn,val,len,args,
-        samplerate,padding)
+        samplerate,padding,blocksize)
 end
 
 struct NoValues
@@ -61,7 +62,9 @@ fallback implementation which returns `zero`. `default_pad` should normally
 return a function of a type (normally either `one` or `zero`), but can
 optionally be a specific number.
 """
-function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
+function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
+    blocksize=default_block_size)
+
     xs = uniform(xs)   
     fs = samplerate(xs[1])
     finite = findall(!infsignal,xs)
@@ -83,9 +86,9 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false)
         vals = testvalue.(xs)
         if !across_channels
             fnbr(vals) = fn.(vals...)
-            SignalOp(fnbr,astuple(fnbr(vals)),len,xs,fs,padding)
+            SignalOp(fnbr,astuple(fnbr(vals)),len,xs,fs,padding,blocksize)
         else
-            SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding)
+            SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize)
         end
     end
 end
@@ -97,15 +100,28 @@ struct OneSample
 end
 writesink(::OneSample,i,val) = val
 
+struct SignalOpCheckpoint{T}
+    n::Int
+    buffers::T
+end
+checkindex(x::SignalOpCheckpoint) = x.n
+
 function checkpoints(x::SignalOp,offset,len)
-    # TODO: create checkpoints to limit block size 
-    # during the necessary buffer copies in sinkchunk! for functions
-    mapreduce(vcat,x.args) do arg
-        checkpoints(x,offset,len)
-    end
+    buffers = Tuple(
+        Array{channel_eltype(arg)}(undef,x.blocksize,nchannels(arg))
+        for arg in x.args
+    )
+    map(@λ(SignalOpCheckpoint(_,buffers)),[offset:x.blocksize:(len-1); len])
 end
 
-function sinkchunk!(result,off,x::SignalOp,::IsSignal)
+function sinkchunk!(result,off,x::SignalOp,::IsSignal,check,len)
+    vals = map(x.args,check.buffers) do arg,buffer
+        sink!(view(buffer,1:len,:),arg,SignalTrait(arg),checkindex(check))
+    end
+    @inbounds @simd for i in 1:len
+        writesink(result,i,x.fn((val[i,:] for val in vals)...))
+    end
+end
 
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,
     ::IsSignal,i::Number,j::Number)

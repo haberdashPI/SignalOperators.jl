@@ -98,7 +98,7 @@ function nsamples(x::FilteredSignal)
     end
 end
 
-struct FilterCheckpoint{H,T,S,St} <: AbstractCheckpoint
+struct FilterCheckpoint <: AbstractCheckpoint
     n::Int
 end
 checkindex(c::FilterCheckpoint) = c.n
