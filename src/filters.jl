@@ -109,8 +109,8 @@ outputlength(x::DSP.Filters.FIRKernel,n) = DSP.outputlength(x,n)
 inputlength(x,n) = n
 outputlength(x,n) = n
 function checkpoints(x::FilteredSignal,offset,len)
-    map(@λ(FilterCheckpoint(_,x.state[]),filter(@λ(offset > _ > offset+len),
-        [1:x.blocksize:(len-1); len]))
+    filter(@λ(offset > _ > offset+len), [1:x.blocksize:(len-1); len]) |> 
+    @λ(map(@λ(FilterCheckpoint(_,x.state[])),_))
 end
 
 struct NullBuffer

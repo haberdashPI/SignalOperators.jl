@@ -128,7 +128,7 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     end
     x = tochannels(x,size(result,2))
 
-    sink!(result,x,SignalTrait(x),offset,Val(nchannels(x)))
+    sink!(result,x,SignalTrait(x),offset)
 end
 
 abstract type AbstractCheckpoint
@@ -163,6 +163,9 @@ function sink_helper!(result,n,x,sig,check,len)
     @inbounds @simd for i in checkindex(check):(checkindex(check)+len)
         sampleat!(result,x,sig,n+i,i,check)
     end
+end
+function writesink(result::Array,i,v)
+    result[i,:] .= v
 end
 
 Base.zero(x::AbstractSignal) = signal(zero(channel_eltype(x)),samplerate(x))

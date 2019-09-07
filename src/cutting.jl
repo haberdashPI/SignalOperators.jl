@@ -85,6 +85,6 @@ function sampleat!(result,x::DropApply,sig::IsSignal,i,j,check)
     sampleat!(result,x.signal,SignalTrait(x.signal),i,j-check.diff,check.child)
 end
 
-function sinkchunk!(result,x::TakeApply,sig::IsSignal,i,j,check)
+function sampleat!(result,x::TakeApply,sig::IsSignal,i,j,check)
     sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check)
 end
