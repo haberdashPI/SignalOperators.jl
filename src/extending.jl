@@ -63,8 +63,8 @@ function checkpoints(x::AppendSignals,offset,len)
 
     result
 end
-function sinkchunk!(result,off,x::AppendSignals,sig::IsSignal,check,len)
-    sinkchunk!(result,off,x.all[check.sig_index],check.child,len)
+function sampleat!(result,x::AppendSignals,sig::IsSignal,i,j,check)
+    sampleat!(result,x.all[check.sig_index],i,j+check.offset,check.child)
 end
 
 ################################################################################
@@ -109,9 +109,8 @@ struct UsePad
 end
 const use_pad = UsePad()
 
-struct PadCheckpoint{C}
+struct PadCheckpoint{P,C}
     n::Int
-    usepad::Bool
     child::C
 end
 checkindex(c::PadCheckpoint) = c.n
@@ -119,21 +118,19 @@ function checkpoints(x::PaddedSignal,offset,len)
     child_len = nsamples(childsignal(x))-offset
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
     
-    usepad = false
+    dopad = false
     map(child_checks) do child
-        if checkindex(child) == child_len
-            usepad = true
-        end
-        PadCheckpoint(checkindex(child),usepad,child)
+        dopad = checkindex(child) > child_len
+        PadCheckpoint{dopad,typeof(child)}(checkindex(child),child)
     end
 end
-function sinkchunk!(result,off,x::PaddedSignal,::IsSignal,check,len)
-    if !check.usepad
-        sinkchunk!(result,off,x.x,SignalTrait(x.x),check,until)
-    else
-        p = usepad(x)
-        @inbounds @simd for i in checkindex(check):(checkindex(check) + len)
-            writesink(result,i-off,p)
-        end
-    end
+function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
+    check::PadCheckpoint{false})
+
+    sampleat!(result,x.x,SignalTrait(x.x),i,j,check.child)
+end
+function sinkchunk!(result,x::PaddedSignal,::IsSignal,i,j,
+    check::PadCheckpoint{false})
+
+    writesink(result,i,usepad(x))
 end

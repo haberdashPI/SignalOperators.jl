@@ -53,7 +53,7 @@ struct FilteredSignal{T,Si,Fn,Fs,St} <: WrappedSignal{Si,T}
     fn::Fn
     blocksize::Int
     samplerate::Fs
-    filter_state::Ref{St}
+    state::Ref{St}
 end
 EvalTrait(x::FilteredSignal) = ComputedSignal()
 
@@ -98,8 +98,9 @@ function nsamples(x::FilteredSignal)
     end
 end
 
-struct FilterCheckpoint <: AbstractCheckpoint
+struct FilterCheckpoint{St} <: AbstractCheckpoint
     n::Int
+    state::St
 end
 checkindex(c::FilterCheckpoint) = c.n
 
@@ -108,23 +109,24 @@ outputlength(x::DSP.Filters.FIRKernel,n) = DSP.outputlength(x,n)
 inputlength(x,n) = n
 outputlength(x,n) = n
 function checkpoints(x::FilteredSignal,offset,len)
-    map(FilterCheckpoint,[1:x.blocksize:(len-1); len])
+    map(@λ(FilterCheckpoint(_,x.state[]),filter(@λ(offset > _ > offset+len),
+        [1:x.blocksize:(len-1); len]))
 end
 
 struct NullBuffer
+    len::Int
     ch::Int
 end
-Base.size(x::NullBuffer) = (1,x.ch)
+Base.size(x::NullBuffer) = (x.len,x.ch)
 writesink(x::NullBuffer,i,y) = y
 Base.view(x::NullBuffer,i,j) = x
 
-function sinkchunk!(result,off,x::FilteredSignal,sig::IsSignal,check,last)
-
+function beforecheckpoint(x::FilteredSignal,check,len)
     # initialize filtering state, if necessary
-    if length(x.filter_state[].output) == 0 || 
-            x.filter_state[].samplerate != samplerate(x)
+    if length(x.state[].output) == 0 || 
+            x.state[].samplerate != samplerate(x)
         
-        state = x.filter_state[] = FilterState(x)
+        state = x.state[] = FilterState(x)
 
         if state.lastoffset > checkindex(check)
             state.lastoffset = 0
@@ -135,56 +137,39 @@ function sinkchunk!(result,off,x::FilteredSignal,sig::IsSignal,check,last)
         end
     end
 
-    sinkchunk!(result,off,x,sig,check,last,state)
-end
-function sinkchunk(result,off,x::FilteredSignal,sig::IsSignal,
-        check,last,state::FilterState)
-
-    written = 0
-    null_buffer = NullBuffer(size(result,2))
-    total = checkindex(check) - last + 1
-    while written < total
-        # determine the destination and maximum number of samples to write
-        # to that destination. The null_buffer discards samples before the
-        # offset
-        dest = if state.lastoffset < checkindex(check) 
-            max_write = state.lastoffset - checkindex(check)
-            null_buffer 
-        else 
-            max_write = total - written
-            result
+    # refill buffer if necessary
+    if state.lastoutput == size(state.output,1)
+        # process any samples before offset that have yet to be processed
+        if state.lastoffset < checkindex(check)
+            sink!(NullBuffer(checkindex(check),nsamples(x)),x,
+                SignalTrait(x),state.lastoffset,
+                checkindex(check) - state.lastoffset)
         end
 
-        # generate more output from the child signal, as needed
-        if state.lastoutput == size(state.output,1)
-            # read singal into input buffer
-            max_input = nsamples(x.x) - state.lastoffset
-            to_write = min(size(state.input,1),max_output) 
-            sink!(@views(state.input[1:to_write,:]),x.x,
-                SignalTrait(x.x),state.lastoffset)
-            state.lastoffset += to_write
-            state.input[to_write+1:end,:] .= 0
+        # write child samples to input buffer
+        sink!(view(state.input,1:min(size(state.input,1),len),:),
+            x.x,SignalTrait(x.x),len)
+        # pad any unwritten samples
+        state.input[len+1:end,:] .= 0
 
-            # filter the input to the output buffer
-            for ch in 1:size(state.output,2)
-                filt!(view(state.output,:,ch),state.h,view(state.input,:,ch),
-                    state.si[ch])
-            end
+        # filter the input to the output buffer
+        for ch in 1:size(state.output,2)
+            filt!(view(state.output,:,ch),state.h,view(state.input,:,ch),
+                state.si[ch])
         end
 
-        # write the output to the destination
-        n = min(
-            max_write,
-            size(state.output,1) - state.lastoutput[]
-        )
-        for ch in size(dest,2)
-            copyto!(view(dest,:,ch),written+1,view(state.output,:,ch),
-                state.lastoffset[]+1, n)
-        end
-        state.lastoutput += n
-        state.lastoffset += n
-        dest == result && (written += n)
+        state.lastoutput = 0
+        state.lastoffset += size(state.output,1)
     end
+end
+function aftercheckpoint(x::FilteredSignal,check,len)
+    x.state[].lastoutput += len
+end
+
+@Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,
+        sig,i,j,check)
+
+    writesink(result,i,view(x.output,j-check.state.lastoutput,:))
 end
 
 # TODO: create an online version of normpower?

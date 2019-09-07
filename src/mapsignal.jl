@@ -100,36 +100,11 @@ struct OneSample
 end
 writesink(::OneSample,i,val) = val
 
-struct SignalOpCheckpoint{T}
-    n::Int
-    buffers::T
-end
-checkindex(x::SignalOpCheckpoint) = x.n
-
-function checkpoints(x::SignalOp,offset,len)
-    buffers = Tuple(
-        Array{channel_eltype(arg)}(undef,x.blocksize,nchannels(arg))
-        for arg in x.args
-    )
-    map(@λ(SignalOpCheckpoint(_,buffers)),[offset:x.blocksize:(len-1); len])
-end
-
-function sinkchunk!(result,off,x::SignalOp,::IsSignal,check,len)
-    vals = map(x.args,check.buffers) do arg,buffer
-        sink!(view(buffer,1:len,:),arg,SignalTrait(arg),checkindex(check))
-    end
-    @inbounds @simd for i in 1:len
-        writesink(result,i,x.fn((val[i,:] for val in vals)...))
-    end
-end
-
-@Base.propagate_inbounds function sampleat!(result,x::SignalOp,
-    ::IsSignal,i::Number,j::Number)
-
+@Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
     vals = map(x.args) do arg
-        sampleat!(OneSample,arg,SignalTrait(arg),1,j)
+        sampleat!(OneSample,arg,SignalTrait(arg),1,j,check)
     end
-    writesink(result,i,x.fn(val...))
+    writesink(result,i,x.fn(vals...))
 end
 
 default_pad(x) = zero

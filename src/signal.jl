@@ -128,7 +128,7 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     end
     x = tochannels(x,size(result,2))
 
-    sink!(result,x,SignalTrait(x),offset)
+    sink!(result,x,SignalTrait(x),offset,Val(nchannels(x)))
 end
 
 abstract type AbstractCheckpoint
@@ -140,25 +140,29 @@ checkindex(x::EmptyCheckpoint) = x.n
 
 checkpoints(x,offset,len) = [EmptyCheckpoint(1),EmptyCheckpoint(len+1)]
 checkpoints(x,offset,len,saved_state) = checkpoints(x,offset,len)
+beforecheckpoint(x,check,len) = nothing
+aftercheckpoint(x,check,len) = nothing
+
+sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
 fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
     checks = checkpoints(x,offset,size(result,1))
-    n = 1
+    n = 1 - checkindex(checks[1])
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check) - 1
-        sinkchunk!(result,n-checkindex(check),x,sig,check,len)
+        beforecheckpoint(x,check,len)
+        sink_helper!(result,n,x,sig,check,len)
+        aftercheckpoint(x,check,len)
         n += checkindex(check)
     end
     result
 end
-function sinkchunk!(result,off,x,sig,check,len)
+
+function sink_helper!(result,n,x,sig,check,len)
     @inbounds @simd for i in checkindex(check):(checkindex(check)+len)
-        sampleat!(result,x,sig,i+off,i)
+        sampleat!(result,x,sig,n+i,i,check)
     end
-end
-function writesink(result::AbstractArray,i,val) 
-    result[i,:] .= val
 end
 
 Base.zero(x::AbstractSignal) = signal(zero(channel_eltype(x)),samplerate(x))

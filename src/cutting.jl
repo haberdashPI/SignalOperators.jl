@@ -69,21 +69,22 @@ end
 
 struct DropCheckpoint{C}
     n::Int
+    diff::Int
     child::C
 end
 function checkpoints(x::DropApply,offset,len)
     n = resolvelen(x)
     children = checkpoints(x.signal,offset+n,len)
     map(children) do child
-        DropCheckpoint(checkindex(child)-n,child)
+        DropCheckpoint(checkindex(child)-n,n,child)
     end
 end
 checkpoints(x::TakeApply,offset,len) = checkpoints(x.signal,offset,len)
 
-function sinkchunk!(result,off,x::DropApply,sig::IsSignal,check,len)
-    sinkchunk!(result,off,x.signal,SignalTrait(x.signal),check.child,len)
+function sampleat!(result,x::DropApply,sig::IsSignal,i,j,check)
+    sampleat!(result,x.signal,SignalTrait(x.signal),i,j-check.diff,check.child)
 end
 
-function sinkchunk!(result,off,x::TakeApply,sig::IsSignal,check,len)
-    sinkchunk!(result,off,x.signal,SignalTrait(x.signal),check,len)
+function sinkchunk!(result,x::TakeApply,sig::IsSignal,i,j,check)
+    sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check)
 end
