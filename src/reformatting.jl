@@ -53,7 +53,7 @@ function tochannels(x,::IsSignal,ch)
     end
 end
 
-function format(x,fs,ch)
+function format(x,fs,ch=nchannels(x))
     if ch > 1 && nchannels(x) == 0
         tosamplerate(x,fs) |> tochannels(ch)
     else
@@ -63,7 +63,7 @@ end
 
 function uniform(xs;channels=false)
     xs = signal.(xs)
-    samplerate = maximum(skipmissing(samplerate.(xs)))
+    samplerate = maximum(skipmissing(SignalOperators.samplerate.(xs)))
     if !channels
         format.(xs,samplerate)
     else
