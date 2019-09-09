@@ -2,38 +2,27 @@ export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
 const default_blocksize = 2^12
 
-resolve_filter(x) = x
-resolve_filter(x::ZeroPoleGain) = SecondOrderSections(x)
-
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
-    filtersignal(x,
-        @λ(resolve_filter(digitalfilter(
-            Lowpass(inHz(low),fs=inHz(_)),method))),
+    filtersignal(x, @λ(digitalfilter(Lowpass(inHz(low),fs=inHz(_)),method)),
         blocksize=default_blocksize)
 
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
 highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
-    filtersignal(x,
-        @λ(resolve_filter(digitalfilter(
-            Highpass(inHz(high),fs=inHz(_)),method))), 
+    filtersignal(x, @λ(digitalfilter(Highpass(inHz(high),fs=inHz(_)),method)), 
         blocksize=default_blocksize)
 
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
-    filtersignal(x,
-        @λ(resolve_filter(digitalfilter(
-            Bandpass(inHz(low),inHz(high),fs=inHz(_)),method))), 
-        blocksize=default_blocksize)
+    filtersignal(x, @λ(digitalfilter(Bandpass(inHz(low),inHz(high),fs=inHz(_)),
+        method)), blocksize=default_blocksize)
 
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
-    filtersignal(x,
-        @λ(resolve_filter(digitalfilter(
-            Bandstop(inHz(low),inHz(high),fs=inHz(_)), method))), 
-                blocksize=default_blocksize)
+    filtersignal(x, @λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=inHz(_)), 
+        method)), blocksize=default_blocksize)
 
 filtersignal(x,filter,method;kwds...) = 
     filtersignal(x,SignalTrait(x),x -> digitalfilter(filter,method);kwds...)
@@ -52,14 +41,15 @@ end
 # of just sinking to data: this way we can allow missing samplerates to pass
 # through filter operations
 
-zerosi(h,x) = DSP.Filters._zerosi(h,x)
+resolve_filter(x) = DF2Filter(x)
+resolve_filter(x::FIRFilter) = x
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
     T,Fn,Fs = float(channel_eltype(x)),typeof(fn),typeof(newfs)
 
     input = Array{channel_eltype(x)}(undef,1,1)
     output = Array{float(channel_eltype(x))}(undef,0,0)
-    h = fn(44.1kHz)
-    dummy = FilterState(h,inHz(44.1kHz),0,0,input,output,[zerosi(h,input[:,1])])
+    h = resolve_filter(fn(44.1kHz))
+    dummy = FilterState(h,inHz(44.1kHz),0,0,input,output)
     FilteredSignal{T,Si,Fn,typeof(newfs),typeof(dummy)}(x,fn,blocksize,newfs,Ref(dummy))
 end
 struct FilteredSignal{T,Si,Fn,Fs,St} <: WrappedSignal{Si,T}
@@ -72,14 +62,18 @@ end
 childsignal(x::FilteredSignal) = x.x
 EvalTrait(x::FilteredSignal) = ComputedSignal()
 
-mutable struct FilterState{H,S,T,St}
+mutable struct FilterState{H,S,T}
     h::H
     samplerate::Float64
     lastoffset::Int
     lastoutput::Int
     input::Matrix{S}
     output::Matrix{T}
-    si::St
+    function FilterState(h::H,fs::Float64,lastoffset::Int,lastoutput::Int,
+        input::Matrix{S},output::Matrix{T}) where {H,S,T}
+    
+        new{H,S,T}(h,fs,lastoffset,lastoutput,input,output)
+    end
 end
 function FilterState(x::FilteredSignal)
     h = x.fn(samplerate(x))
@@ -88,9 +82,8 @@ function FilterState(x::FilteredSignal)
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
     lastoffset = 0
     lastoutput = size(output,1)
-    si = [zerosi(h,input[:,1]) for _ in 1:nchannels(x)]
 
-    FilterState(h,samplerate(x),lastoffset,lastoutput,input,output,si)
+    FilterState(h,samplerate(x),lastoffset,lastoutput,input,output)
 end
 
 function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
@@ -121,6 +114,15 @@ struct FilterCheckpoint{St} <: AbstractCheckpoint
 end
 checkindex(c::FilterCheckpoint) = c.n
 
+function reset!(x::DF2TFilter) 
+    x.state .= zero(eltype(x.state))
+    x
+end
+function reset!(x::FIRFilter)
+    x.history .= zero(eltype(x.history))
+    x
+end
+
 inputlength(x::DSP.Filters.FIRKernel,n) = DSP.inputlength(x,n)
 outputlength(x::DSP.Filters.FIRKernel,n) = DSP.outputlength(x,n)
 inputlength(x,n) = n
@@ -138,9 +140,7 @@ function checkpoints(x::FilteredSignal,offset,len)
     if state.lastoffset > offset
         state.lastoffset = 0
         state.lastoutput = size(state.output,1)
-        for i in eachindex(state.si)
-            state.si[i] .= 0
-        end
+        reset!(state.h)
     end
 
     # create checkpoints
@@ -182,8 +182,7 @@ function beforecheckpoint(x::FilteredSignal,check,len)
 
         # filter the input to the output buffer
         for ch in 1:size(state.output,2)
-            filt!(view(state.output,:,ch),state.h,view(state.input,:,ch),
-                state.si[ch])
+            filt!(view(state.output,:,ch),state.h,view(state.input,:,ch))
         end
 
         state.lastoutput = 0

@@ -190,7 +190,6 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Resmapling" begin
-        # TODO: test both functional resampling and data-driven resampling
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
         resamp = tosamplerate(tone,500Hz)
         @test samplerate(resamp) == 500
@@ -200,6 +199,8 @@ using SignalOperators: SignalTrait, IsSignal
         toned = tone |> sink
         resamp = tosamplerate(toned,500Hz)
         @test samplerate(resamp) == 500
+        resampled = resamp |> sink
+        @test size(resampled,1) == 5*nsamples(tone)
     end
 
     @testset "Change channel Count" begin
