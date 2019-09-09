@@ -25,9 +25,10 @@ SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,El,Fs}}) where {El,Fs} =
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
 nsamples(x::SignalFunction) = nothing
 samplerate(x::SignalFunction) = x.samplerate
+EvalTrait(x::SignalFunction) = ComputedSignal
 
 @Base.propagate_inbounds function sampleat!(result,
-    x::SignalFunction{Fn,Fr},::IsSignal,i,j) where {Fn,Fr}
+    x::SignalFunction{Fn,Fr},::IsSignal,i,j,check) where {Fn,Fr}
 
     t = j/x.samplerate
     if Fn <: typeof(sin)
@@ -45,7 +46,7 @@ samplerate(x::SignalFunction) = x.samplerate
     end
 end
 tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs) = 
-    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(fs,x.fs))
+    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(fs,x.samplerate))
 
 function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
@@ -61,7 +62,7 @@ end
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 @Base.propagate_inbounds function sampleat!(result,
-    x::SignalFunction{<:RandFn},::IsSignal,i,j)
+    x::SignalFunction{<:RandFn},::IsSignal,i,j,check)
 
     writesink(result,i,randn(x.fn.rng))
 end

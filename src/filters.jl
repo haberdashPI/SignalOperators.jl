@@ -4,23 +4,23 @@ const default_block_size = 2^12
 
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_block_size) = 
-    filtersignal(x,@λ(digitalfilter(Lowpass(inHz(low),fs=_),method)),
+    filtersignal(x,@λ(digitalfilter(Lowpass(inHz(low),fs=inHz(_)),method)),
         blocksize=default_block_size)
 
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
 highpass(x,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
-    filtersignal(x,@λ(digitalfilter(Highpass(inHz(high),fs=_),method)),
-        blocksize=default_block_size)
+    filtersignal(x,@λ(digitalfilter(Highpass(inHz(high),fs=inHz(_)),
+        method)), blocksize=default_block_size)
 
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
-    filtersignal(x,@λ(digitalfilter(Bandpass(inHz(low),inHz(high),fs=_),method)),
-        blocksize=default_block_size)
+    filtersignal(x,@λ(digitalfilter(Bandpass(inHz(low),inHz(high),fs=inHz(_)),
+        method)), blocksize=default_block_size)
 
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order),blocksize=default_block_size) = 
-    filtersignal(x,@λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=_),method)),
-        blocksize=default_block_size)
+    filtersignal(x,@λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=inHz(_)),
+        method)), blocksize=default_block_size)
 
 filtersignal(x,filter,method;kwds...) = 
     filtersignal(x,SignalTrait(x),x -> digitalfilter(filter,method);kwds...)
@@ -42,9 +42,9 @@ end
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
     T,Fn,Fs = float(channel_eltype(x)),typeof(fn),typeof(newfs)
 
-    input = Array{channel_eltype(x.x)}(undef,1,1)
-    ouptut = Array{channel_eltype(x)}(undef,0,0)
-    h = x.fn(44.1kHz)
+    input = Array{channel_eltype(x)}(undef,1,1)
+    ouptut = Array{float(channel_eltype(x))}(undef,0,0)
+    h = fn(44.1kHz)
     dummy = FilterState(h,inHz(44.1kHz),0,0, si = [DSP._zerosi(h,input)])
     FilteredSignal{T,Si,Fn,typeof(newfs),typeof(dummy)}(x,fn,blocksize,newfs,Ref(dummy))
 end
@@ -78,13 +78,15 @@ function FilterState(x::FilteredSignal)
     FilterState(h,lastoffset,lastoutput,input,output,si)
 end
 
-function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs)
+function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
+    blocksize)
+
     h = x.fn(fs)
     # is this a resampling filter?
-    if samplerate(x) == samplerate(x.x)
-        FilteredSignal(tosamplerate(x.x),x.fn,x.blocksize,fs)
-    else
+    if samplerate(x) != samplerate(x.x)
         tosamplerate(x.x,s,DataSignal(),fs)
+    else
+        FilteredSignal(tosamplerate(x.x),x.fn,x.blocksize,fs)
     end
 end
         

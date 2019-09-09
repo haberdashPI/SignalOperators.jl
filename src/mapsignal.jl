@@ -17,7 +17,7 @@ end
 function SignalOp(fn::Fn,val::El,len::L,args::Args,
     samplerate::Fs,padding::Pd,blocksize::Int) where {Fn,El,L,Args,Fs,Pd}
 
-    SignalOp{Fn,El,L,Args,Fs,Pd,ntuple_T(El)}(fn,val,len,args,
+    SignalOp{Fn,Fs,El,L,Args,Pd,ntuple_T(El)}(fn,val,len,args,
         samplerate,padding,blocksize)
 end
 
@@ -25,9 +25,9 @@ struct NoValues
 end
 novalues = NoValues()
 SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} = 
-    IsSignal{numpte_T(El),Fs,L}()
+    IsSignal{ntuple_T(El),Fs,L}()
 nsamples(x::SignalOp) = x.len
-nchannels(x::SignalOp) = length(x.state)
+nchannels(x::SignalOp) = length(x.val)
 samplerate(x::SignalOp) = x.samplerate
 function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs)
     if ismissing(x.samplerate) || ismissing(fs) || fs < x.samplerate
@@ -71,8 +71,14 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     if !isempty(finite)
         if any(@λ(!=(xs[finite[1]],_)),xs[finite[2:end]])
             longest = argmax(map(i -> nsamples(xs[i]),finite))
-            xs = (map(pad(padding),xs[1:longest-1])..., xs[longest],
-                  map(pad(padding),xs[longest+1:end])...)
+            xs = map(enumerate(xs)) do (i,x)
+                if infsignal(x) || nsamples(x) == nsamples(xs[longest])
+                    x
+                else
+                    map(pad(padding),x)
+                end
+            end
+
             len = nsamples(xs[longest])
         else
             len = nsamples(xs[finite[1]])
@@ -85,24 +91,58 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     else
         vals = testvalue.(xs)
         if !across_channels
-            fnbr(vals) = fn.(vals...)
-            SignalOp(fnbr,astuple(fnbr(vals)),len,xs,fs,padding,blocksize)
+            fnbr(vals...) = fn.(vals...)
+            SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize)
         else
             SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize)
         end
     end
 end
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
+struct SignalOpCheckpoint{C}
+    leader::Int
+    children::C
+end
+checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
+
+function checkpoints(x::SignalOp,offset,len)
+    # generate all children's checkpoints
+    child_checks = map(x.args) do arg
+        checkpoints(arg,offset,len)
+    end 
+    indices = mapreduce(@λ(checkindex.(_)),vcat,child_checks) |> sort!
+    
+    # combine children checkpoints in order
+    child_indices = ones(Int,length(x.args))
+    mapreduce(vcat,indices) do index
+        mapreduce(vcat,enumerate(x.args)) do (i,arg)
+            while checkindex(child_checks[i][child_indices[i]]) < index 
+                child_indices[i] == length(child_checks[i]) && break
+                child_indices[i] += 1
+            end
+            if checkindex(child_checks[i][child_indices[i]]) == index
+                children = map(@λ(_[_]),child_checks,child_indices)
+                [SignalOpCheckpoint(i,children)]
+            else
+                []
+            end
+        end
+    end
+end
+function beforecheckpoint(x::SignalOp,check::SignalOpCheckpoint,len)
+    beforecheckpoint(x,check.children[check.leader],len)
+end
 
 block_length(x::SignalOp) = minimum(block_length.(x.args))
 
 struct OneSample
 end
+one_sample = OneSample()
 writesink(::OneSample,i,val) = val
 
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
-    vals = map(x.args) do arg
-        sampleat!(OneSample,arg,SignalTrait(arg),1,j,check)
+    vals = map(enumerate(x.args)) do (i,arg)
+        sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
     end
     writesink(result,i,x.fn(vals...))
 end

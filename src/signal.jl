@@ -143,25 +143,25 @@ checkpoints(x,offset,len,saved_state) = checkpoints(x,offset,len)
 beforecheckpoint(x,check,len) = nothing
 aftercheckpoint(x,check,len) = nothing
 
-sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
+# sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
 fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
     checks = checkpoints(x,offset,size(result,1))
     n = 1 - checkindex(checks[1])
     for (check,next) in fold(checks)
-        len = checkindex(next) - checkindex(check) - 1
+        len = checkindex(next) - checkindex(check)
         beforecheckpoint(x,check,len)
         sink_helper!(result,n,x,sig,check,len)
         aftercheckpoint(x,check,len)
-        n += checkindex(check)
+        n += checkindex(check)-1
     end
     result
 end
 
 function sink_helper!(result,n,x,sig,check,len)
-    @inbounds @simd for i in checkindex(check):(checkindex(check)+len)
-        sampleat!(result,x,sig,n+i,i,check)
+    @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
+        sampleat!(result,x,sig,-n+i,i,check)
     end
 end
 function writesink(result::Array,i,v)
@@ -170,3 +170,13 @@ end
 
 Base.zero(x::AbstractSignal) = signal(zero(channel_eltype(x)),samplerate(x))
 Base.one(x::AbstractSignal) = signal(one(channel_eltype(x)),samplerate(x))
+
+# computed signals have to implement there own version of tosamplerate
+# (e.g. resample) to avoid inefficient computations
+
+struct DataSignal
+end
+struct ComputedSignal
+end
+EvalTrait(x) = DataSignal()
+EvalTrait(x::AbstractSignal) = ComputedSignal()

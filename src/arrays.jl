@@ -38,12 +38,12 @@ const AxTimeD1 = Union{
     WithAxes{<:Tuple{Axis{:time},<:Any}}}
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 @Base.propagate_inbounds function sampleat!(result,x::AxTimeD1,
-    ::IsSignal,i::Number,j::Number)
+    ::IsSignal,i::Number,j::Number,check)
 
     writesink(result,i,view(x,j,:))
 end
 @Base.propagate_inbounds function sampleat!(result,x::AxTimeD2,
-    ::IsSignal,i::Number,j::Number)
+    ::IsSignal,i::Number,j::Number,check)
 
     writesink(result,i,view(x,:,j))
 end

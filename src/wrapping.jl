@@ -1,15 +1,5 @@
 using Statistics
 
-# computed signals have to implement there own version of some functions
-# (e.g. resample) to avoid inefficient computations
-
-struct DataSignal
-end
-struct ComputedSignal
-end
-EvalTrait(x) = DataSignal()
-EvalTrait(x::AbstractSignal) = ComputedSignal()
-
 abstract type WrappedSignal{C,T} <: AbstractSignal{T}
 end
 

@@ -3,18 +3,17 @@ export append, prepend, pad
 ################################################################################
 # appending signals
 
-struct AppendSignals{Si,All,T,L} <: WrappedSignal{Si,T}
-    first::Si
-    all::All
+struct AppendSignals{Si,Sis,T,L} <: WrappedSignal{Si,T}
+    signals::Sis
     len::L
 end
-SignalTrait(x::Type{T}) where T <: AppendSignals =
-    SignalTrait(x,SignalTrait(T))
+SignalTrait(x::Type{T}) where {Si,T <: AppendSignals{Si}} =
+    SignalTrait(x,SignalTrait(Si))
 function SignalTrait(x::Type{<:AppendSignals{Si,Rst,T,L}},
         ::IsSignal{T,Fs}) where {Si,Rst,T,L,Fs}
-    SignalTrait{T,Fs,L}()
+    IsSignal{T,Fs,L}()
 end
-childsignal(x::AppendSignals) = x.xs[1]
+childsignal(x::AppendSignals) = x.signals[1]
 nsamples(x::AppendSignals,::IsSignal) = x.len
 
 append(y) = x -> append(x,y)
@@ -27,10 +26,10 @@ function append(xs...)
     El = promote_type(channel_eltype.(xs)...)
     xs = mapsignal.(x -> convert(El,x),xs)
     len = infsignal(xs[end]) ? nothing : sum(nsamples,xs)
-    AppendSignals(xs[1], xs, len, samplerate(xs))
+    AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs) = 
-    append(tosamplerate(x.first,fs),tosamplerate.(x.rest,fs)...)
+    append(tosamplerate.(x.signals,fs)...)
 
 struct AppendCheckpoint{C} <: AbstractCheckpoint
     n::Int
@@ -41,30 +40,34 @@ end
 checkindex(x::AppendCheckpoint) = x.n
 function checkpoints(x::AppendSignals,offset,len)
     until = offset+len
-    indices = collect(enumerate([1;cumsum(nsamples.(x.all[1:end-1])).+1]))
+    indices = 
+        collect(enumerate([1;cumsum(collect(nsamples.(x.signals[1:end-1]))).+1]))
 
-    result = mapreduce(vcat,x.all,indices) do (signal,(sig_index,index))
-        checks = checkpoints(signal,offset,nsamples(x.all))
+    written = 0
+    result = mapreduce(vcat,x.signals,indices) do signal,(sig_index,index)
+        checks = if index-offset > len
+            []
+        elseif index-offset > 0
+            local_len = min(len-written,nsamples(signal))
+            written += local_len
+            checkpoints(signal,0,local_len)
+        elseif index + nsamples(signal) - offset > 0
+            sigoffset = -(index-offset)+1
+            local_len = min(nsamples(signal)-sigoffset+1,len-written)
+            written += local_len
+            checkpoints(signal,sigoffset,local_len)
+        else
+            []
+        end
+
         [AppendCheckpoint(checkindex(c)+index-1,sig_index,-index+1,c) 
-            for c in checks]
+         for c in checks]
     end
-
-    # cut out any checkpoints not in the appropriate range
-    start = findlast(@λ(offset > checkindex(_)),result)
-    start = isnothing(start) ? 1 : start
-    stop = findlast(@λ(checkindex(_) < until),indices)
-    stop = isnothing(stop) ? length(indices) : stop
-
-    # if the first checkout has a negative index, revise it to have
-    # a positive index
-    result = result[start:stop]
-    result[1] = AppendCheckpoint(1,result[1].sig_index,
-        result[1].offset + (result[1].n - 1),result[1].child)
 
     result
 end
 function sampleat!(result,x::AppendSignals,sig::IsSignal,i,j,check)
-    sampleat!(result,x.all[check.sig_index],i,j+check.offset,check.child)
+    sampleat!(result,x.signals[check.sig_index],sig,i,j+check.offset,check.child)
 end
 
 ################################################################################
@@ -88,20 +91,9 @@ function pad(x,p)
 end
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
-usepad(x::PaddedSignal,s::IsSignal{<:NTuple{1,<:Any}}) = (usepad(x,s,x.pad),)
-function usepad(x::PaddedSignal,s::IsSignal{NTuple{2,<:Any}})
-    v = usepad(x,s,x.pad)
-    (v,v)
-end
-function usepad(x::PaddedSignal,s::IsSignal{<:NTuple{N,<:Any}}) where N
-    v = usepad(x,s,x.pad)
-    tuple((v for _ in 1:N)...)
-end
-
-usepad(x::PaddedSignal,s::IsSignal{<:NTuple{<:Any,T}},p::Number) where T = 
-    convert(T,p)
-usepad(x::PaddedSignal,s::IsSignal{<:NTuple{<:Any,T}},fn::Function) where T = 
-    fn(T)
+usepad(x::PaddedSignal,s::IsSignal) = usepad(x,s,x.pad)
+usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T = convert(T,p)
+usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T = fn(T)
 
 childsignal(x::PaddedSignal) = x.x
 
@@ -119,18 +111,19 @@ function checkpoints(x::PaddedSignal,offset,len)
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
     
     dopad = false
-    map(child_checks) do child
+    oldchecks = map(child_checks) do child
         dopad = checkindex(child) > child_len
         PadCheckpoint{dopad,typeof(child)}(checkindex(child),child)
     end
+    [oldchecks; PadCheckpoint{dopad,Nothing}(offset+len+1,nothing)]
 end
 function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
     check::PadCheckpoint{false})
 
     sampleat!(result,x.x,SignalTrait(x.x),i,j,check.child)
 end
-function sinkchunk!(result,x::PaddedSignal,::IsSignal,i,j,
-    check::PadCheckpoint{false})
+function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
+    check::PadCheckpoint{true})
 
     writesink(result,i,usepad(x))
 end

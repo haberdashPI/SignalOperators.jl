@@ -13,7 +13,7 @@ tosamplerate(x::NumberSignal,::IsSignal,::ComputedSignal,fs=missing) =
     NumberSignal(x,fs)
 
 @Base.propagate_inbounds function sampleat!(result,x::NumberSignal,
-    ::IsSignal,i::Number,j::Number)
+    ::IsSignal,i::Number,j::Number,check)
 
     writesink(result,i,x.val)
 end

@@ -108,6 +108,12 @@ using SignalOperators: SignalTrait, IsSignal
         @test mean(abs.(tone[1:500])) > 0
         @test mean(abs.(tone[501:700])) == 0
 
+        # TOOD: padding is not properly defining the length of the child (or
+        # drop is not properly defining the length to its child) TOOD:
+        # addchannel seems to be making the signal "infinite" TODO: for some
+        # reason `uniform` removes the itrapply signal TODO: tosamplerate is
+        # being called and it's wrong (fix that) but it shouldn't be called
+
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
         tone2 = addchannel(tone,tone) |> pad(zero) |> until(7s) |> sink
         @test mean(abs.(tone2[1:500,:])) > 0
@@ -143,6 +149,7 @@ using SignalOperators: SignalTrait, IsSignal
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
         cmplx = mix(a,b)
+        # TODO: failing on filter initialization (review _zerosi internals)
         high = cmplx |> highpass(8Hz,method=Chebyshev1(5,1)) |> sink
         low = cmplx |> lowpass(6Hz,method=Butterworth(5)) |> sink
         highlow = low |>  highpass(8Hz,method=Chebyshev1(5,1)) |> sink

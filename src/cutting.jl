@@ -63,8 +63,8 @@ function nsamples(x::DropApply,::IsSignal)
     end
 end
 
-function tosamplerate(x::ItrApply,s::IsSignal,c::ComputedSignal,fs)
-    tosamplerate(childsignal(x),s,c,fs)
+function tosamplerate(x::TakeApply,s::IsSignal,c::ComputedSignal,fs)
+    ItrApply(tosamplerate(childsignal(x),s,c,fs),x.time,x.fn)
 end
 
 struct DropCheckpoint{C}
