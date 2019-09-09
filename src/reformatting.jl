@@ -1,18 +1,17 @@
 using DSP: FIRFilter, resample_filter
 export tosamplerate, tochannels, format, uniform
 
-tosamplerate(fs;blocksize=default_block_size) = 
+tosamplerate(fs;blocksize=default_blocksize) = 
     x -> tosamplerate(x,fs;blocksize=blocksize)
-tosamplerate(x,fs;blocksize=default_block_size) = 
-    inHz(fs) == samplerate(x) ? x :
+tosamplerate(x,fs;blocksize=default_blocksize) = 
+    ismissing(fs) && ismissing(samplerate(x)) ? x :
+        coalesce(inHz(fs) == samplerate(x),false) ? x :
         tosamplerate(x,SignalTrait(x),EvalTrait(x),fs;blocksize=blocksize)
 tosamplerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
 
 tosamplerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
 tosamplerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
 
-tosamplerate(x,s::IsSignal,c::ComputedSignal,fs;blocksize) =
-    tosamplerate(x,s,c,fs)
 function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
     if ismissing(samplerate(x))
         signal(x,fs)

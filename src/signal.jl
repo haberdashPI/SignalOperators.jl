@@ -160,11 +160,13 @@ function sink!(result,x,sig::IsSignal,offset::Number)
 end
 
 function sink_helper!(result,n,x,sig,check,len)
-    @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
-        sampleat!(result,x,sig,-n+i,i,check)
+    if len > 0
+        @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
+            sampleat!(result,x,sig,-n+i,i,check)
+        end
     end
 end
-function writesink(result::Array,i,v)
+function writesink(result::AbstractArray,i,v)
     result[i,:] .= v
 end
 

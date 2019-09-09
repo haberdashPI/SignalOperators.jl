@@ -9,8 +9,8 @@ nchannels(x::NumberSignal,::IsSignal) = 1
 nsamples(x::NumberSignal,::IsSignal) = nothing
 samplerate(x::NumberSignal,::IsSignal) = x.samplerate 
 
-tosamplerate(x::NumberSignal,::IsSignal,::ComputedSignal,fs=missing) = 
-    NumberSignal(x,fs)
+tosamplerate(x::NumberSignal,::IsSignal,::ComputedSignal,fs=missing;blocksize) = 
+    NumberSignal(x.val,fs)
 
 @Base.propagate_inbounds function sampleat!(result,x::NumberSignal,
     ::IsSignal,i::Number,j::Number,check)

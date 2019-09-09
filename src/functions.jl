@@ -25,7 +25,7 @@ SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,El,Fs}}) where {El,Fs} =
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
 nsamples(x::SignalFunction) = nothing
 samplerate(x::SignalFunction) = x.samplerate
-EvalTrait(x::SignalFunction) = ComputedSignal
+EvalTrait(x::SignalFunction) = ComputedSignal()
 
 @Base.propagate_inbounds function sampleat!(result,
     x::SignalFunction{Fn,Fr},::IsSignal,i,j,check) where {Fn,Fr}
@@ -45,8 +45,8 @@ EvalTrait(x::SignalFunction) = ComputedSignal
         end
     end
 end
-tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs) = 
-    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(fs,x.samplerate))
+tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) = 
+    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(fs),x.samplerate))
 
 function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)

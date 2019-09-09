@@ -146,10 +146,14 @@ using SignalOperators: SignalTrait, IsSignal
     end 
 
     @testset "Filtering" begin
+        # TODO: test that multiple blocks work
+
+        # TODO: test proper filtering when using `after` (which should
+        # require filtering the earlier part of the signal)
+
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
         cmplx = mix(a,b)
-        # TODO: failing on filter initialization (review _zerosi internals)
         high = cmplx |> highpass(8Hz,method=Chebyshev1(5,1)) |> sink
         low = cmplx |> lowpass(6Hz,method=Butterworth(5)) |> sink
         highlow = low |>  highpass(8Hz,method=Chebyshev1(5,1)) |> sink
@@ -170,9 +174,6 @@ using SignalOperators: SignalTrait, IsSignal
 
         @test mean(abs,cmplx |> amplify(10) |> normpower |> sink) < 
             mean(abs,cmplx |> amplify(10) |> sink)
-
-        # TODO: test proper filtering when using `after` (which should
-        # require filtering the earlier part of the signal)
     end
 
     @testset "Ramps" begin
@@ -189,8 +190,15 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Resmapling" begin
+        # TODO: test both functional resampling and data-driven resampling
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
         resamp = tosamplerate(tone,500Hz)
+        @test samplerate(resamp) == 500
+
+        # TODO: figure out how to properly initialize resampling fitler
+        # (this is done in sampled signals package, I know)
+        toned = tone |> sink
+        resamp = tosamplerate(toned,500Hz)
         @test samplerate(resamp) == 500
     end
 
@@ -252,6 +260,10 @@ using SignalOperators: SignalTrait, IsSignal
         @test all(tone .>= 0.5)
         samples = signal(1,5Hz) |> until(5s) |> collect
         @test samples isa Array{Tuple{Int}}
+    end
+
+    @testset "Handling of custom padding" begin
+        # TODO: test 1 pad for amplify and 0 pad for mix
     end
 
     @testset "Handling of infinite signals" begin

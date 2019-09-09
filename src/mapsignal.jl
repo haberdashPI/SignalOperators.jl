@@ -29,13 +29,14 @@ SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} =
 nsamples(x::SignalOp) = x.len
 nchannels(x::SignalOp) = length(x.val)
 samplerate(x::SignalOp) = x.samplerate
-function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs)
+function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs;blocksize)
     if ismissing(x.samplerate) || ismissing(fs) || fs < x.samplerate
         # resample input if we are downsampling 
-        mapsignal(x.fn,tosamplerate.(x.args,fs)...,padding=x.padding)
+        mapsignal(x.fn,tosamplerate.(x.args,fs,blocksize=blocksize)...,
+            padding=x.padding)
     else
         # resample output if we are upsampling
-        tosamplerate(x,s,DataSignal(),fs)
+        tosamplerate(x,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
 
@@ -63,7 +64,7 @@ return a function of a type (normally either `one` or `zero`), but can
 optionally be a specific number.
 """
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
-    blocksize=default_block_size)
+    blocksize=default_blocksize)
 
     xs = uniform(xs)   
     fs = samplerate(xs[1])
@@ -75,7 +76,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
                 if infsignal(x) || nsamples(x) == nsamples(xs[longest])
                     x
                 else
-                    map(pad(padding),x)
+                    pad(x,padding)
                 end
             end
 
