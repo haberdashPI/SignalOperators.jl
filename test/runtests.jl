@@ -12,6 +12,11 @@ using SignalOperators: SignalTrait, IsSignal
 @testset "SignalOperators.jl" begin
 
     @testset "Unit Conversions" begin
+        # TODO: verify working `maybseconds` method
+        # TODO: verify missing unit conversions
+        # inHz(T <: Integer,x)
+        # inframes(T,Number)
+
         @test SignalOperators.inframes(1s,44.1kHz) == 44100
         @test SignalOperators.inframes(Int,0.5s,44.1kHz) == 22050
         @test SignalOperators.inframes(Int,5frames) == 5
@@ -56,6 +61,8 @@ using SignalOperators: SignalTrait, IsSignal
         @test isa(rampoff(10ms),Function)
         @test isa(fadeto(x),Function)
         @test isa(amplify(20dB),Function)
+        @test isa(addchannel(x),Function)
+        @test isa(channel(1),Function)
     end
 
     @testset "Basic signals" begin
@@ -151,6 +158,12 @@ using SignalOperators: SignalTrait, IsSignal
         # TODO: test proper filtering when using `after` (which should
         # require filtering the earlier part of the signal)
 
+        # TODO: when I add test for filter blocking: make sure to include a case
+        # where the first offset is not the first sample of a block 
+
+        # TODO: add tests for custom filters (functions and predifined DSP 
+        # filters)
+
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
         cmplx = mix(a,b)
@@ -187,6 +200,9 @@ using SignalOperators: SignalTrait, IsSignal
         y = signal(sin,100Hz,ω=5Hz) |> until(5s)
         fading = fadeto(x,y,100ms)
         @test nsamples(fading) == (5+5-0.1)*100
+
+        # TODO: add test for ramps defines solely by a function (rampon,
+        # rampoff, and fadeto)
     end
 
     @testset "Resmapling" begin
@@ -202,10 +218,21 @@ using SignalOperators: SignalTrait, IsSignal
         resampled = resamp |> sink
         @test size(resampled,1) == 2nsamples(tone)
 
+        padded = tone |> pad(one) |> until(7s)
+        resamp = tosamplerate(padded,40Hz)
+        @test nsamples(resamp) == 7*40
+        @test resamp |> sink |> size == (7*40,1)
         # verify that the state of the filter is proplery reset
         # (so it should produce same output a second time)
         resampled2 = resamp |> sink
         @test resampled ≈ resampled2
+
+
+        # TODO: add tests that include resampling a filtered signal
+        # and resampling an already resampled signal (which should not
+        # resample twice unless there is an intervening data signal
+
+        # TODO: add test to verify no-op for sample rate resampling
     end
 
     @testset "Change channel Count" begin
@@ -305,4 +332,7 @@ using SignalOperators: SignalTrait, IsSignal
 
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
+
+    # TODO: add tests to check flexible handling of missing sample rates
+    # TODO: add tests to check flexible handling of non-signals
 end

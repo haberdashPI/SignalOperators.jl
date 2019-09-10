@@ -61,8 +61,6 @@ inframes(::Type{T}, frame::Number, rate=missing) where T <: Integer =
     trunc(T,inframes(frame,rate))
 inframes(::Type{T}, frame::Number, rate=missing) where T = 
     convert(T,inframes(frame,rate))
-inframes(::Type,::Nothing, rate=missing) = nothing
-inframes(::Nothing, rate=missing) = nothing
 inframes(::Missing,fs=missing) = missing
 inframes(::Type,::Missing,fs=missing) = missing
 

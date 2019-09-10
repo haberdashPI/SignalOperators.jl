@@ -143,8 +143,6 @@ beforecheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
 aftercheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
     aftercheckpoint(x,check.children[check.leader],len)
 
-block_length(x::SignalOp) = minimum(block_length.(x.args))
-
 struct OneSample
 end
 one_sample = OneSample()

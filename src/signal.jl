@@ -143,7 +143,6 @@ checkindex(x::EmptyCheckpoint) = x.n
 
 checkpoints(x,offset,len) = 
     [EmptyCheckpoint(offset+1),EmptyCheckpoint(offset+len+1)]
-checkpoints(x,offset,len,saved_state) = checkpoints(x,offset,len)
 beforecheckpoint(x,check,len) = nothing
 aftercheckpoint(x,check,len) = nothing
 
