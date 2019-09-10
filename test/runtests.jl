@@ -190,17 +190,21 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Resmapling" begin
-        tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
-        resamp = tosamplerate(tone,500Hz)
-        @test samplerate(resamp) == 500
+        # TODO: reset filter state in the outer sink! call
+        # (how do we do that without doing it in the inner call?)
 
-        # TODO: figure out how to properly initialize resampling fitler
-        # (this is done in sampled signals package, I know)
+        tone = signal(sin,20Hz,ω=5Hz) |> until(5s)
+        resamp = tosamplerate(tone,40Hz)
+        @test samplerate(resamp) == 40
+        @test nsamples(resamp) == 2nsamples(tone)
+
         toned = tone |> sink
-        resamp = tosamplerate(toned,500Hz)
-        @test samplerate(resamp) == 500
+        resamp = tosamplerate(toned,40Hz)
+        @test samplerate(resamp) == 40
         resampled = resamp |> sink
-        @test size(resampled,1) == 5*nsamples(tone)
+        @test abs(size(resampled,1) - 2nsamples(tone)) < 2
+        resampled2 = resamp |> sink
+        @test resampled ≈ resampled2
     end
 
     @testset "Change channel Count" begin

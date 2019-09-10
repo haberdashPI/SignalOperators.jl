@@ -60,19 +60,20 @@ struct FilteredSignal{T,Si,Fn,Fs,St} <: WrappedSignal{Si,T}
     state::Ref{St}
 end
 childsignal(x::FilteredSignal) = x.x
+samplerate(x::FilteredSignal) = x.samplerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
 
-mutable struct FilterState{H,S,T}
+mutable struct FilterState{H,Fs,S,T}
     h::H
-    samplerate::Float64
+    samplerate::Fs
     lastoffset::Int
     lastoutput::Int
     input::Matrix{S}
     output::Matrix{T}
-    function FilterState(h::H,fs::Float64,lastoffset::Int,lastoutput::Int,
-        input::Matrix{S},output::Matrix{T}) where {H,S,T}
+    function FilterState(h::H,fs::Fs,lastoffset::Int,lastoutput::Int,
+        input::Matrix{S},output::Matrix{T}) where {H,Fs,S,T}
     
-        new{H,S,T}(h,fs,lastoffset,lastoutput,input,output)
+        new{H,Fs,S,T}(h,fs,lastoffset,lastoutput,input,output)
     end
 end
 function FilterState(x::FilteredSignal)
@@ -83,7 +84,7 @@ function FilterState(x::FilteredSignal)
     lastoffset = 0
     lastoutput = size(output,1)
 
-    FilterState(h,samplerate(x),lastoffset,lastoutput,input,output)
+    FilterState(h,float(samplerate(x)),lastoffset,lastoutput,input,output)
 end
 
 function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
@@ -104,7 +105,7 @@ function nsamples(x::FilteredSignal)
     elseif samplerate(x) == samplerate(x.x) 
         nsamples(x.x)
     else
-        outputlength(x.fn(samplerate(x)),nsamples(x))
+        outputlength(x.fn(samplerate(x)),nsamples(x.x))
     end
 end
 
@@ -123,24 +124,18 @@ function reset!(x::FIRFilter)
     x
 end
 
-inputlength(x::DSP.Filters.FIRKernel,n) = DSP.inputlength(x,n)
-outputlength(x::DSP.Filters.FIRKernel,n) = DSP.outputlength(x,n)
+inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
+outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
 inputlength(x,n) = n
 outputlength(x,n) = n
 function checkpoints(x::FilteredSignal,offset,len)
     # initialize filtering state, if necessary
     state = if length(x.state[].output) == 0 || 
-            x.state[].samplerate != samplerate(x)
-        
+            x.state[].samplerate != samplerate(x) ||
+            x.state[].lastoffset > offset
         x.state[] = FilterState(x)
     else
         x.state[]
-    end
-
-    if state.lastoffset > offset
-        state.lastoffset = 0
-        state.lastoutput = size(state.output,1)
-        reset!(state.h)
     end
 
     # create checkpoints
@@ -175,8 +170,7 @@ function beforecheckpoint(x::FilteredSignal,check,len)
 
         # write child samples to input buffer
         sink!(view(state.input,1:min(size(state.input,1),len),:),
-            x.x,SignalTrait(x.x),len)
-        @info("Finished inner sink!")
+            x.x,SignalTrait(x.x),state.lastoffset)
         # pad any unwritten samples
         state.input[len+1:end,:] .= 0
 
