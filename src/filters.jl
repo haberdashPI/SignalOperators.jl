@@ -185,6 +185,7 @@ end
 end
 
 # TODO: create an online version of normpower?
+# TODO: this should be excuted lazzily to allow for unkonwn samplerates
 function normpower(x)
     fs = samplerate(x)
     x = sink(x)

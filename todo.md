@@ -16,7 +16,8 @@ but makes a big difference in terms of API flexibility, so should be done soon)
 + allow for missing samplerates in filters (need to resolve
     filter coefficeints lazzily)
     - test it!
-- allow for SampleBuf's
++ allow for SampleBuf's
+- allow for lazy normpower
 
 # More tests (before registration)
 - make sure I've fully tested logic of the more complicated
@@ -34,3 +35,4 @@ be useful, and make sure codebase is better tested
     and reading from a file
 - allow online normpower
 - support LibSndFile
+- allow for chunked functions as input to `signal`
