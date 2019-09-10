@@ -271,18 +271,18 @@ using SignalOperators: SignalTrait, IsSignal
         b = signal(3,fs) |> until(3s) 
 
         result = mix(a,b) |> sink
-        @test result == [
-            fill(2,10*2) .+ fill(3,10*2);
-            fill(3,10*1) .+ fill(3,10*1);
-            fill(3,10*1)
-        ]
+        @test all(result .== [
+            fill(2,3*2) .+ fill(3,3*2);
+            fill(3,3*1) .+ fill(3,3*1);
+            fill(3,3*1)
+        ])
 
         result = amplify(a,b) |> sink
-        @test result == [
-            fill(2,10*2) .* fill(3,10*2);
-            fill(3,10*1) .* fill(3,10*1);
-            fill(3*10*1)
-        ]
+        @test all(result .== [
+            fill(2,3*2) .* fill(3,3*2);
+            fill(3,3*1) .* fill(3,3*1);
+            fill(3,3*1)
+        ])
     end
 
     # TODO: add a test to check handling of dB units
@@ -304,22 +304,5 @@ using SignalOperators: SignalTrait, IsSignal
         @test sink(tone)[1] > 0.9
 
         @test_throws ErrorException signal(sin,200Hz) |> sink
-        @test_throws ErrorException signal(zero,10)
-        @test_throws ErrorException signal(one,10)
-    end
-
-    @testset "Non-signal errors" begin
-        # TODO: at some point some of these will be legal once we can combine
-        # samplerate information across signals (allowing for a missing sample
-        # rate)
-        @test_throws ErrorException infsignal(5) 
-        @test_throws ErrorException samplerate(5) 
-        @test_throws ErrorException nsamples(5) 
-        @test_throws ErrorException 10 |> sink
-        @test_throws ErrorException signal(signal(sin,200Hz),100Hz)
-        @test_throws ErrorException lowpass(5,10Hz)
-        @test_throws ErrorException tosamplerate(5,10Hz)
-        @test_throws ErrorException tochannels(5,2)
-        @test samplerate(signal(signal(sin,200Hz),200Hz)) == 200
     end
 end

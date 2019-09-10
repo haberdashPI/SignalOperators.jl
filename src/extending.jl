@@ -52,6 +52,7 @@ function checkpoints(x::AppendSignals,offset,len)
         collect(enumerate([1;cumsum(collect(nsamples.(x.signals[1:end-1]))).+1]))
 
     written = 0
+    droplast_unless(x,cond) = cond ? x : x[1:end-1]
     result = mapreduce(vcat,x.signals,indices) do signal,(sig_index,index)
         checks = if index-offset > len
             []
@@ -62,7 +63,8 @@ function checkpoints(x::AppendSignals,offset,len)
                 len-written
             end
             written += local_len
-            checkpoints(signal,0,local_len)
+            droplast_unless(checkpoints(signal,0,local_len),
+                sig_index == length(x.signals))
         elseif index + nsamples(signal) - offset > 0
             sigoffset = -(index-offset)+1
             local_len = if !infsignal(signal)
@@ -71,7 +73,8 @@ function checkpoints(x::AppendSignals,offset,len)
                 len-written
             end
             written += local_len
-            checkpoints(signal,sigoffset,local_len)
+            droplast_unless(checkpoints(signal,sigoffset,local_len),
+                sig_index == length(x.signals))
         else
             []
         end

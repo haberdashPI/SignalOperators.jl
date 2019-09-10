@@ -56,10 +56,13 @@ julia> inframes(0.5s, 44100Hz)
 inframes(frame::FrameQuant, rate=missing) = ustrip(uconvert(frames, frame))
 inframes(time::Unitful.Time, rate=missing) = inseconds(time)*inHz_(rate)
 inframes(frame::Number, rate=missing) = frame
+
 inframes(::Type{T}, frame::Number, rate=missing) where T <: Integer =
     trunc(T,inframes(frame,rate))
 inframes(::Type{T}, frame::Number, rate=missing) where T = 
     convert(T,inframes(frame,rate))
+inframes(::Type,::Nothing, rate=missing) = nothing
+inframes(::Nothing, rate=missing) = nothing
 inframes(::Missing,fs=missing) = missing
 inframes(::Type,::Missing,fs=missing) = missing
 

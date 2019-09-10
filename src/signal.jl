@@ -1,6 +1,7 @@
 export duration, nsamples, samplerate, samples, nchannels, signal, infsignal
 using AxisArrays
 using FileIO
+using Infiltrator
 
 # Signals have a sample rate and some iterator element type
 # T, which is an NTuple{N,<:Number}.
@@ -96,12 +97,14 @@ function sink(x::T,::Type{A}=AxisArray;
     end
     x = signal(x,samplerate)
 
+    if isnothing(length)
+        error("Cannot store infinite signal. Specify a length when ",
+            "calling `sink`.")
+    end
+
     sink(x,SignalTrait(T),inframes(Int,length,SignalOperators.samplerate(x)),A)
 end
 
-function sink(x,sig::IsSignal,::Nothing,T)
-    error("Cannot store infinite signal. Specify a length when calling `sink`.")
-end
 function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
     result = Array{El}(undef,len,nchannels(x))
     sink!(result,x)
@@ -150,7 +153,6 @@ fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
     checks = checkpoints(x,offset,size(result,1))
     n = 1-checkindex(checks[1])
-    # @show map(checkindex,checks)
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
         beforecheckpoint(x,check,len)
@@ -162,9 +164,6 @@ end
 
 function sink_helper!(result,n,x,sig,check,len)
     if len > 0
-        # @show len
-        # @show checkindex(check)
-        # @show n
         @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
             sampleat!(result,x,sig,n+i,i,check)
         end

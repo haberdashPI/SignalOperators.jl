@@ -121,6 +121,14 @@ function checkpoints(x::SignalOp,offset,len)
                 child_indices[i] == length(child_checks[i]) && break
                 child_indices[i] += 1
             end
+
+            # enforce the invariant that the leader is the highest (or tied)
+            # index
+            if checkindex(child_checks[i][child_indices[i]]) > index
+                child_indices[i] > 1
+                child_indices[i] -= 1
+            end
+
             if checkindex(child_checks[i][child_indices[i]]) == index
                 children = map(@λ(_[_]),child_checks,child_indices)
                 [SignalOpCheckpoint(i,children)]
@@ -146,10 +154,6 @@ writesink(::OneSample,i,val) = val
     vals = map(enumerate(x.args)) do (i,arg)
         sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
     end
-    @show x.fn
-    @show vals
-    @show i
-    @show j
     writesink(result,i,x.fn(vals...))
 end
 

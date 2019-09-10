@@ -34,7 +34,7 @@ function filtersignal(x,::Nothing,args...;kwds...)
     filtersignal(signal(x),args...;kwds...)
 end
 
-resolve_filter(x) = DF2Filter(x)
+resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
     T,Fn,Fs = float(channel_eltype(x)),typeof(fn),typeof(newfs)
@@ -71,7 +71,7 @@ mutable struct FilterState{H,Fs,S,T}
     end
 end
 function FilterState(x::FilteredSignal)
-    h = x.fn(samplerate(x))
+    h = resolve_filter(x.fn(samplerate(x)))
     len = inputlength(h,x.blocksize)
     input = Array{channel_eltype(x.x)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
@@ -122,7 +122,6 @@ function checkpoints(x::FilteredSignal,offset,len)
     state = if length(x.state[].output) == 0 || 
             x.state[].samplerate != samplerate(x) ||
             x.state[].lastoffset > offset
-        @info "Resetting state"
         x.state[] = FilterState(x)
     else
         x.state[]
