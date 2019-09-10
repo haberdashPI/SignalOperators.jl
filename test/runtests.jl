@@ -190,19 +190,20 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Resmapling" begin
-        # TODO: reset filter state in the outer sink! call
-        # (how do we do that without doing it in the inner call?)
-
         tone = signal(sin,20Hz,ω=5Hz) |> until(5s)
         resamp = tosamplerate(tone,40Hz)
         @test samplerate(resamp) == 40
         @test nsamples(resamp) == 2nsamples(tone)
-
+        
         toned = tone |> sink
         resamp = tosamplerate(toned,40Hz)
         @test samplerate(resamp) == 40
+
         resampled = resamp |> sink
-        @test abs(size(resampled,1) - 2nsamples(tone)) < 2
+        @test size(resampled,1) == 2nsamples(tone)
+
+        # verify that the state of the filter is proplery reset
+        # (so it should produce same output a second time)
         resampled2 = resamp |> sink
         @test resampled ≈ resampled2
     end
@@ -230,16 +231,6 @@ using SignalOperators: SignalTrait, IsSignal
         @test size(more |> sink,1) == 1000
     end
 
-    @testset "Handling of arrays" begin
-        # AbstractArrays
-        tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
-        @test all(tone[1:10] .>= 10.0*(1:10))
-        samples = signal(10.0.*(1:10),5Hz) |> until(1s) |> collect
-        @test samples isa Array{Tuple{Float64}}
-        @test signal(10.0.*(1:10),5Hz) |> SignalOperators.channel_eltype == 
-            Float64
-    end
-
     @testset "Axis Arrays" begin
         x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
         proc = signal(x) |> ramp |> sink
@@ -256,20 +247,45 @@ using SignalOperators: SignalTrait, IsSignal
         stereo = signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
         @test stereo |> nchannels == 2
         @test stereo |> sink |> size == (10,2)
-        @test stereo |> SignalOperators.samples |> collect |> size == (10,)
-        @test stereo |> until(5frames) |> collect |> size == (5,)
-        @test stereo |> after(5frames) |> collect |> size == (5,)
+        @test stereo |> until(5frames) |> sink |> size == (5,2)
+        @test stereo |> after(5frames) |> sink |> size == (5,2)
         
         # Numbers
         tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
         @test all(tone .>= 0.5)
-        samples = signal(1,5Hz) |> until(5s) |> collect
-        @test samples isa Array{Tuple{Int}}
+        samples = signal(1,5Hz) |> until(5s) |> sink
+        @test samples isa AbstractArray{Int}
+
+        # AbstractArrays
+        tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
+        @test all(tone[1:10] .>= 10.0*(1:10))
+        samples = signal(10.0.*(1:10),5Hz) |> until(1s) |> sink
+        @test samples isa AbstractArray{Float64}
+        @test signal(10.0.*(1:10),5Hz) |> SignalOperators.channel_eltype == 
+            Float64
     end
 
-    @testset "Handling of custom padding" begin
-        # TODO: test 1 pad for amplify and 0 pad for mix
+    @testset "Handling of padded mix and amplify" begin
+        fs = 3Hz
+        a = signal(2,fs) |> until(2s) |> append(signal(3,fs)) |> until(4s)
+        b = signal(3,fs) |> until(3s) 
+
+        result = mix(a,b) |> sink
+        @test result == [
+            fill(2,10*2) .+ fill(3,10*2);
+            fill(3,10*1) .+ fill(3,10*1);
+            fill(3,10*1)
+        ]
+
+        result = amplify(a,b) |> sink
+        @test result == [
+            fill(2,10*2) .* fill(3,10*2);
+            fill(3,10*1) .* fill(3,10*1);
+            fill(3*10*1)
+        ]
     end
+
+    # TODO: add a test to check handling of dB units
 
     @testset "Handling of infinite signals" begin
         tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames) |> 

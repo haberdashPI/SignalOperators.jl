@@ -23,8 +23,16 @@ function append(xs...)
         error("Cannot append to the end of an infinite signal")
     end
     xs = uniform(xs,channels=true) 
+
     El = promote_type(channel_eltype.(xs)...)
-    xs = mapsignal.(x -> convert(El,x),xs)
+    xs = map(xs) do x
+        if channel_eltype(x) != El
+            mapsignal(@λ(convert(El,_)),x)
+        else
+            x
+        end
+    end
+
     len = infsignal(xs[end]) ? nothing : sum(nsamples,xs)
     AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
@@ -48,12 +56,20 @@ function checkpoints(x::AppendSignals,offset,len)
         checks = if index-offset > len
             []
         elseif index-offset > 0
-            local_len = min(len-written,nsamples(signal))
+            local_len = if !infsignal(signal)
+                min(len-written,nsamples(signal))
+            else
+                len-written
+            end
             written += local_len
             checkpoints(signal,0,local_len)
         elseif index + nsamples(signal) - offset > 0
             sigoffset = -(index-offset)+1
-            local_len = min(nsamples(signal)-sigoffset+1,len-written)
+            local_len = if !infsignal(signal)
+                min(nsamples(signal)-sigoffset+1,len-written)
+            else
+                len-written
+            end
             written += local_len
             checkpoints(signal,sigoffset,local_len)
         else
@@ -66,6 +82,10 @@ function checkpoints(x::AppendSignals,offset,len)
 
     result
 end
+beforecheckpoint(x::AppendCheckpoint,check,len) = 
+    beforecheckpoint(x.signal,check.child,len)
+aftercheckpoint(x::AppendCheckpoint,check,len) = 
+    aftercheckpoint(x.signal,check.child,len)
 function sampleat!(result,x::AppendSignals,sig::IsSignal,i,j,check)
     sampleat!(result,x.signals[check.sig_index],sig,i,j+check.offset,check.child)
 end
@@ -117,6 +137,11 @@ function checkpoints(x::PaddedSignal,offset,len)
     end
     [oldchecks; PadCheckpoint{dopad,Nothing}(offset+len+1,nothing)]
 end
+beforecheckpoint(x::PadCheckpoint,check,len) = 
+    beforecheckpoint(x.child,check.child,len)
+aftercheckpoint(x::PadCheckpoint,check,len) = 
+    aftercheckpoint(x.child,check.child,len)
+
 function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
     check::PadCheckpoint{false})
 

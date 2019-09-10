@@ -44,6 +44,9 @@ after(time) = x -> after(x,time)
 function after(x,time)
     ItrApply(signal(x),time,drop_)
 end
+infsignal(x::DropApply) = infsignal(x.signal)
+infsignal(x::TakeApply) = false
+
 
 function nsamples(x::TakeApply,::IsSignal)
     take = resolvelen(x)
@@ -72,6 +75,7 @@ struct DropCheckpoint{C}
     diff::Int
     child::C
 end
+checkindex(c::DropCheckpoint) = c.n
 function checkpoints(x::DropApply,offset,len)
     n = resolvelen(x)
     children = checkpoints(x.signal,offset+n,len)
@@ -79,10 +83,21 @@ function checkpoints(x::DropApply,offset,len)
         DropCheckpoint(checkindex(child)-n,n,child)
     end
 end
-checkpoints(x::TakeApply,offset,len) = checkpoints(x.signal,offset,len)
+beforecheckpoint(x::DropApply,check,len) = 
+    beforecheckpoint(x.signal,check.child,len)
+aftercheckpoint(x::DropApply,check,len) = 
+    aftercheckpoint(x.signal,check.child,len)
+
+function checkpoints(x::TakeApply,offset,len) 
+    checkpoints(x.signal,offset,len)
+end
+beforecheckpoint(x::TakeApply,check,len) = 
+    beforecheckpoint(x.signal,check,len)
+aftercheckpoint(x::TakeApply,check,len) = 
+    aftercheckpoint(x.signal,check,len)
 
 function sampleat!(result,x::DropApply,sig::IsSignal,i,j,check)
-    sampleat!(result,x.signal,SignalTrait(x.signal),i,j-check.diff,check.child)
+    sampleat!(result,x.signal,SignalTrait(x.signal),i,j+check.diff,check.child)
 end
 
 function sampleat!(result,x::TakeApply,sig::IsSignal,i,j,check)

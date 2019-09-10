@@ -14,28 +14,33 @@ tosamplerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
 
 function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
     if ismissing(samplerate(x))
-        signal(x,fs)
+        return signal(x,fs)
     end
 
     # copied and modified from DSP's `resample`
     ratio = rationalize(inHz(fs)/samplerate(x))
+    init_fs = samplerate(x)
     if ratio == 1
         x
     else
-        h = resample_filter(ratio)
-        self = FIRFilter(h, ratio)
-        τ = timedelay(self)
-        setphase!(self, τ)
+        function resamplerfn(__fs__)
+            h = resample_filter(ratio)
+            self = FIRFilter(h, ratio)
+            τ = timedelay(self)
+            setphase!(self, τ)
 
-        x = if !infsignal(x)
-            outlen = ceil(Int, nsamples(x)*ratio)
-            inlen = inputlength(self, outlen)
-            pad(x,zero) |> until(inlen*frames)
-        else
-            x
+            self
         end
 
-        filtersignal(x,s,_ -> self;blocksize=blocksize,newfs=inHz(fs))
+        if infsignal(x)
+            filtersignal(x,s,resamplerfn;blocksize=blocksize,newfs=inHz(fs))
+        else
+            padded = pad(x,zero)
+            len = ceil(Int,nsamples(x)*ratio)
+            filtersignal(padded,s,resamplerfn;
+                blocksize=blocksize,newfs=inHz(fs)) |>
+                until(len*frames)
+        end
     end
 end
 

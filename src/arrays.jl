@@ -1,19 +1,24 @@
 export sink
 using AxisArrays
 
-# signals can be arrays with some metadata
-function signal(x::AbstractArray,fs::Union{Missing,Number}=missing) 
-    times = range(0s,length=size(x,1),step=s/inHz(fs))
-    if ndims(x) == 1
-        ax = AxisArray(x,Axis{:time}(times))
-    elseif ndims(x) == 2
-        channels = 1:size(x,2)
-        ax = AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
-    else
-        error("To treat an array as a signal it must have 1 or 2 dimensions")
-    end
+errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions")
 
-    ax
+# signals can be arrays with some metadata
+function signal(x::AbstractArray{<:Any,N},
+    fs::Union{Missing,Number}=missing) where N
+
+    if N == 1
+        ismissing(fs) && return x
+        times = range(0s,length=size(x,1),step=s/inHz(fs))
+        AxisArray(x,Axis{:time}(times))
+    elseif N == 2
+        ismissing(fs) && return x
+        times = range(0s,length=size(x,1),step=s/inHz(fs))
+        channels = 1:size(x,2)
+        AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
+    else
+        errordim()
+    end
 end
 
 function signal(x::AxisArray,fs::Union{Missing,Number}=missing)
@@ -21,16 +26,32 @@ function signal(x::AxisArray,fs::Union{Missing,Number}=missing)
     !isconsistent(fs,1/step(times))
     x
 end
-SignalTrait(::Type{<:AxisArray{T}}) where T = IsSignal{T,Float64,Int}()
+
+function SignalTrait(::Type{A}) where{T,N,A<:AbstractArray{T,N}}
+    if N ∈ [1,2]
+        if A isa AxisArray
+            IsSignal{T,Float64,Int}()
+        else
+            IsSignal{T,Missing,Int}()
+        end
+    else
+        errordim()
+    end
+end
+
 nsamples(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
+nsamples(x::AbstractVecOrMat) = size(x,1)
+
 function nchannels(x::AxisArray) 
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
 end
+nchannels(x::AbstractVecOrMat) = size(x,2)
 function samplerate(x::AxisArray)
     times = axisvalues(AxisArrays.axes(x,Axis{:time}))[1]
     inHz(1/step(times))
 end
+samplerate(x::AbstractVecOrMat) = missing
 
 const WithAxes{Tu} = AxisArray{<:Any,<:Any,<:Any,Tu}
 const AxTimeD1 = Union{

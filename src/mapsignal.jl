@@ -17,8 +17,8 @@ end
 function SignalOp(fn::Fn,val::El,len::L,args::Args,
     samplerate::Fs,padding::Pd,blocksize::Int) where {Fn,El,L,Args,Fs,Pd}
 
-    SignalOp{Fn,Fs,El,L,Args,Pd,ntuple_T(El)}(fn,val,len,args,
-        samplerate,padding,blocksize)
+    T = El == NoValues ? Nothing : ntuple_T(El)
+    SignalOp{Fn,Fs,El,L,Args,Pd,T}(fn,val,len,args,samplerate,padding,blocksize)
 end
 
 struct NoValues
@@ -88,7 +88,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
         len = nothing
     end
     if !isnothing(len) && len == 0
-        SignalOp(fn,novalues,len,(true,nothing),sm,fs)
+        SignalOp(fn,novalues,len,xs,fs,padding,blocksize)
     else
         vals = testvalue.(xs)
         if !across_channels
@@ -130,9 +130,10 @@ function checkpoints(x::SignalOp,offset,len)
         end
     end
 end
-function beforecheckpoint(x::SignalOp,check::SignalOpCheckpoint,len)
+beforecheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
     beforecheckpoint(x,check.children[check.leader],len)
-end
+aftercheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
+    aftercheckpoint(x,check.children[check.leader],len)
 
 block_length(x::SignalOp) = minimum(block_length.(x.args))
 
@@ -145,6 +146,10 @@ writesink(::OneSample,i,val) = val
     vals = map(enumerate(x.args)) do (i,arg)
         sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
     end
+    @show x.fn
+    @show vals
+    @show i
+    @show j
     writesink(result,i,x.fn(vals...))
 end
 

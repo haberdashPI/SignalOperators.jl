@@ -34,13 +34,6 @@ function filtersignal(x,::Nothing,args...;kwds...)
     filtersignal(signal(x),args...;kwds...)
 end
 
-# TODO: allow the filter to be applied iteratively to allow application of
-# filter to infinite signal
-
-# TODO: before we do that... define a very simple WrappedSignal object, instead
-# of just sinking to data: this way we can allow missing samplerates to pass
-# through filter operations
-
 resolve_filter(x) = DF2Filter(x)
 resolve_filter(x::FIRFilter) = x
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
@@ -49,7 +42,7 @@ function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where 
     input = Array{channel_eltype(x)}(undef,1,1)
     output = Array{float(channel_eltype(x))}(undef,0,0)
     h = resolve_filter(fn(44.1kHz))
-    dummy = FilterState(h,inHz(44.1kHz),0,0,input,output)
+    dummy = FilterState(h,inHz(44.1kHz),0,0,0,input,output)
     FilteredSignal{T,Si,Fn,typeof(newfs),typeof(dummy)}(x,fn,blocksize,newfs,Ref(dummy))
 end
 struct FilteredSignal{T,Si,Fn,Fs,St} <: WrappedSignal{Si,T}
@@ -68,12 +61,13 @@ mutable struct FilterState{H,Fs,S,T}
     samplerate::Fs
     lastoffset::Int
     lastoutput::Int
+    availableoutput::Int
     input::Matrix{S}
     output::Matrix{T}
     function FilterState(h::H,fs::Fs,lastoffset::Int,lastoutput::Int,
-        input::Matrix{S},output::Matrix{T}) where {H,Fs,S,T}
+        availableoutput::Int,input::Matrix{S},output::Matrix{T}) where {H,Fs,S,T}
     
-        new{H,Fs,S,T}(h,fs,lastoffset,lastoutput,input,output)
+        new{H,Fs,S,T}(h,fs,lastoffset,lastoutput,availableoutput,input,output)
     end
 end
 function FilterState(x::FilteredSignal)
@@ -81,10 +75,12 @@ function FilterState(x::FilteredSignal)
     len = inputlength(h,x.blocksize)
     input = Array{channel_eltype(x.x)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
+    availableoutput = 0
     lastoffset = 0
-    lastoutput = size(output,1)
+    lastoutput = 0
 
-    FilterState(h,float(samplerate(x)),lastoffset,lastoutput,input,output)
+    FilterState(h,float(samplerate(x)),lastoffset,lastoutput,availableoutput,
+        input,output)
 end
 
 function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
@@ -105,7 +101,9 @@ function nsamples(x::FilteredSignal)
     elseif samplerate(x) == samplerate(x.x) 
         nsamples(x.x)
     else
-        outputlength(x.fn(samplerate(x)),nsamples(x.x))
+        # number of samples for change in sample rate is defined using `until`
+        # (see `tosamplerate` for `DataSignal` objects)
+        nothing
     end
 end
 
@@ -114,15 +112,6 @@ struct FilterCheckpoint{St} <: AbstractCheckpoint
     state::St
 end
 checkindex(c::FilterCheckpoint) = c.n
-
-function reset!(x::DF2TFilter) 
-    x.state .= zero(eltype(x.state))
-    x
-end
-function reset!(x::FIRFilter)
-    x.history .= zero(eltype(x.history))
-    x
-end
 
 inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
 outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
@@ -133,6 +122,7 @@ function checkpoints(x::FilteredSignal,offset,len)
     state = if length(x.state[].output) == 0 || 
             x.state[].samplerate != samplerate(x) ||
             x.state[].lastoffset > offset
+        @info "Resetting state"
         x.state[] = FilterState(x)
     else
         x.state[]
@@ -161,7 +151,7 @@ Base.view(x::NullBuffer,i,j) = x
 function beforecheckpoint(x::FilteredSignal,check,len)
     # refill buffer if necessary
     state = check.state
-    if state.lastoutput == size(state.output,1)
+    if state.lastoutput == state.availableoutput
         # process any samples before offset that have yet to be processed
         if state.lastoffset < checkindex(check)-1
             sink!(NullBuffer(checkindex(check) - state.lastoffset,nchannels(x)),
@@ -169,28 +159,30 @@ function beforecheckpoint(x::FilteredSignal,check,len)
         end
 
         # write child samples to input buffer
-        sink!(view(state.input,1:min(size(state.input,1),len),:),
+        in_len = min(size(state.input,1),len)
+        sink!(view(state.input,1:in_len,:),
             x.x,SignalTrait(x.x),state.lastoffset)
         # pad any unwritten samples
-        state.input[len+1:end,:] .= 0
 
         # filter the input to the output buffer
+        state.availableoutput = outputlength(state.h,in_len)
         for ch in 1:size(state.output,2)
-            filt!(view(state.output,:,ch),state.h,view(state.input,:,ch))
+            filt!(view(state.output,1:state.availableoutput,ch),
+                state.h,view(state.input,1:in_len,ch))
         end
 
         state.lastoutput = 0
-        state.lastoffset += size(state.output,1)
     end
 end
 function aftercheckpoint(x::FilteredSignal,check,len)
     x.state[].lastoutput += len
+    x.state[].lastoffset += size(x.state[].output,1)
 end
 
 @Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,
         sig,i,j,check)
-
-    writesink(result,i,view(check.state.output,j-check.state.lastoutput,:))
+    index = check.state.lastoutput+j-check.state.lastoffset
+    writesink(result,i,view(check.state.output,index,:))
 end
 
 # TODO: create an online version of normpower?

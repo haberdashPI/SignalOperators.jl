@@ -138,7 +138,8 @@ struct EmptyCheckpoint
 end
 checkindex(x::EmptyCheckpoint) = x.n
 
-checkpoints(x,offset,len) = [EmptyCheckpoint(1),EmptyCheckpoint(len+1)]
+checkpoints(x,offset,len) = 
+    [EmptyCheckpoint(offset+1),EmptyCheckpoint(offset+len+1)]
 checkpoints(x,offset,len,saved_state) = checkpoints(x,offset,len)
 beforecheckpoint(x,check,len) = nothing
 aftercheckpoint(x,check,len) = nothing
@@ -148,21 +149,24 @@ aftercheckpoint(x,check,len) = nothing
 fold(x) = zip(x,Iterators.drop(x,1))
 function sink!(result,x,sig::IsSignal,offset::Number)
     checks = checkpoints(x,offset,size(result,1))
-    n = 1 - checkindex(checks[1])
+    n = 1-checkindex(checks[1])
+    # @show map(checkindex,checks)
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
         beforecheckpoint(x,check,len)
         sink_helper!(result,n,x,sig,check,len)
         aftercheckpoint(x,check,len)
-        n += checkindex(check)-1
     end
     result
 end
 
 function sink_helper!(result,n,x,sig,check,len)
     if len > 0
+        # @show len
+        # @show checkindex(check)
+        # @show n
         @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
-            sampleat!(result,x,sig,-n+i,i,check)
+            sampleat!(result,x,sig,n+i,i,check)
         end
     end
 end
