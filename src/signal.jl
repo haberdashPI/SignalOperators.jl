@@ -1,7 +1,6 @@
 export duration, nsamples, samplerate, samples, nchannels, signal, infsignal
 using AxisArrays
 using FileIO
-using Infiltrator
 
 # Signals have a sample rate and some iterator element type
 # T, which is an NTuple{N,<:Number}.
