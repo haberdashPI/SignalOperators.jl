@@ -4,6 +4,9 @@ using Requires, DSP, LambdaFn, Unitful, Compat
 # generic signal definitions
 include("signal.jl")
 
+# handling of units
+include("units.jl")
+
 # definition of wrapped signals
 include("wrapping.jl")
 
@@ -11,9 +14,6 @@ include("wrapping.jl")
 include("numbers.jl")
 include("arrays.jl")
 include("functions.jl")
-
-# handling of units
-include("units.jl")
 
 # various operators (transforms one signal into another)
 include("cutting.jl")

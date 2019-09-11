@@ -36,8 +36,6 @@ end
 
 fadeto(y,fun::Function) = fadeto(y,10ms,fun)
 fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
-maybeseconds(n::Number) = n*s
-maybeseconds(n::Quantity) = n
 function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
     x = signal(x)
     n = inframes(Int,maybeseconds(len),samplerate(x))

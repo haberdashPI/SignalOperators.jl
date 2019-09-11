@@ -112,3 +112,6 @@ inseconds(x::Unitful.Time, rate=missing) = ustrip(uconvert(s,x))
 inseconds(x::FrameQuant, rate=missing) = inframes(x,rate) / inHz_(rate)
 inseconds(x::Number, rate=missing) = x
 inseconds(::Missing,r=missing) = missing
+
+maybeseconds(n::Number) = n*s
+maybeseconds(n::Quantity) = n
