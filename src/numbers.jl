@@ -4,7 +4,7 @@ struct NumberSignal{T,S} <: AbstractSignal{T}
 end
 signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
 signal(val::Unitful.Gain,::Nothing,fs) = 
-    NumberSignal(uconvertp(NoUnits,val),inHz(Float64,fs))
+    NumberSignal(uconvertrp(NoUnits,val),inHz(Float64,fs))
 
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 

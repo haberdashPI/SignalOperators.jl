@@ -86,7 +86,7 @@ function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
 
     h = x.fn(fs)
     # is this a resampling filter?
-    if samplerate(x) != samplerate(x.x)
+    if ismissing(samplerate(x.x)) || samplerate(x) == samplerate(x.x)
         tosamplerate(x.x,s,DataSignal(),fs,blocksize=blocksize)
     else
         FilteredSignal(tosamplerate(x.x,fs,blocksize=blocksize),

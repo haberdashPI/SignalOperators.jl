@@ -1,6 +1,5 @@
 module SignalOperators
 using Requires, DSP, LambdaFn, Unitful, Compat
-using Infiltrator
 
 # generic signal definitions
 include("signal.jl")

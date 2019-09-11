@@ -101,7 +101,7 @@ sink("result.wav")`)
 """
 sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
 function sink(x::T,::Type{A}=AxisArray;
-        length=inframes(nsamples(x)),
+        length=missing,
         samplerate=SignalOperators.samplerate(x)) where {T,A}
 
     if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
@@ -109,6 +109,7 @@ function sink(x::T,::Type{A}=AxisArray;
         samplerate = 44.1kHz
     end
     x = signal(x,samplerate)
+    length = coalesce(length,nsamples(x))
 
     if isinf(length)
         error("Cannot store infinite signal. Specify a length when ",
@@ -124,7 +125,7 @@ function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
 end
 function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
     result = sink(x,sig,len,Array)
-    times = Axis{:time}(range(0s,length=size(result,1),step=s/samplerate(x)))
+    times = Axis{:time}(range(0s,length=size(result,1),step=float(s/samplerate(x))))
     channels = Axis{:channel}(1:nchannels(x))
     AxisArray(result,times,channels)
 end
