@@ -37,8 +37,7 @@ end
 resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
-    T,Fn,Fs = float(channel_eltype(x)),typeof(fn),typeof(newfs)
-    FilteredSignal{T,Si,Fn,typeof(newfs)}(x,fn,blocksize,newfs)
+    FilteredSignal(x,fn,blocksize,newfs)
 end
 struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
     x::Si
@@ -46,6 +45,11 @@ struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
     blocksize::Int
     samplerate::Fs
 end
+function FilteredSignal(x::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,Fs}
+    T = float(channel_eltype(x))
+    FilteredSignal{T,Si,Fn,Fs}(x,fn,Int(blocksize),newfs)
+end
+
 childsignal(x::FilteredSignal) = x.x
 samplerate(x::FilteredSignal) = x.samplerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
@@ -83,9 +87,10 @@ function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
     h = x.fn(fs)
     # is this a resampling filter?
     if samplerate(x) != samplerate(x.x)
-        tosamplerate(x.x,s,DataSignal(),fs)
+        tosamplerate(x.x,s,DataSignal(),fs,blocksize=blocksize)
     else
-        FilteredSignal(tosamplerate(x.x),x.fn,x.blocksize,fs)
+        FilteredSignal(tosamplerate(x.x,fs,blocksize=blocksize),
+            x.fn,x.blocksize,fs)
     end
 end
         
@@ -170,8 +175,45 @@ end
 
 # TODO: create an online version of normpower?
 # TODO: this should be excuted lazzily to allow for unkonwn samplerates
-function normpower(x)
-    fs = samplerate(x)
-    x = sink(x)
-    x ./ sqrt.(mean(x.^2,dims=1)) |> signal(fs*Hz)
+struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
+    x::Si
 end
+childsignal(x::NormedSignal) = x.x
+nsamples(x::NormedSignal) = nsamples(x.x)
+NormedSignal(x::Si) where Si = NormedSignal{Si,channel_eltype(Si)}(x)
+
+struct NormedCheckpoint{R,V,C} <: AbstractCheckpoint
+    rms::R
+    vals::V
+    child::C
+end
+checkindex(x::NormedCheckpoint) = checkindex(x.child)
+
+function checkpoints(x::NormedSignal,check,len)
+    vals = sink(x.x)
+    rms = sqrt.(mean(vals.^2,dims=1))
+    @show rms
+    map(checkpoints(x.x,check,len)) do check
+        NormedCheckpoint(Tuple(rms),vals,check)
+    end
+end
+beforecheckpoint(x::NormedCheckpoint,check,len) = 
+    beforecheckpoint(x.child,check.child,len)
+aftercheckpoint(x::NormedCheckpoint,check,len) = 
+    aftercheckpoint(x.child,check.child,len)
+function tosamplerate(x::NormedSignal,s::IsSignal,::ComputedSignal,fs;
+    blocksize)
+
+    NormedSignal(tosamplerate(x.x,fs,blocksize=blocksize))
+end
+
+function sampleat!(result,x::NormedSignal,::IsSignal,i,j,check::NormedCheckpoint)
+    writesink(result,i,view(check.vals,j,:) ./ check.rms)
+end
+
+normpower(x::T) where T = NormedSignal{T,channel_eltype(T)}(signal(x))
+# function normpower(x)
+#     fs = samplerate(x)
+#     x = sink(x)
+#     x ./ sqrt.(mean(x.^2,dims=1)) |> signal(fs*Hz)
+# end

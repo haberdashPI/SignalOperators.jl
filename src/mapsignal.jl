@@ -30,7 +30,7 @@ nsamples(x::SignalOp) = x.len
 nchannels(x::SignalOp) = length(x.val)
 samplerate(x::SignalOp) = x.samplerate
 function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs;blocksize)
-    if ismissing(x.samplerate) || ismissing(fs) || fs < x.samplerate
+    if ismissing(x.samplerate) || ismissing(fs) || inHz(fs) < x.samplerate
         # resample input if we are downsampling 
         mapsignal(x.fn,tosamplerate.(x.args,fs,blocksize=blocksize)...,
             padding=x.padding)

@@ -6,7 +6,7 @@ tosamplerate(fs;blocksize=default_blocksize) =
 tosamplerate(x,fs;blocksize=default_blocksize) = 
     ismissing(fs) && ismissing(samplerate(x)) ? x :
         coalesce(inHz(fs) == samplerate(x),false) ? x :
-        tosamplerate(x,SignalTrait(x),EvalTrait(x),fs;blocksize=blocksize)
+        tosamplerate(x,SignalTrait(x),EvalTrait(x),inHz(fs);blocksize=blocksize)
 tosamplerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
 
 tosamplerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
@@ -18,7 +18,7 @@ function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
     end
 
     # copied and modified from DSP's `resample`
-    ratio = rationalize(inHz(fs)/samplerate(x))
+    ratio = rationalize(fs/samplerate(x))
     init_fs = samplerate(x)
     if ratio == 1
         x
@@ -33,12 +33,12 @@ function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
         end
 
         if infsignal(x)
-            filtersignal(x,s,resamplerfn;blocksize=blocksize,newfs=inHz(fs))
+            filtersignal(x,s,resamplerfn;blocksize=blocksize,newfs=fs)
         else
             padded = pad(x,zero)
             len = ceil(Int,nsamples(x)*ratio)
             filtersignal(padded,s,resamplerfn;
-                blocksize=blocksize,newfs=inHz(fs)) |>
+                blocksize=blocksize,newfs=fs) |>
                 until(len*frames)
         end
     end

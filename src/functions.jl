@@ -46,7 +46,7 @@ EvalTrait(x::SignalFunction) = ComputedSignal()
     end
 end
 tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) = 
-    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(fs),x.samplerate))
+    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.samplerate))
 
 function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)

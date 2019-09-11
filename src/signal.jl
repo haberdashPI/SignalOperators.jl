@@ -144,7 +144,7 @@ aftercheckpoint(x,check,len) = nothing
 fold(x) = zip(x,Iterators.drop(x,1))
 sink!(result,x,sig::IsSignal,offset::Number) = 
     sink!(result,x,sig,checkpoints(x,offset,size(result,1)))
-function sink!(result,x,sig::IsSignal,checks::AbstractArray{<:AbstractCheckpoint})
+function sink!(result,x,sig::IsSignal,checks::AbstractArray)
     n = 1-checkindex(checks[1])
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
