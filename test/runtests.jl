@@ -62,6 +62,7 @@ using SignalOperators: SignalTrait, IsSignal
         @test isa(amplify(20dB),Function)
         @test isa(addchannel(x),Function)
         @test isa(channel(1),Function)
+        @test isa(filtersignal(x -> x),Functio)
     end
 
     @testset "Basic signals" begin
@@ -146,9 +147,6 @@ using SignalOperators: SignalTrait, IsSignal
     end 
 
     @testset "Filtering" begin
-        # TODO: add tests for custom filters (functions and predifined DSP 
-        # filters)
-
         a = signal(sin,100Hz,ω=10Hz) |> until(5s)
         b = signal(sin,100Hz,ω=5Hz) |> until(5s)
         cmplx = mix(a,b)
@@ -202,11 +200,18 @@ using SignalOperators: SignalTrait, IsSignal
         fading = fadeto(x,y,100ms)
         @test nsamples(fading) == (5+5-0.1)*100
 
-        # TODO: add test for ramps defines solely by a function (rampon,
-        # rampoff, and fadeto)
+        ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> until(100ms) |> 
+            ramp(identity) |> sink
+        @test mean(abs,ramped2[1:5]) < mean(abs,ramped2[6:10])
+        ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> until(100ms) |> 
+            rampon(identity) |> sink
+        @test mean(abs,ramped2[1:5]) < mean(abs,ramped2[6:10])
+        ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> until(100ms) |> 
+            rampoff(identity) |> sink
+        @test mean(abs,ramped2[7:10]) < mean(abs,ramped2[1:6])
     end
 
-    @testset "Resmapling" begin
+    @testset "Resampling" begin
         tone = signal(sin,20Hz,ω=5Hz) |> until(5s)
         resamp = tosamplerate(tone,40Hz)
         @test samplerate(resamp) == 40

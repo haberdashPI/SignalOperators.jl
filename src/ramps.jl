@@ -2,7 +2,7 @@
 export rampon, rampoff, ramp, fadeto
 
 function rampon_fn(x,len,fun)
-    time = inseconds(len,samplerate(x))
+    time = inseconds(Float64,len,samplerate(x))
     x -> x ≤ time ? fun(x/time) : 1.0
 end
 
@@ -15,7 +15,7 @@ function rampon(x,len::Number=10ms,fun::Function=sinramp)
 end
 
 function rampoff_fn(x,len,fun)
-    time = inseconds(len,samplerate(x))
+    time = inseconds(Float64,len,samplerate(x))
     ramp_start = duration(x) - time
     x -> x < ramp_start ? 1.0 : fun(1.0 - (x-ramp_start)/time)
 end
