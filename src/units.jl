@@ -4,8 +4,7 @@ using Unitful
 # they want to import the shorthand unit names (or just use e.g. u"ms")
 module Units
     using Unitful
-    using Unitful: Hz, s, kHz, ms, °, rad
-    using DSP: dB
+    using Unitful: Hz, s, kHz, ms, °, rad, dB
 
     const frames = Hz*s
     const FrameQuant = DimensionlessQuantity

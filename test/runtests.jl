@@ -9,6 +9,11 @@ using AxisArrays
 
 using SignalOperators: SignalTrait, IsSignal
 
+test_wav = "test.wav"
+example_wav = "example.wav"
+examples_wav = "examples_wav"
+test_files = [test_wav,example_wav,examples_wav]
+
 @testset "SignalOperators.jl" begin
 
     @testset "Unit Conversions" begin
@@ -86,9 +91,9 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Files as signals" begin
-        tone = signal(range(0,1,length=4),10Hz) |> sink("test.wav")
-        @test SignalTrait(signal("test.wav")) isa IsSignal
-        @test isapprox(signal("test.wav"), range(0,1,length=4),rtol=1e-6)
+        tone = signal(range(0,1,length=4),10Hz) |> sink(test_wav)
+        @test SignalTrait(signal(test_wav)) isa IsSignal
+        @test isapprox(signal(test_wav), range(0,1,length=4),rtol=1e-6)
     end
 
     @testset "Cutting Operators" begin
@@ -306,9 +311,9 @@ using SignalOperators: SignalTrait, IsSignal
         samples = signal(1,5Hz) |> until(5s) |> sink
         @test samples isa AbstractArray{Int}
 
-        dc_off = signal(1,10Hz) |> until(1s) |> amplify(10dB) |> sink
-        @test all(dc_off .== 10)
         dc_off = signal(1,10Hz) |> until(1s) |> amplify(20dB) |> sink
+        @test all(dc_off .== 10)
+        dc_off = signal(1,10Hz) |> until(1s) |> amplify(40dB) |> sink
         @test all(dc_off .== 100)
 
         # AbstractArrays
@@ -365,17 +370,19 @@ using SignalOperators: SignalTrait, IsSignal
     end
 
     @testset "Flexible sample rate / signal interpretation"
-        randn |> normpower |> sink("example.wav",length=2s,samplerate=44.1kHz)
+        randn |> normpower |> sink(example_wav,length=2s,samplerate=44.1kHz)
 
         sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> 
             amplify(-20dB)
-        @test sound1 |> sink(samplerate=100Hz) |> nsamples == 500
+        result = sound1 |> sink(samplerate=4kHz)
+        @test result |> nsamples == 4000*5
+        @test mean(abs,result) > 0
 
-        sound2 = "example.wav" |> normpower |> amplify(-20dB)
+        sound2 = example_wav |> normpower |> amplify(-20dB)
 
         # a 1kHz sawtooth wave 
-        sound3 = signal(ϕ -> 2(ϕ/2π % 1) - 1,ω=1kHz) |> ramp |> normpower |> 
-            amplify(-20dB)
+        sound3 = signal(ϕ -> 2(ϕ/2π % 1) - 1,ω=1kHz) |> until(2s) |> ramp |> 
+            normpower |> amplify(-20dB) 
 
         # a 5 Hz amplitude modulated noise
         sound4 = randn |> 
@@ -390,12 +397,12 @@ using SignalOperators: SignalTrait, IsSignal
         scene = mix(x,y)
 
         # write all of the signal to a single file, at 44.1 kHz
-        append(sound1,sound2,sound3,sound4,scene) |> sink("examples.wav",44.1kHz)
+        append(sound1,sound2,sound3,sound4,scene) |> sink(examples_wav)
 
-        @test isfile("examples.wav")
+        @test isfile(examples_wav)
     end
 
-        
-    # TODO: add tests to check flexible handling of missing sample rates
-    # TODO: add tests to check flexible handling of non-signals
+    for file in example
+        isfile(file) && rm(file)
+    end
 end
