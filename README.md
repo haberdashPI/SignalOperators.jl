@@ -10,7 +10,7 @@
 SignalOperators is a [Julia](https://julialang.org/) package that aims to provide a clean interface for generating and manipulating signals: typically sounds, but any signal regularly sampled in time could be manipulated.
 
 This package remains in an experimental stage. The tests all seem to be passing 
-locally, and it seems to be working for the few small examples I've tried. It is not yet well battle tested, and I am still thinking through tests to verify all functionality. I also make no guarantees regarding performance.
+locally, and it seems to be working for the few small examples I've tried. It is not yet well battle tested, and I am still thinking through tests to verify all functionality. As of yet, I also make no guarantees regarding performance.
 
 ```julia
 using SignalOperators
@@ -39,7 +39,10 @@ y = signal(randn) |> until(1s) |> bandstop(0.5kHz,2kHz) |> normpower |>
 scene = mix(x,y)
 
 # write all of the signal to a single file, at 44.1 kHz
-append(sound1,sound2,sound3,sound4,scene) |> sink("examples.wav",44.1kHz)
+append(sound1,sound2,sound3,sound4,scene) |> tosamplerate(44.1kHz) |> sink("examples.wav")
 
 ```
 
+## Acknowledgements
+
+Many thanks to @ssfrr for some great discussions during this [PR](https://github.com/JuliaAudio/SampledSignals.jl/pull/44), and related issues on the [SampledSignals](https://github.com/JuliaAudio/SampledSignals.jl) package. Those interactions definitely influenced my final design here.
