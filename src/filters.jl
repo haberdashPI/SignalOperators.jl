@@ -186,15 +186,19 @@ struct NormedCheckpoint{R,V,C} <: AbstractCheckpoint
     rms::R
     vals::V
     child::C
+    offset::Int
 end
 checkindex(x::NormedCheckpoint) = checkindex(x.child)
 
-function checkpoints(x::NormedSignal,check,len)
-    vals = sink(x.x)
+function checkpoints(x::NormedSignal,offset,len)
+    siglen = len + offset
+    vals = sink!(Array{channel_eltype(x)}(undef,siglen,nchannels(x)),
+        x.x,offset=0)
+
     rms = sqrt.(mean(vals.^2,dims=1))
     @show rms
-    map(checkpoints(x.x,check,len)) do check
-        NormedCheckpoint(Tuple(rms),vals,check)
+    map(checkpoints(x.x,offset,len)) do check
+        NormedCheckpoint(Tuple(rms),vals,check,offset)
     end
 end
 beforecheckpoint(x::NormedCheckpoint,check,len) = 
@@ -208,10 +212,13 @@ function tosamplerate(x::NormedSignal,s::IsSignal,::ComputedSignal,fs;
 end
 
 function sampleat!(result,x::NormedSignal,::IsSignal,i,j,check::NormedCheckpoint)
-    writesink(result,i,view(check.vals,j,:) ./ check.rms)
+    writesink(result,i,view(check.vals,j+check.offset,:) ./ check.rms)
 end
 
-normpower(x::T) where T = NormedSignal{T,channel_eltype(T)}(signal(x))
+function normpower(x) 
+    x = signal(x)
+    NormedSignal{typeof(x),channel_eltype(typeof(x))}(signal(x))
+end
 # function normpower(x)
 #     fs = samplerate(x)
 #     x = sink(x)
