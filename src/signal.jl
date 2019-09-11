@@ -44,12 +44,6 @@ nchannels(x,::Nothing) = nosignal(x)
 
 channel_eltype(x) = channel_eltype(x,SignalTrait(x))
 channel_eltype(x,::IsSignal{T}) where T = T
-Base.Iterators.IteratorSize(::Type{T}) where T <: AbstractSignal =
-    Iterators.IteratorSize(SignalTrait(T))
-Base.Iterators.IteratorSize(x::Type{S}) where 
-    {T,Fs,S <: IsSignal{T,Fs,<:Nothing}} = Iterators.IsInfinite
-Base.Iterators.IteratorSize(x::Type{S}) where 
-    {T,Fs,S <: IsSignal{T,Fs,<:Number}} = Iterators.HasLength
 
 isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 
