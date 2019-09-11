@@ -1,31 +1,15 @@
 # Changes (before registration)
-+ use AxisArrays (not MetaArray) for better signal array representation
-+ revise sink interface (allow for fast loops, but with chunking (for e.g. filters))
-    - test new implementation
-+ allow for missing sample rates, which can be resolved during
-a signal operator, or during the call to `sink` (not technically breaking
-but makes a big difference in terms of API flexibility, so should be done soon)
-    - test missing sample rates
-+ once missing sample rates work, allow for non-signal objects in more cases (and implicity assume a missing samplerate)
-    - test non-signal objects
-+ efficiently handling resampling, so that e.g. signals defined by functions
-    just get called with the new rate, rather than using interpolation
-    - test it!
-+ handle filters iteratively to allow for infinite signals
-    - test it
-+ allow for missing samplerates in filters (need to resolve
-    filter coefficeints lazzily)
-    - test it!
-+ allow for SampleBuf's
-- allow for lazy normpower
-+ fix this bug: a filter applied to two streams will share state
-    (we need a way to pass the checkpoint state to a private version of
-    sink so that we can avoid this problem)
-    - test to verify bug is fixed
+- no more changes!!
 
 # More tests (before registration)
-- make sure I've fully tested logic of the more complicated
-  signals that use checkpoints
+- comprehensive test for handling of missing samplerates
+    - test all places it should work
+    - test all places it should fail
+- test handling of non-signal objects
+    - test all places it should work
+    - all it should fail
+- verify that filters do not share state across different applications
+    of the same filter definition
 - test with frame units 
 - verify exact cutting of stimuli by frames
 - test with fixed point numbers
@@ -34,7 +18,26 @@ in multiple places, changing length in multiple places, different channel
 counts, etc... just to exercise the various combinations that will
 be useful, and make sure codebase is better tested
 
+- verify the efficiency of various operations
+
+# Documentation (after registration)
+
+document all public functions
+ - TODO: list these all of these here
+
+provide an overview of functions and example processing chains
+
+introduce concepts of 
+    - piping signals
+    - unitful values
+    - assumed units,
+    - missing sample rates
+
 # New Features / Refactoring (after registration)
+
+move all features / refactoring to github issues
+
+- improve the printout of signal operators (very ugly right now)
 - allow chunked functions as input to `signal`
 - there are a lot of internals that are pretty ugly,
     clean them up and document the procedure to create
