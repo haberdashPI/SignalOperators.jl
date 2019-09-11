@@ -276,7 +276,7 @@ using SignalOperators: SignalTrait, IsSignal
         @test mapsignal(-,tone) |> nsamples == 0
     end
 
-    @testset "Handling of arrays" begin
+    @testset "Handling of arrays/numbers" begin
         stereo = signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
         @test stereo |> nchannels == 2
         @test stereo |> sink |> size == (10,2)
@@ -288,6 +288,11 @@ using SignalOperators: SignalTrait, IsSignal
         @test all(tone .>= 0.5)
         samples = signal(1,5Hz) |> until(5s) |> sink
         @test samples isa AbstractArray{Int}
+
+        dc_off = signal(1,10Hz) |> until(1s) |> amplify(20dB) |> sink
+        @test all(dc_off .== 10)
+        dc_off = signal(1,10Hz) |> until(1s) |> amplify(40dB) |> sink
+        @test all(dc_off .== 100)
 
         # AbstractArrays
         tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
@@ -317,8 +322,6 @@ using SignalOperators: SignalTrait, IsSignal
             fill(3,3*1)
         ])
     end
-
-    # TODO: add a test to check handling of dB units
 
     @testset "Handling of infinite signals" begin
         tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames) |> 
