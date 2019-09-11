@@ -53,7 +53,9 @@ function checkpoints(x::AppendSignals,offset,len)
 
     written = 0
     droplast_unless(x,cond) = cond ? x : x[1:end-1]
-    result = mapreduce(vcat,x.signals,indices) do signal,(sig_index,index)
+    # NOTE: zip is for compatibility with 1.0 (mapreudce only supports multiple
+    # iterators in Julia 1.1+)
+    result = mapreduce(vcat,zip(x.signals,indices)) do (signal,(sig_index,index))
         checks = if index-offset > len
             []
         elseif index-offset > 0
@@ -124,7 +126,7 @@ struct UsePad
 end
 const use_pad = UsePad()
 
-struct PadCheckpoint{P,C}
+struct PadCheckpoint{P,C} <: AbstractCheckpoint
     n::Int
     child::C
 end
