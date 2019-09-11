@@ -7,11 +7,13 @@ using Statistics
 using WAV
 using AxisArrays
 
+dB = SignalOperators.Units.dB
+
 using SignalOperators: SignalTrait, IsSignal
 
 test_wav = "test.wav"
 example_wav = "example.wav"
-examples_wav = "examples_wav"
+examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,examples_wav]
 
 @testset "SignalOperators.jl" begin
@@ -27,8 +29,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test ismissing(SignalOperators.inframes(Int,missing))
         @test ismissing(SignalOperators.inframes(Int,missing,5))
         @test ismissing(SignalOperators.inframes(missing,5))
-
-        @test_throws ErrorException SignalOperators.inframes(10s)
+        @test ismissing(SignalOperators.inframes(10s))
 
         @test SignalOperators.inHz(10) === 10
         @test SignalOperators.inHz(10Hz) === 10
@@ -50,7 +51,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test SignalOperators.inradians(15) == 15
         @test SignalOperators.inradians(15frames) == 15
         @test SignalOperators.inradians(180°) ≈ π
-        @test_throws ErrorException SignalOperators.inseconds(2frames)
+        @test ismissing(SignalOperators.inseconds(2frames))
     end
 
     @testset "Function Currying" begin
@@ -364,10 +365,9 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
 
-    @testset "Proper errors for missing sampling rates" begin
-        @test_throws ErrorException randn |> until(2s) |> normpower |> 
-            sink("null.wav")
-    end
+    # TODO: yes, make sure the readme examples below work but also, go through
+    # and verify that each type of signal modulation can handle unknown
+    # sampling rates in various combinations
 
     @testset "Flexible sample rate / signal interpretation" begin
         randn |> normpower |> sink(example_wav,length=2s,samplerate=44.1kHz)
@@ -402,7 +402,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test isfile(examples_wav)
     end
 
-    for file in example
+    for file in test_files
         isfile(file) && rm(file)
     end
 end

@@ -15,6 +15,7 @@ function SignalTrait(x::Type{<:AppendSignals{Si,Rst,T,L}},
 end
 childsignal(x::AppendSignals) = x.signals[1]
 nsamples(x::AppendSignals,::IsSignal) = x.len
+duration(x::AppendSignals) = sum(duration.(x.signals))
 
 append(y) = x -> append(x,y)
 prepend(x) = y -> append(x,y)
@@ -98,6 +99,7 @@ SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nsamples(x::PaddedSignal) = inflen
+duration(x::PaddedSignal) = inflen
 tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs;blocksize) =
     PaddedSignal(tosamplerate(x.x,fs,blocksize=blocksize),x.pad)
 

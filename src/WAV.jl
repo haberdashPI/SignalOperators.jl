@@ -1,5 +1,4 @@
-
-# using .WAV
+using .WAV
 
 sink(to::String;kwds...) = x -> sink(x,to;kwds...)
 function sink(x,to::String;length=missing,
@@ -9,7 +8,7 @@ function sink(x,to::String;length=missing,
     length = coalesce(length,nsamples(x))
 
     data = sink(x,length=length,samplerate=samplerate)
-    wavwrite(data,to,Fs=round(Int,inHz(samplerate)))
+    wavwrite(data,to,Fs=round(Int,SignalOperators.samplerate(data)))
 end
 
 function signal(x::String,fs::Union{Missing,Number}=missing)

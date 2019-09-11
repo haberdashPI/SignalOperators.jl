@@ -108,7 +108,7 @@ julia> inseconds(441frames, 44100Hz)
 
 """
 inseconds(x::Unitful.Time, rate=missing) = ustrip(uconvert(s,x))
-inseconds(x::FrameQuant, rate=missing) = inframes(x,rate) / inHz_(rate)
+inseconds(x::FrameQuant, rate=missing) = inframes(x,rate) / inHz(rate)
 inseconds(x::Number, rate=missing) = x
 function inseconds(::Type{T},x::Number,rate=missing) where T
     n = inseconds(x,rate)
