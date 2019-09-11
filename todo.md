@@ -19,6 +19,9 @@ counts, etc... just to exercise the various combinations that will
 be useful, and make sure codebase is better tested
 
 - verify the efficiency of various operations
+    (a big question is whether handling of channels with an array
+     leads to many unecessary allocations, and if converting 
+     all output to tuples within before calling `writesink` will help)
 
 # Documentation (after registration)
 
@@ -37,15 +40,15 @@ introduce concepts of
 
 move all features / refactoring to github issues
 
-- improve the printout of signal operators (very ugly right now)
-- allow chunked functions as input to `signal`
 - there are a lot of internals that are pretty ugly,
     clean them up and document the procedure to create
     new computed signals
         - inconsistent/poor names
         - redundant code
         - confusing internal API's
+- support LibSndFile
+- improve the printout of signal operators (very ugly right now)
+- allow chunked functions as input to `signal`
 - allow for unknown length signals, e.g. streaming to a device
     and reading from a file
 - allow online normpower
-- support LibSndFile
