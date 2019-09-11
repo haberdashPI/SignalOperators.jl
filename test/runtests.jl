@@ -234,11 +234,19 @@ using SignalOperators: SignalTrait, IsSignal
         @test nsamples(resamp) == 7*40
         @test resamp |> sink |> size == (7*40,1)
 
-        # TODO: add tests that include resampling a filtered signal
-        # and resampling an already resampled signal (which should not
-        # resample twice unless there is an intervening data signal
+        @test tosamplerate(tone,20Hz) === tone
 
-        # TODO: add test to verify no-op for sample rate resampling
+        a = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        b = signal(sin,100Hz,ω=5Hz) |> until(5s)
+        cmplx = mix(a,b)
+        high = cmplx |> highpass(8Hz,method=Chebyshev1(5,1)) 
+        resamp_high = tosamplerate(high,50Hz)
+        @test resamp_high |> sink |> size == (250,1)
+
+        resamp_twice = tosamplerate(toned,15Hz) |> tosamplerate(50Hz)
+        @test resamp_twice isa SignalOperators.TakeApply
+        @test resamp_twice.signal isa SignalOperators.FilteredSignal
+        @test resamp_twice.signal.x isa SignalOperators.PaddedSignal
     end
 
     @testset "Change channel Count" begin
