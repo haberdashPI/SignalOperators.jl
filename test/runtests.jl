@@ -12,11 +12,6 @@ using SignalOperators: SignalTrait, IsSignal
 @testset "SignalOperators.jl" begin
 
     @testset "Unit Conversions" begin
-        # TODO: verify working `maybseconds` method
-        # TODO: verify missing unit conversions
-        # inHz(T <: Integer,x)
-        # inframes(T,Number)
-
         @test SignalOperators.inframes(1s,44.1kHz) == 44100
         @test SignalOperators.inframes(Int,0.5s,44.1kHz) == 22050
         @test SignalOperators.inframes(Int,5frames) == 5
@@ -32,6 +27,8 @@ using SignalOperators: SignalTrait, IsSignal
 
         @test SignalOperators.inHz(10) === 10
         @test SignalOperators.inHz(10Hz) === 10
+        @test SignalOperators.inHz(Float64,10Hz) === 10.0
+        @test SignalOperators.inHz(Int,10.5Hz) === 10
         @test ismissing(SignalOperators.inHz(missing))
 
         @test SignalOperators.inseconds(50ms) == 1//20
@@ -41,6 +38,8 @@ using SignalOperators: SignalTrait, IsSignal
         @test SignalOperators.inseconds(1,44.1kHz) == 1
         @test SignalOperators.inseconds(1) == 1
         @test ismissing(SignalOperators.inseconds(missing)) 
+        @test SignalOperators.maybeseconds(2) == 2s
+        @test SignalOperators.maybeseconds(5frames) == 5frames
 
 
         @test SignalOperators.inradians(15) == 15
@@ -114,12 +113,6 @@ using SignalOperators: SignalTrait, IsSignal
             until(7s) |> sink
         @test mean(abs.(tone[1:500])) > 0
         @test mean(abs.(tone[501:700])) == 0
-
-        # TOOD: padding is not properly defining the length of the child (or
-        # drop is not properly defining the length to its child) TOOD:
-        # addchannel seems to be making the signal "infinite" TODO: for some
-        # reason `uniform` removes the itrapply signal TODO: tosamplerate is
-        # being called and it's wrong (fix that) but it shouldn't be called
 
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
         tone2 = addchannel(tone,tone) |> pad(zero) |> until(7s) |> sink
