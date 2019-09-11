@@ -62,7 +62,7 @@ using SignalOperators: SignalTrait, IsSignal
         @test isa(amplify(20dB),Function)
         @test isa(addchannel(x),Function)
         @test isa(channel(1),Function)
-        @test isa(filtersignal(x -> x),Functio)
+        @test isa(filtersignal(x -> x),Function)
     end
 
     @testset "Basic signals" begin
