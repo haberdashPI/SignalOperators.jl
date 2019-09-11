@@ -34,9 +34,15 @@ in multiple places, changing length in multiple places, different channel
 counts, etc... just to exercise the various combinations that will
 be useful, and make sure codebase is better tested
 
-# New Features (after registration)
+# New Features / Refactoring (after registration)
+- allow chunked functions as input to `signal`
+- there are a lot of internals that are pretty ugly,
+    clean them up and document the procedure to create
+    new computed signals
+        - inconsistent/poor names
+        - redundant code
+        - confusing internal API's
 - allow for unknown length signals, e.g. streaming to a device
     and reading from a file
 - allow online normpower
 - support LibSndFile
-- allow for chunked functions as input to `signal`
