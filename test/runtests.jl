@@ -146,14 +146,6 @@ using SignalOperators: SignalTrait, IsSignal
     end 
 
     @testset "Filtering" begin
-        # TODO: test that multiple blocks work
-
-        # TODO: test proper filtering when using `after` (which should
-        # require filtering the earlier part of the signal)
-
-        # TODO: when I add test for filter blocking: make sure to include a case
-        # where the first offset is not the first sample of a block 
-
         # TODO: add tests for custom filters (functions and predifined DSP 
         # filters)
 
@@ -180,6 +172,17 @@ using SignalOperators: SignalTrait, IsSignal
 
         @test mean(abs,cmplx |> amplify(10) |> normpower |> sink) < 
             mean(abs,cmplx |> amplify(10) |> sink)
+
+        # proper filtering of blocks
+        high2 = cmplx |> highpass(8Hz,method=Chebyshev1(5,1),blocksize=100)
+        @test high2.blocksize == 100
+        @test sink(high2) ≈ sink(high)
+
+        # proper state of cut filtered signal (with blocks)
+        high3 = cmplx |> highpass(8Hz,method=Chebyshev1(5,1),blocksize=64) |>
+            after(1s)
+        @test sink(high3) ≈ sink(high)[1s .. 5s]
+
     end
 
     @testset "Ramps" begin
@@ -211,15 +214,15 @@ using SignalOperators: SignalTrait, IsSignal
         resampled = resamp |> sink
         @test size(resampled,1) == 2nsamples(tone)
 
-        padded = tone |> pad(one) |> until(7s)
-        resamp = tosamplerate(padded,40Hz)
-        @test nsamples(resamp) == 7*40
-        @test resamp |> sink |> size == (7*40,1)
         # verify that the state of the filter is proplery reset
         # (so it should produce same output a second time)
         resampled2 = resamp |> sink
         @test resampled ≈ resampled2
 
+        padded = tone |> pad(one) |> until(7s)
+        resamp = tosamplerate(padded,40Hz)
+        @test nsamples(resamp) == 7*40
+        @test resamp |> sink |> size == (7*40,1)
 
         # TODO: add tests that include resampling a filtered signal
         # and resampling an already resampled signal (which should not

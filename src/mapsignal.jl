@@ -1,5 +1,5 @@
 using Unitful
-export mapsignal, mix, amplify, addchannel
+export mapsignal, mix, amplify, addchannel, channel
 
 ################################################################################
 # binary operators
@@ -100,7 +100,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     end
 end
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct SignalOpCheckpoint{C}
+struct SignalOpCheckpoint{C} <: AbstractCheckpoint
     leader::Int
     children::C
 end

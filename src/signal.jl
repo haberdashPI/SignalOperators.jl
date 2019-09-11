@@ -16,7 +16,7 @@ IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 # nsamples(x)
 # samplerate(x)
 # sampleat! 
-# MAYBE sinkchunk! and/or checkpoints
+# MAYBE checkpoints, beforecheckpoint and aftercheckpoint
 
 # not everything that's a signal belongs to this package, (hence the use of
 # trait-based dispatch), but everything that is in this package is a child of
@@ -129,7 +129,7 @@ end
 
 abstract type AbstractCheckpoint
 end
-struct EmptyCheckpoint
+struct EmptyCheckpoint <: AbstractCheckpoint
     n::Int
 end
 checkindex(x::EmptyCheckpoint) = x.n
@@ -142,8 +142,9 @@ aftercheckpoint(x,check,len) = nothing
 # sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
 fold(x) = zip(x,Iterators.drop(x,1))
-function sink!(result,x,sig::IsSignal,offset::Number)
-    checks = checkpoints(x,offset,size(result,1))
+sink!(result,x,sig::IsSignal,offset::Number) = 
+    sink!(result,x,sig,checkpoints(x,offset,size(result,1)))
+function sink!(result,x,sig::IsSignal,checks::AbstractArray{<:AbstractCheckpoint})
     n = 1-checkindex(checks[1])
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)

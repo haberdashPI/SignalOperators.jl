@@ -5,24 +5,24 @@ const default_blocksize = 2^12
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Lowpass(inHz(low),fs=inHz(_)),method)),
-        blocksize=default_blocksize)
+        blocksize=blocksize)
 
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
 highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Highpass(inHz(high),fs=inHz(_)),method)), 
-        blocksize=default_blocksize)
+        blocksize=blocksize)
 
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Bandpass(inHz(low),inHz(high),fs=inHz(_)),
-        method)), blocksize=default_blocksize)
+        method)), blocksize=blocksize)
 
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=inHz(_)), 
-        method)), blocksize=default_blocksize)
+        method)), blocksize=blocksize)
 
 filtersignal(x,filter,method;kwds...) = 
     filtersignal(x,SignalTrait(x),x -> digitalfilter(filter,method);kwds...)
@@ -38,19 +38,13 @@ resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
 function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
     T,Fn,Fs = float(channel_eltype(x)),typeof(fn),typeof(newfs)
-
-    input = Array{channel_eltype(x)}(undef,1,1)
-    output = Array{float(channel_eltype(x))}(undef,0,0)
-    h = resolve_filter(fn(44.1kHz))
-    dummy = FilterState(h,inHz(44.1kHz),0,0,0,input,output)
-    FilteredSignal{T,Si,Fn,typeof(newfs),typeof(dummy)}(x,fn,blocksize,newfs,Ref(dummy))
+    FilteredSignal{T,Si,Fn,typeof(newfs)}(x,fn,blocksize,newfs)
 end
-struct FilteredSignal{T,Si,Fn,Fs,St} <: WrappedSignal{Si,T}
+struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
     x::Si
     fn::Fn
     blocksize::Int
     samplerate::Fs
-    state::Ref{St}
 end
 childsignal(x::FilteredSignal) = x.x
 samplerate(x::FilteredSignal) = x.samplerate
@@ -117,25 +111,8 @@ inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
 outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
 inputlength(x,n) = n
 outputlength(x,n) = n
-function checkpoints(x::FilteredSignal,offset,len)
-    # initialize filtering state, if necessary
-    state = if length(x.state[].output) == 0 || 
-            x.state[].samplerate != samplerate(x) ||
-            x.state[].lastoffset > offset
-        x.state[] = FilterState(x)
-    else
-        x.state[]
-    end
-
-    # create checkpoints
-    checks = filter(@λ(offset < _ ≤ offset+len), [1:x.blocksize:len; len+1])
-    if checks[1] != offset+1
-        pushfirst!(checks,offset+1)
-    end
-    if checks[end] != offset+len+1
-        push!(checks,offset+len+1)
-    end
-    map(@λ(FilterCheckpoint(_,state)),checks)
+function checkpoints(x::FilteredSignal,offset,len,state=FilterState(x))
+    map(@λ(FilterCheckpoint(_,state)),[1:x.blocksize:len; len+1] .+ offset)
 end
 
 struct NullBuffer
@@ -153,29 +130,36 @@ function beforecheckpoint(x::FilteredSignal,check,len)
     if state.lastoutput == state.availableoutput
         # process any samples before offset that have yet to be processed
         if state.lastoffset < checkindex(check)-1
-            sink!(NullBuffer(checkindex(check) - state.lastoffset,nchannels(x)),
-                x,SignalTrait(x),state.lastoffset)
+            len = checkindex(check) - state.lastoffset - 1
+            sink!(NullBuffer(len,nchannels(x)),x,SignalTrait(x),
+                checkpoints(x,0,len,state))
         end
+        @assert state.lastoffset >= checkindex(check)-1
 
-        # write child samples to input buffer
-        in_len = min(size(state.input,1),len)
-        sink!(view(state.input,1:in_len,:),
-            x.x,SignalTrait(x.x),state.lastoffset)
-        # pad any unwritten samples
+        # early samples may have left some output in the bufer,
+        # only update the buffer if this is not true
+        if state.lastoutput == state.availableoutput
 
-        # filter the input to the output buffer
-        state.availableoutput = outputlength(state.h,in_len)
-        for ch in 1:size(state.output,2)
-            filt!(view(state.output,1:state.availableoutput,ch),
-                state.h,view(state.input,1:in_len,ch))
+            # write child samples to input buffer
+            in_len = min(size(state.input,1),len)
+            sink!(view(state.input,1:in_len,:),
+                x.x,SignalTrait(x.x),state.lastoffset)
+            # pad any unwritten samples
+
+            # filter the input to the output buffer
+            state.availableoutput = outputlength(state.h,in_len)
+            for ch in 1:size(state.output,2)
+                filt!(view(state.output,1:state.availableoutput,ch),
+                    state.h,view(state.input,1:in_len,ch))
+            end
+
+            state.lastoutput = 0
         end
-
-        state.lastoutput = 0
     end
 end
 function aftercheckpoint(x::FilteredSignal,check,len)
-    x.state[].lastoutput += len
-    x.state[].lastoffset += size(x.state[].output,1)
+    check.state.lastoutput += len
+    check.state.lastoffset += len
 end
 
 @Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,

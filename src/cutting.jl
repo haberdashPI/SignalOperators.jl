@@ -70,7 +70,7 @@ function tosamplerate(x::TakeApply,s::IsSignal,c::ComputedSignal,fs;blocksize)
     ItrApply(tosamplerate(childsignal(x),s,c,fs;blocksize=blocksize),x.time,x.fn)
 end
 
-struct DropCheckpoint{C}
+struct DropCheckpoint{C} <: AbstractCheckpoint
     n::Int
     diff::Int
     child::C

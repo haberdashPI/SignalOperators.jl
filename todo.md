@@ -18,6 +18,10 @@ but makes a big difference in terms of API flexibility, so should be done soon)
     - test it!
 + allow for SampleBuf's
 - allow for lazy normpower
++ fix this bug: a filter applied to two streams will share state
+    (we need a way to pass the checkpoint state to a private version of
+    sink so that we can avoid this problem)
+    - test to verify bug is fixed
 
 # More tests (before registration)
 - make sure I've fully tested logic of the more complicated
