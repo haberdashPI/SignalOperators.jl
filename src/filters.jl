@@ -24,8 +24,8 @@ bandstop(x,low,high;order=5,method=Butterworth(order),
     filtersignal(x, @λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=inHz(_)), 
         method)), blocksize=blocksize)
 
-filtersignal(x,filter,method;kwds...) = 
-    filtersignal(x,SignalTrait(x),x -> digitalfilter(filter,method);kwds...)
+filtersignal(h;blocksize=default_blocksize) = 
+    x -> filtersignal(x,h;blocksize=blocksize)
 filtersignal(x,fn::Function;kwds...) = 
     filtersignal(x,SignalTrait(x),fn;kwds...)
 filtersignal(x,h;kwds...) = 

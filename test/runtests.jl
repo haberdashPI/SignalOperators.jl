@@ -183,6 +183,11 @@ using SignalOperators: SignalTrait, IsSignal
             after(1s)
         @test sink(high3) ≈ sink(high)[1s .. 5s]
 
+        # custom filter interface
+        high4 = cmplx |> 
+            filtersignal(digitalfilter(Highpass(8,fs=samplerate(cmplx)),
+                                      Chebyshev1(5,1)))
+        @test sink(high) == sink(high4)
     end
 
     @testset "Ramps" begin
