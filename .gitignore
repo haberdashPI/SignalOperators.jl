@@ -7,4 +7,6 @@
 /docs/build/
 /docs/site/
 test.wav
+example.wav
+examples.wav
 coverage/

@@ -1,9 +1,16 @@
 
-using .WAV
+# using .WAV
 
 sink(to::String;kwds...) = x -> sink(x,to;kwds...)
-sink(x,to::String;length=nsamples(x)*frames,samplerate=SignalOperators.samplerate(x)) = 
-    wavwrite(sink(x,length=length,samplerate=samplerate),to,Fs=samplerate)
+function sink(x,to::String;length=missing,
+    samplerate=SignalOperators.samplerate(x))
+
+    x = signal(x,samplerate)
+    length = coalesce(length,nsamples(x))
+
+    data = sink(x,length=length,samplerate=samplerate)
+    wavwrite(convert(Array,data),to,Fs=inHz(samplerate))
+end
 
 function signal(x::String,fs::Union{Missing,Number}=missing)
     x,_fs = wavread(x)

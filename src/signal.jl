@@ -1,4 +1,4 @@
-export duration, nsamples, samplerate, samples, nchannels, signal, infsignal
+export duration, nsamples, samplerate, nchannels, signal
 using AxisArrays
 using FileIO
 
@@ -31,10 +31,30 @@ duration(x) = nsamples(x) / samplerate(x)
 nsamples(x) = nsamples(x,SignalTrait(x))
 nsamples(x,s::Nothing) = nosignal(x)
 
-infsignal(x) = infsignal(x,SignalTrait(x))
-infsignal(x,::IsSignal{<:Any,<:Any,<:Number}) = false
-infsignal(x,::IsSignal{<:Any,<:Any,Nothing}) = true
-infsignal(x,::Nothing) = nosignal(x)
+struct InfiniteLength
+end
+const inflen = InfiniteLength()
+Base.isinf(::InfiniteLength) = true
+isinf(x) = Base.isinf(x)
+# for our purposes, missing values always denote an unknown finite value
+isinf(::Missing) = false
+Base.ismissing(::InfiniteLength) = false
+Base.:(+)(::InfiniteLength,::Number) = inflen
+Base.:(+)(::Number,::InfiniteLength) = inflen
+Base.:(-)(::InfiniteLength,::Number) = inflen
+Base.isless(::Number,::InfiniteLength) = true
+Base.isless(::InfiniteLength,::Number) = false
+Base.isless(::InfiniteLength,::InfiniteLength) = false
+Base.min(x::Number,::InfiniteLength) = x
+Base.min(::InfiniteLength,x::Number) = x
+Base.max(x::Number,::InfiniteLength) = inflen
+Base.max(::InfiniteLength,x::Number) = inflen
+Base.:(*)(::InfiniteLength,::Number) = inflen
+Base.:(*)(::Number,::InfiniteLength) = inflen
+Base.:(*)(::InfiniteLength,::Unitful.FreeUnits) = inflen
+Base.:(/)(::InfiniteLength,::Number) = inflen
+Base.:(/)(::InfiniteLength,::Missing) = inflen
+Base.:(/)(::Number,::InfiniteLength) = 0
 
 samplerate(x) = samplerate(x,SignalTrait(x))
 samplerate(x,::Nothing) = nosignal(x)
@@ -81,7 +101,7 @@ sink("result.wav")`)
 """
 sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
 function sink(x::T,::Type{A}=AxisArray;
-        length=infsignal(x) ? nothing : nsamples(x)*frames,
+        length=inframes(nsamples(x)),
         samplerate=SignalOperators.samplerate(x)) where {T,A}
 
     if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
@@ -90,7 +110,7 @@ function sink(x::T,::Type{A}=AxisArray;
     end
     x = signal(x,samplerate)
 
-    if isnothing(length)
+    if isinf(length)
         error("Cannot store infinite signal. Specify a length when ",
             "calling `sink`.")
     end
@@ -119,7 +139,7 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     end
     x = signal(x,samplerate)
 
-    if !infsignal(x) && nsamples(x)-offset < size(result,1)
+    if nsamples(x)-offset < size(result,1)
         error("Signal is too short to fill buffer of length $(size(result,1)).")
     end
     x = tochannels(x,size(result,2))

@@ -4,12 +4,12 @@ struct NumberSignal{T,S} <: AbstractSignal{T}
 end
 signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
 signal(val::Unitful.Gain,::Nothing,fs) = 
-    NumberSignal(uconvertrp(NoUnits,val),inHz(Float64,fs))
+    NumberSignal(uconvertp(NoUnits,val),inHz(Float64,fs))
 
-SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,Nothing}()
+SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 
 nchannels(x::NumberSignal,::IsSignal) = 1
-nsamples(x::NumberSignal,::IsSignal) = nothing
+nsamples(x::NumberSignal,::IsSignal) = inflen
 samplerate(x::NumberSignal,::IsSignal) = x.samplerate 
 
 tosamplerate(x::NumberSignal,::IsSignal,::ComputedSignal,fs=missing;blocksize) = 

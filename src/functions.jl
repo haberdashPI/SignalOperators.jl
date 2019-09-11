@@ -21,9 +21,9 @@ struct SignalFunction{Fn,Fr,El,T,Fs} <: AbstractSignal{El}
     end
 end
 SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,El,Fs}}) where {El,Fs} = 
-    IsSignal{ntuple_T(El),Fs,Nothing}()
+    IsSignal{ntuple_T(El),Fs,InfiniteLength}()
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
-nsamples(x::SignalFunction) = nothing
+nsamples(x::SignalFunction) = inflen
 samplerate(x::SignalFunction) = x.samplerate
 EvalTrait(x::SignalFunction) = ComputedSignal()
 

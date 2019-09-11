@@ -32,15 +32,7 @@ function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
             self
         end
 
-        if infsignal(x)
-            filtersignal(x,s,resamplerfn;blocksize=blocksize,newfs=fs)
-        else
-            padded = pad(x,zero)
-            len = ceil(Int,nsamples(x)*ratio)
-            filtersignal(padded,s,resamplerfn;
-                blocksize=blocksize,newfs=fs) |>
-                until(len*frames)
-        end
+        filtersignal(x,s,resamplerfn;blocksize=blocksize,newfs=fs)
     end
 end
 

@@ -44,27 +44,20 @@ after(time) = x -> after(x,time)
 function after(x,time)
     ItrApply(signal(x),time,drop_)
 end
-infsignal(x::DropApply) = infsignal(x.signal)
-infsignal(x::TakeApply) = false
-
 
 function nsamples(x::TakeApply,::IsSignal)
     take = resolvelen(x)
-    if infsignal(x.signal)
-        take
-    else
-        min(nsamples(x.signal),take)
-    end
+    min(nsamples(x.signal),take)
 end
+duration(x::TakeApply) = 
+    min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),samplerate(x)))
 
 function nsamples(x::DropApply,::IsSignal)
     drop = resolvelen(x)
-    if infsignal(x.signal)
-        error("Infinite signal!")
-    else
-        (min(nsamples(x.signal)) - drop)
-    end
+    max(0,nsamples(x.signal) - drop)
 end
+duration(x::DropApply) = 
+    duration(x.signal) - inseconds(Float64,maybeseconds(x.time),samplerate(x))
 
 function tosamplerate(x::TakeApply,s::IsSignal,c::ComputedSignal,fs;blocksize)
     ItrApply(tosamplerate(childsignal(x),s,c,fs;blocksize=blocksize),x.time,x.fn)

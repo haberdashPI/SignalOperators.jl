@@ -100,9 +100,7 @@ function nsamples(x::FilteredSignal)
     elseif samplerate(x) == samplerate(x.x) 
         nsamples(x.x)
     else
-        # number of samples for change in sample rate is defined using `until`
-        # (see `tosamplerate` for `DataSignal` objects)
-        nothing
+        ceil(Int,nsamples(x.x)*samplerate(x)/samplerate(x.x))
     end
 end
 
@@ -147,9 +145,9 @@ function beforecheckpoint(x::FilteredSignal,check,len)
 
             # write child samples to input buffer
             in_len = min(size(state.input,1),len)
+            padded = pad(x.x,zero)
             sink!(view(state.input,1:in_len,:),
-                x.x,SignalTrait(x.x),state.lastoffset)
-            # pad any unwritten samples
+                padded,SignalTrait(padded),state.lastoffset)
 
             # filter the input to the output buffer
             state.availableoutput = outputlength(state.h,in_len)
@@ -196,7 +194,6 @@ function checkpoints(x::NormedSignal,offset,len)
         x.x,offset=0)
 
     rms = sqrt.(mean(vals.^2,dims=1))
-    @show rms
     map(checkpoints(x.x,offset,len)) do check
         NormedCheckpoint(Tuple(rms),vals,check,offset)
     end

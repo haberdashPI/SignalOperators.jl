@@ -4,13 +4,14 @@ export mapsignal, mix, amplify, addchannel, channel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,Args,Pd,T} <: AbstractSignal{T}
+struct SignalOp{Fn,Fs,El,L,Args,Pd,PArgs,T} <: AbstractSignal{T}
     fn::Fn
     val::El
     len::L
     args::Args
     samplerate::Fs
     padding::Pd
+    pargs::PArgs
     blocksize::Int
 end
 
@@ -18,7 +19,10 @@ function SignalOp(fn::Fn,val::El,len::L,args::Args,
     samplerate::Fs,padding::Pd,blocksize::Int) where {Fn,El,L,Args,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
-    SignalOp{Fn,Fs,El,L,Args,Pd,T}(fn,val,len,args,samplerate,padding,blocksize)
+    pargs = pad.(args,Ref(padding))
+    PArgs = typeof(pargs)
+    SignalOp{Fn,Fs,El,L,Args,Pd,PArgs,T}(fn,val,len,args,samplerate,padding,
+        pargs,blocksize)
 end
 
 struct NoValues
@@ -29,6 +33,12 @@ SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} =
 nsamples(x::SignalOp) = x.len
 nchannels(x::SignalOp) = length(x.val)
 samplerate(x::SignalOp) = x.samplerate
+function duration(x::SignalOp)
+    durs = duration.(x.args) |> collect
+    all(isinf,durs) ? inflen :
+        any(ismissing,durs) ? missing :
+        maximum(filter(!isinf,durs))
+end
 function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs;blocksize)
     if ismissing(x.samplerate) || ismissing(fs) || inHz(fs) < x.samplerate
         # resample input if we are downsampling 
@@ -66,37 +76,19 @@ optionally be a specific number.
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     blocksize=default_blocksize)
 
-    xs = uniform(xs)   
+    xs = uniform(xs)
     fs = samplerate(xs[1])
-    finite = findall(!infsignal,xs)
-    if !isempty(finite)
-        if any(@λ(!=(xs[finite[1]],_)),xs[finite[2:end]])
-            longest = argmax(map(i -> nsamples(xs[i]),finite))
-            xs = map(enumerate(xs)) do (i,x)
-                if infsignal(x) || nsamples(x) == nsamples(xs[longest])
-                    x
-                else
-                    pad(x,padding)
-                end
-            end
+    lens = nsamples.(xs) |> collect
+    len = all(isinf,lens) ? inflen :
+            any(ismissing,lens) ? missing :
+            maximum(filter(!isinf,lens)) 
 
-            len = nsamples(xs[longest])
-        else
-            len = nsamples(xs[finite[1]])
-        end
+    vals = testvalue.(xs)
+    if !across_channels
+        fnbr(vals...) = fn.(vals...)
+        SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize)
     else
-        len = nothing
-    end
-    if !isnothing(len) && len == 0
-        SignalOp(fn,novalues,len,xs,fs,padding,blocksize)
-    else
-        vals = testvalue.(xs)
-        if !across_channels
-            fnbr(vals...) = fn.(vals...)
-            SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize)
-        else
-            SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize)
-        end
+        SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize)
     end
 end
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
@@ -108,15 +100,15 @@ checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
 
 function checkpoints(x::SignalOp,offset,len)
     # generate all children's checkpoints
-    child_checks = map(x.args) do arg
+    child_checks = map(x.pargs) do arg
         checkpoints(arg,offset,len)
     end 
     indices = mapreduce(@λ(checkindex.(_)),vcat,child_checks) |> sort!
     
     # combine children checkpoints in order
-    child_indices = ones(Int,length(x.args))
+    child_indices = ones(Int,length(x.pargs))
     mapreduce(vcat,indices) do index
-        mapreduce(vcat,enumerate(x.args)) do (i,arg)
+        mapreduce(vcat,enumerate(x.pargs)) do (i,arg)
             while checkindex(child_checks[i][child_indices[i]]) < index 
                 child_indices[i] == length(child_checks[i]) && break
                 child_indices[i] += 1
@@ -149,7 +141,7 @@ one_sample = OneSample()
 writesink(::OneSample,i,val) = val
 
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
-    vals = map(enumerate(x.args)) do (i,arg)
+    vals = map(enumerate(x.pargs)) do (i,arg)
         sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
     end
     writesink(result,i,x.fn(vals...))

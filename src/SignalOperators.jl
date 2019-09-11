@@ -1,5 +1,6 @@
 module SignalOperators
 using Requires, DSP, LambdaFn, Unitful, Compat
+using Infiltrator
 
 # generic signal definitions
 include("signal.jl")
@@ -29,10 +30,12 @@ include("ramps.jl")
 # end
 
 # handle reading/writing to files
-function __init__()
-    @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
-        include("WAV.jl")
-    end
-end
+using WAV
+include("WAV.jl")
+# function __init__()
+#     @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
+#         include("WAV.jl")
+#     end
+# end
 
 end # module

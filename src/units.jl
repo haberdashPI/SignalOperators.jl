@@ -54,18 +54,18 @@ julia> inframes(0.5s, 44100Hz)
 
 """
 inframes(frame::FrameQuant, rate=missing) = ustrip(uconvert(frames, frame))
-inframes(time::Unitful.Time, rate=missing) = inseconds(time)*inHz_(rate)
+inframes(time::Unitful.Time, rate=missing) = inseconds(time)*inHz(rate)
 inframes(frame::Number, rate=missing) = frame
 
-inframes(::Type{T}, frame::Number, rate=missing) where T <: Integer =
-    trunc(T,inframes(frame,rate))
-inframes(::Type{T}, frame::Number, rate=missing) where T = 
-    convert(T,inframes(frame,rate))
+function inframes(::Type{T}, frame::Number, rate=missing) where T
+    n = inframes(frame,rate)
+    ismissing(n) && return missing
+    T <: Integer ? trunc(T,n) : convert(T,n)
+end
 inframes(::Missing,fs=missing) = missing
 inframes(::Type,::Missing,fs=missing) = missing
-
-inHz_(::Missing) = error("Unspecified samplerate")
-inHz_(x::Number) = inHz(x)
+inframes(::InfiniteLength,fs=missing) = inflen
+inframes(::Type, ::InfiniteLength,fs=missing) = inflen
 
 """
     inHz(quantity)
@@ -111,9 +111,16 @@ julia> inseconds(441frames, 44100Hz)
 inseconds(x::Unitful.Time, rate=missing) = ustrip(uconvert(s,x))
 inseconds(x::FrameQuant, rate=missing) = inframes(x,rate) / inHz_(rate)
 inseconds(x::Number, rate=missing) = x
-inseconds(::Missing,r=missing) = missing
-inseconds(::Type{T},x::Number,rate=missing) where T = 
+function inseconds(::Type{T},x::Number,rate=missing) where T
+    n = inseconds(x,rate)
+    ismissing(n) && return missing
+    T <: Integer ? trunc(T,n) : convert(T,n)
     convert(T,inseconds(x,rate))
+end
+inseconds(::Missing,r=missing) = missing
+inseconds(::Type,::Missing,r=missing) = missing
+inseconds(::InfiniteLength,r=missing) = inflen
+inseconds(::Type,::InfiniteLength,r=missing) = inflen
 
 maybeseconds(n::Number) = n*s
 maybeseconds(n::Quantity) = n

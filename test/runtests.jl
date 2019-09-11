@@ -93,7 +93,7 @@ using SignalOperators: SignalTrait, IsSignal
 
     @testset "Cutting Operators" begin
         tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s)
-        @test !infsignal(tone)
+        @test !isinf(nsamples(tone))
         @test nsamples(tone) == 44100*5
 
         x = rand(12)
@@ -172,8 +172,9 @@ using SignalOperators: SignalTrait, IsSignal
             mean(abs,cmplx |> amplify(10) |> sink)
 
         # proper filtering of blocks
-        high2 = cmplx |> highpass(8Hz,method=Chebyshev1(5,1),blocksize=100)
-        @test high2.blocksize == 100
+        high2_ = cmplx |> highpass(8Hz,method=Chebyshev1(5,1),blocksize=100)
+        @test high2_.blocksize == 100
+        high2 = high2_ |> sink
         @test sink(high2) ≈ sink(high)
 
         # proper state of cut filtered signal (with blocks)
@@ -244,9 +245,8 @@ using SignalOperators: SignalTrait, IsSignal
         @test resamp_high |> sink |> size == (250,1)
 
         resamp_twice = tosamplerate(toned,15Hz) |> tosamplerate(50Hz)
-        @test resamp_twice isa SignalOperators.TakeApply
-        @test resamp_twice.signal isa SignalOperators.FilteredSignal
-        @test resamp_twice.signal.x isa SignalOperators.PaddedSignal
+        @test resamp_twice isa SignalOperators.FilteredSignal
+        @test SignalOperators.childsignal(resamp_twice) === toned
     end
 
     @testset "Change channel Count" begin
@@ -275,7 +275,7 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Axis Arrays" begin
         x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
         proc = signal(x) |> ramp |> sink
-        @test size(proc) == size(x)
+        @test size(proc,1) == size(x,1)
     end
 
 
@@ -285,7 +285,7 @@ using SignalOperators: SignalTrait, IsSignal
         @test mapsignal(-,tone) |> nsamples == 0
     end
 
-    @testset "normpower"
+    @testset "normpower" begin
         tone = signal(sin,10Hz,ω=2Hz) |> until(2s) |> ramp |> normpower
         @test sqrt(mean(sink(tone).^2,dims=1))[1] ≈ 1
 
@@ -306,9 +306,9 @@ using SignalOperators: SignalTrait, IsSignal
         samples = signal(1,5Hz) |> until(5s) |> sink
         @test samples isa AbstractArray{Int}
 
-        dc_off = signal(1,10Hz) |> until(1s) |> amplify(20dB) |> sink
+        dc_off = signal(1,10Hz) |> until(1s) |> amplify(10dB) |> sink
         @test all(dc_off .== 10)
-        dc_off = signal(1,10Hz) |> until(1s) |> amplify(40dB) |> sink
+        dc_off = signal(1,10Hz) |> until(1s) |> amplify(20dB) |> sink
         @test all(dc_off .== 100)
 
         # AbstractArrays
@@ -359,11 +359,17 @@ using SignalOperators: SignalTrait, IsSignal
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
 
-    @testset "Flexible sample rate / Signal interpretation"
-        randn |> normpower |> sink("example.wav")
+    @testset "Proper errors for missing sampling rates"
+        @test_throws ErrorException randn |> until(2s) |> normpower |> 
+            sink("null.wav")
+    end
+
+    @testset "Flexible sample rate / signal interpretation"
+        randn |> normpower |> sink("example.wav",length=2s,samplerate=44.1kHz)
 
         sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> 
             amplify(-20dB)
+        @test sound1 |> sink(samplerate=100Hz) |> nsamples == 500
 
         sound2 = "example.wav" |> normpower |> amplify(-20dB)
 

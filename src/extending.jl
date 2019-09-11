@@ -19,7 +19,7 @@ nsamples(x::AppendSignals,::IsSignal) = x.len
 append(y) = x -> append(x,y)
 prepend(x) = y -> append(x,y)
 function append(xs...)
-    if any(infsignal,xs[1:end-1])
+    if any(isinf ∘ nsamples,xs[1:end-1])
         error("Cannot append to the end of an infinite signal")
     end
     xs = uniform(xs,channels=true) 
@@ -33,7 +33,7 @@ function append(xs...)
         end
     end
 
-    len = infsignal(xs[end]) ? nothing : sum(nsamples,xs)
+    len = sum(nsamples,xs)
     AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
 tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs;blocksize) = 
@@ -59,21 +59,13 @@ function checkpoints(x::AppendSignals,offset,len)
         checks = if index-offset > len
             []
         elseif index-offset > 0
-            local_len = if !infsignal(signal)
-                min(len-written,nsamples(signal))
-            else
-                len-written
-            end
+            local_len = min(len-written,nsamples(signal))
             written += local_len
             droplast_unless(checkpoints(signal,0,local_len),
                 sig_index == length(x.signals))
         elseif index + nsamples(signal) - offset > 0
             sigoffset = -(index-offset)+1
-            local_len = if !infsignal(signal)
-                min(nsamples(signal)-sigoffset+1,len-written)
-            else
-                len-written
-            end
+            local_len = min(nsamples(signal)-sigoffset+1,len-written)
             written += local_len
             droplast_unless(checkpoints(signal,sigoffset,local_len),
                 sig_index == length(x.signals))
@@ -104,15 +96,15 @@ end
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
-    IsSignal{T,Fs,Nothing}()
-nsamples(x::PaddedSignal) = nothing
+    IsSignal{T,Fs,InfiniteLength}()
+nsamples(x::PaddedSignal) = inflen
 tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs;blocksize) =
     PaddedSignal(tosamplerate(x.x,fs,blocksize=blocksize),x.pad)
 
 pad(p) = x -> pad(x,p)
 function pad(x,p) 
     x = signal(x)
-    infsignal(x) ? x : PaddedSignal(x,p)
+    isinf(nsamples(x)) ? x : PaddedSignal(x,p)
 end
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
@@ -132,7 +124,7 @@ struct PadCheckpoint{P,C} <: AbstractCheckpoint
 end
 checkindex(c::PadCheckpoint) = c.n
 function checkpoints(x::PaddedSignal,offset,len)
-    child_len = nsamples(childsignal(x))-offset
+    child_len = nsamples(childsignal(x))
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
     
     dopad = false
