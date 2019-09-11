@@ -9,7 +9,7 @@ function sink(x,to::String;length=missing,
     length = coalesce(length,nsamples(x))
 
     data = sink(x,length=length,samplerate=samplerate)
-    wavwrite(convert(Array,data),to,Fs=inHz(samplerate))
+    wavwrite(data,to,Fs=round(Int,inHz(samplerate)))
 end
 
 function signal(x::String,fs::Union{Missing,Number}=missing)
