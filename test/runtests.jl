@@ -364,12 +364,12 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
 
-    @testset "Proper errors for missing sampling rates"
+    @testset "Proper errors for missing sampling rates" begin
         @test_throws ErrorException randn |> until(2s) |> normpower |> 
             sink("null.wav")
     end
 
-    @testset "Flexible sample rate / signal interpretation"
+    @testset "Flexible sample rate / signal interpretation" begin
         randn |> normpower |> sink(example_wav,length=2s,samplerate=44.1kHz)
 
         sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> 

@@ -9,7 +9,8 @@
 
 SignalOperators is a [Julia](https://julialang.org/) package that aims to provide a clean interface for generating and manipulating signals: typically sounds, but any signal regularly sampled in time could be manipulated.
 
-This package is not yet working, and the examples below may break; it is presented as an example of the intended design.
+This package remains in an experimental stage. The tests all seem to be passing 
+locally, and it seems to be working for the few small examples I've tried. It is not yet well battle tested, and I am still thinking through tests to verify all functionality. I also make no guarantees regarding performance.
 
 ```julia
 using SignalOperators
@@ -20,7 +21,7 @@ using SignalOperators.Units # allows the use of dB, Hz, s etc... as unitful valu
 sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 
 # a sound defined by a file, matching the overall power to that of sound1
-sound2 = "mysound.wav" |> normpower |> amplify(-20dB)
+sound2 = "example.wav" |> normpower |> amplify(-20dB)
 
 # a 1kHz sawtooth wave 
 sound3 = signal(ϕ -> 2(ϕ/2π % 1) - 1,ω=1kHz) |> ramp |> normpower |> amplify(-20dB)
