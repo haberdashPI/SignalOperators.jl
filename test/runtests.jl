@@ -275,6 +275,7 @@ using SignalOperators: SignalTrait, IsSignal
     @testset "Axis Arrays" begin
         x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
         proc = signal(x) |> ramp |> sink
+        @test size(proc) == size(x)
     end
 
 
