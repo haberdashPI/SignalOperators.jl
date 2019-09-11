@@ -70,7 +70,11 @@ end
 
 function uniform(xs;channels=false)
     xs = signal.(xs)
-    samplerate = maximum(skipmissing(SignalOperators.samplerate.(xs)))
+    if any(!ismissing,SignalOperators.samplerate.(xs))
+        samplerate = maximum(skipmissing(SignalOperators.samplerate.(xs)))
+    else
+        samplerate = missing
+    end
     if !channels
         format.(xs,samplerate)
     else
