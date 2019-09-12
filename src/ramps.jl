@@ -17,6 +17,11 @@ end
 function rampoff_fn(x,len,fun)
     time = inseconds(Float64,len,samplerate(x))
     ramp_start = duration(x) - time
+    if ismissing(ramp_start)
+        error("Uknown signal duration: cannot determine rampoff parameters. ",
+              "Define the samplerate or signal length earlier in the ",
+              "processing chain.")
+    end
     x -> x < ramp_start ? 1.0 : fun(1.0 - (x-ramp_start)/time)
 end
 

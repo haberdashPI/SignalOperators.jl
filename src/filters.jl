@@ -81,17 +81,20 @@ function FilterState(x::FilteredSignal)
         input,output)
 end
 
-function tosamplerate(x::FilteredSignal,s::IsSignal,::ComputedSignal,fs;
-    blocksize)
-
-    h = x.fn(fs)
+function tosamplerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
+blocksize)
     # is this a non-resampling filter?
-    if ismissing(samplerate(x.x)) || samplerate(x) == samplerate(x.x)
+    if samplerate(x) == samplerate(x.x)
         FilteredSignal(tosamplerate(x.x,fs,blocksize=blocksize),
             x.fn,x.blocksize,fs)
     else
         tosamplerate(x.x,s,DataSignal(),fs,blocksize=blocksize)
     end
+end
+function tosamplerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
+        blocksize)
+    FilteredSignal(tosamplerate(x.x,fs,blocksize=blocksize),
+        x.fn,x.blocksize,fs)
 end
         
 function nsamples(x::FilteredSignal)
@@ -202,8 +205,13 @@ beforecheckpoint(x::NormedCheckpoint,check,len) =
     beforecheckpoint(x.child,check.child,len)
 aftercheckpoint(x::NormedCheckpoint,check,len) = 
     aftercheckpoint(x.child,check.child,len)
-function tosamplerate(x::NormedSignal,s::IsSignal,::ComputedSignal,fs;
-    blocksize)
+function tosamplerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
+    ::ComputedSignal,fs;blocksize)
+
+    NormedSignal(tosamplerate(x.x,fs,blocksize=blocksize))
+end
+function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
+    __ignore__,fs;blocksize)
 
     NormedSignal(tosamplerate(x.x,fs,blocksize=blocksize))
 end

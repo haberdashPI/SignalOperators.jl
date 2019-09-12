@@ -12,11 +12,11 @@ tosamplerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
 tosamplerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
 tosamplerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
 
-function tosamplerate(x,s::IsSignal{T},::DataSignal,fs;blocksize) where T
-    if ismissing(samplerate(x))
-        return signal(x,fs)
-    end
+function tosamplerate(x,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) 
+    __tosamplerate__(x,s,fs,blocksize)
+end
 
+function __tosamplerate__(x,s::IsSignal{T},fs,blocksize) where T
     # copied and modified from DSP's `resample`
     ratio = rationalize(fs/samplerate(x))
     init_fs = samplerate(x)

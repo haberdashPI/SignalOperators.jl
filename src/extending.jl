@@ -37,8 +37,10 @@ function append(xs...)
     len = sum(nsamples,xs)
     AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
-tosamplerate(x::AppendSignals,s::IsSignal,c::ComputedSignal,fs;blocksize) = 
+tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) = 
     append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
+tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
+    blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
 
 struct AppendCheckpoint{C} <: AbstractCheckpoint
     n::Int
@@ -100,8 +102,10 @@ SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nsamples(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
-tosamplerate(x::PaddedSignal,s::IsSignal,c::ComputedSignal,fs;blocksize) =
+tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
     PaddedSignal(tosamplerate(x.x,fs,blocksize=blocksize),x.pad)
+tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
+    blocksize) = PaddedSignal(tosamplerate(x.x,fs;blocksize=blocksize),x.pad)
 
 pad(p) = x -> pad(x,p)
 function pad(x,p) 

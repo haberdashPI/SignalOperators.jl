@@ -13,16 +13,18 @@ struct SignalOp{Fn,Fs,El,L,Args,Pd,PArgs,T} <: AbstractSignal{T}
     padding::Pd
     pargs::PArgs
     blocksize::Int
+    across_channels::Bool
 end
 
 function SignalOp(fn::Fn,val::El,len::L,args::Args,
-    samplerate::Fs,padding::Pd,blocksize::Int) where {Fn,El,L,Args,Fs,Pd}
+    samplerate::Fs,padding::Pd,blocksize::Int,across_channels::Bool) where 
+        {Fn,El,L,Args,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
     pargs = pad.(args,Ref(padding))
     PArgs = typeof(pargs)
     SignalOp{Fn,Fs,El,L,Args,Pd,PArgs,T}(fn,val,len,args,samplerate,padding,
-        pargs,blocksize)
+        pargs,blocksize,across_channels)
 end
 
 struct NoValues
@@ -39,16 +41,22 @@ function duration(x::SignalOp)
         any(ismissing,durs) ? missing :
         maximum(filter(!isinf,durs))
 end
-function tosamplerate(x::SignalOp,s::IsSignal,c::ComputedSignal,fs;blocksize)
-    if ismissing(x.samplerate) || ismissing(fs) || inHz(fs) < x.samplerate
+function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+    if inHz(fs) < x.samplerate
         # resample input if we are downsampling 
         mapsignal(x.fn,tosamplerate.(x.args,fs,blocksize=blocksize)...,
-            padding=x.padding)
+            padding=x.padding,across_channels=x.across_channels,
+            blocksize=x.blocksize)
     else
         # resample output if we are upsampling
         tosamplerate(x,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
+
+tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
+    mapsignal(x.fn,tosamplerate.(x.args,fs,blocksize=blocksize)...,
+        padding=x.padding,across_channels=x.across_channels,
+        blocksize=x.blocksize)
 
 """
     mapsignal(fn,arguments...;padding,across_channels)
@@ -86,9 +94,11 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     vals = testvalue.(xs)
     if !across_channels
         fnbr(vals...) = fn.(vals...)
-        SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize)
+        SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize,
+            across_channels)
     else
-        SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize)
+        SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
+            across_channels)
     end
 end
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))

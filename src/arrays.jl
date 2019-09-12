@@ -4,7 +4,7 @@ using AxisArrays
 errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions")
 
 # signals can be arrays with some metadata
-function signal(x::AbstractArray{<:Any,N},
+function signal(x::AbstractArray{<:Any,N},::IsSignal,
     fs::Union{Missing,Number}=missing) where N
 
     if N == 1
@@ -21,21 +21,25 @@ function signal(x::AbstractArray{<:Any,N},
     end
 end
 
-function signal(x::AxisArray,fs::Union{Missing,Number}=missing)
+function signal(x::AxisArray,::IsSignal,fs::Union{Missing,Number}=missing)
     times = axisvalues(AxisArrays.axes(x,Axis{:time}))[1]
     !isconsistent(fs,1/step(times))
     x
 end
 
+tosamplerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
+    signal(x,fs)
+tosamplerate(x::AxisArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
+    __tosamplerate__(x,s,fs,blocksize)
+
+
 function SignalTrait(::Type{A}) where{T,N,A<:AbstractArray{T,N}}
     if N ∈ [1,2]
-        if A isa AxisArray
+        if A <: AxisArray
             IsSignal{T,Float64,Int}()
         else
             IsSignal{T,Missing,Int}()
         end
-    else
-        errordim()
     end
 end
 

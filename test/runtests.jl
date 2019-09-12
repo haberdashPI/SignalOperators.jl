@@ -365,6 +365,39 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
 
+    @testset "Handle unknown sample rates" begin    
+        x = rand(100,2)
+        y = rand(50,2)
+        @test x |> samplerate |> ismissing
+        @test x |> sink(samplerate=10Hz) |> samplerate == 10
+        @test x |> tosamplerate(10Hz) |> samplerate == 10
+        @test x |> duration |> ismissing
+        @test x |> until(5s) |> duration |> ismissing
+        @test x |> after(2s) |> duration |> ismissing
+        @test x |> nsamples == 100
+        @test x |> nchannels == 2
+        @test x |> sink(samplerate=10Hz) |> samplerate == 10
+        @test x |> until(3s) |> sink(samplerate=10Hz) |> nsamples == 30
+        @test x |> after(3s) |> sink(samplerate=10Hz) |> nsamples == 70
+        @test x |> append(y) |> sink(samplerate=10Hz) |> nsamples == 150
+        @test x |> append(y) |> after(2s) |> sink(samplerate=10Hz) |> 
+            nsamples == 130
+        @test x |> append(y) |> until(13s) |> sink(samplerate=10Hz) |>
+            nsamples == 130
+        @test x |> pad(zero) |> until(15s) |> sink(samplerate=10Hz) |>
+            nsamples == 150
+        @test x |> lowpass(3Hz) |> sink(samplerate=10Hz) |> sum < sum(x)
+        # TODO: last test
+        @test x |> normpower |> amplify(-10dB) |> sink(samplerate=10Hz) |> 
+            sum < sum(x)
+        @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
+        @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
+        @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
+        
+        # TODO: improve implementation to remove these errors
+        @test_throws ErrorException x |> ramp |> sink(samplerate=10Hz) 
+        @test_throws ErrorException x |> fadeto(y) |> sink(samplerate=10Hz) 
+    end
     # TODO: yes, make sure the readme examples below work but also, go through
     # and verify that each type of signal modulation can handle unknown
     # sampling rates in various combinations

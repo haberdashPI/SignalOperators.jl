@@ -59,8 +59,14 @@ end
 duration(x::DropApply) = 
     duration(x.signal) - inseconds(Float64,maybeseconds(x.time),samplerate(x))
 
-function tosamplerate(x::TakeApply,s::IsSignal,c::ComputedSignal,fs;blocksize)
-    ItrApply(tosamplerate(childsignal(x),s,c,fs;blocksize=blocksize),x.time,x.fn)
+EvalTrait(x::DropApply) = DataSignal()
+function tosamplerate(x::TakeApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+    ItrApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,x.fn)
+end
+function tosamplerate(x::ItrApply,s::IsSignal{<:Any,Missing},__ignore__,fs;
+    blocksize)
+
+    ItrApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,x.fn)
 end
 
 struct DropCheckpoint{C} <: AbstractCheckpoint
