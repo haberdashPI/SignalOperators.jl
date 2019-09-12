@@ -20,8 +20,8 @@ struct SignalFunction{Fn,Fr,El,T,Fs} <: AbstractSignal{El}
         new{Fn,Fr,El,ntuple_T(El),Fs}(fn,first,ω,ϕ,sr)
     end
 end
-SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,El,Fs}}) where {El,Fs} = 
-    IsSignal{ntuple_T(El),Fs,InfiniteLength}()
+SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,<:Any,T,Fs}}) where {T,Fs} = 
+    IsSignal{T,Fs,InfiniteLength}()
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
 nsamples(x::SignalFunction) = inflen
 samplerate(x::SignalFunction) = x.samplerate
