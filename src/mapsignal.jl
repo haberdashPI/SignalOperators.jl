@@ -175,4 +175,4 @@ tuplecat(a,b) = (a...,b...)
 tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
 
 channel(n) = x -> channel(x,n)
-channel(x,n) = mapsignal(@λ(_[1]), x,across_channels=true)
+channel(x,n) = mapsignal(@λ(_[n]), x,across_channels=true)

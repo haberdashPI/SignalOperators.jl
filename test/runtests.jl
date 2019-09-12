@@ -134,6 +134,10 @@ test_files = [test_wav,example_wav,examples_wav]
             until(7s) |> sink
         @test mean(abs.(tone[1:500])) > 0
         @test mean(abs.(tone[501:700])) == 0
+
+        x = 5ones(5,2)
+        result = pad(x,zero) |> until(10frames) |> sink(samplerate=10Hz)
+        all(iszero,result[6:10,:])
     end
         
     @testset "Appending" begin
@@ -344,6 +348,11 @@ test_files = [test_wav,example_wav,examples_wav]
             fill(3,3*1) .* fill(3,3*1);
             fill(3,3*1)
         ])
+
+        x = rand(10,2)
+        y = rand(5,2)
+        result = signal(x,10Hz) |> addchannel(y) |> sink
+        @test all(iszero,result[6:10,3:4])
     end
 
     @testset "Handling of infinite signals" begin
@@ -387,7 +396,6 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> pad(zero) |> until(15s) |> sink(samplerate=10Hz) |>
             nsamples == 150
         @test x |> lowpass(3Hz) |> sink(samplerate=10Hz) |> sum < sum(x)
-        # TODO: last test
         @test x |> normpower |> amplify(-10dB) |> sink(samplerate=10Hz) |> 
             sum < sum(x)
         @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
@@ -398,9 +406,6 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException x |> ramp |> sink(samplerate=10Hz) 
         @test_throws ErrorException x |> fadeto(y) |> sink(samplerate=10Hz) 
     end
-    # TODO: yes, make sure the readme examples below work but also, go through
-    # and verify that each type of signal modulation can handle unknown
-    # sampling rates in various combinations
 
     @testset "Flexible sample rate / signal interpretation" begin
         randn |> normpower |> sink(example_wav,length=2s,samplerate=44.1kHz)
