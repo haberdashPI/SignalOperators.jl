@@ -1,5 +1,6 @@
 using SignalOperators
 using SignalOperators.Units
+using SignalOperators.Units: samples
 using DSP
 using LambdaFn
 using Test
@@ -93,7 +94,7 @@ test_files = [test_wav,example_wav,examples_wav]
     end
 
     @testset "Files as signals" begin
-        tone = signal(range(0,1,length=4samples),10Hz) |> sink(test_wav)
+        tone = signal(range(0,1,length=4),10Hz) |> sink(test_wav)
         @test SignalTrait(signal(test_wav)) isa IsSignal
         @test isapprox(signal(test_wav), range(0,1,length=4),rtol=1e-6)
     end
@@ -319,8 +320,8 @@ test_files = [test_wav,example_wav,examples_wav]
         # Numbers
         tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
         @test all(tone .>= 0.5)
-        samples = signal(1,5Hz) |> until(5s) |> sink
-        @test samples isa AbstractArray{Int}
+        x = signal(1,5Hz) |> until(5s) |> sink
+        @test x isa AbstractArray{Int}
 
         @test all(10 |> until(1s) |> sink(samplerate=10Hz) .== 10)
 
@@ -332,8 +333,8 @@ test_files = [test_wav,example_wav,examples_wav]
         # AbstractArrays
         tone = signal(sin,200Hz,ω=10Hz) |> mix(10.0.*(1:10)) |> sink
         @test all(tone[1:10] .>= 10.0*(1:10))
-        samples = signal(10.0.*(1:10),5Hz) |> until(1s) |> sink
-        @test samples isa AbstractArray{Float64}
+        x = signal(10.0.*(1:10),5Hz) |> until(1s) |> sink
+        @test x isa AbstractArray{Float64}
         @test signal(10.0.*(1:10),5Hz) |> SignalOperators.channel_eltype == 
             Float64
     end
