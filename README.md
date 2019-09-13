@@ -1,16 +1,12 @@
 # SignalOperators
 
-[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://haberdashPI.github.io/SignalOperators.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://haberdashPI.github.io/SignalOperators.jl/dev)
 [![Build Status](https://travis-ci.com/haberdashPI/SignalOperators.jl.svg?branch=master)](https://travis-ci.com/haberdashPI/SignalOperators.jl)
 [![Codecov](https://codecov.io/gh/haberdashPI/SignalOperators.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/haberdashPI/SignalOperators.jl)
 
-
 SignalOperators is a [Julia](https://julialang.org/) package that aims to provide a clean interface for generating and manipulating signals: typically sounds, but any signal regularly sampled in time could be manipulated.
-
-This package remains in an experimental stage. The tests all seem to be passing 
-locally, and it seems to be working for the few small examples I've tried. It is not yet well battle tested, and I am still thinking through tests to verify all functionality. As of yet, I also make no guarantees regarding performance.
 
 ```julia
 using WAV
@@ -25,7 +21,7 @@ sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 sound2 = "example.wav" |> normpower |> amplify(-20dB)
 
 # a 1kHz sawtooth wave 
-sound3 = signal(ϕ -> 2(ϕ/2π % 1) - 1,ω=1kHz) |> ramp |> normpower |> amplify(-20dB)
+sound3 = signal(ϕ -> ϕ/π - 1,ω=1kHz) |> ramp |> normpower |> amplify(-20dB)
 
 # a 5 Hz amplitude modulated noise
 sound4 = randn |> 
@@ -43,6 +39,13 @@ scene = mix(x,y)
 append(sound1,sound2,sound3,sound4,scene) |> tosamplerate(44.1kHz) |> sink("examples.wav")
 
 ```
+
+Read more in the [documentation](https://haberdashPI.github.io/SignalOperators.jl/stable).
+
+## Status
+
+Should be useful and working for everyday use but it is still pretty early
+days for the package: there may be bugs or performance issues I have yet to catch. In particular I have not done a thorough test of performance yet.
 
 ## Acknowledgements
 

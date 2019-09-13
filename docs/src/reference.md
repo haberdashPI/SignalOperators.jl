@@ -3,14 +3,13 @@
 
 ```@docs
 signal
-zero(::SignalOperators.AbstractSignal)
-one(::SignalOperators.AbstractSignal)
 sink
 sink!
 ```
 
 ## Signal Inspection
 ```@docs
+inflen
 duration
 nsamples
 nchannels
