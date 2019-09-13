@@ -4,9 +4,6 @@ sink(to::String;kwds...) = x -> sink(x,to;kwds...)
 function sink(x,to::String;length=missing,
     samplerate=SignalOperators.samplerate(x))
 
-    x = signal(x,samplerate)
-    length = coalesce(length,nsamples(x))
-
     data = sink(x,length=length,samplerate=samplerate)
     wavwrite(data,to,Fs=round(Int,SignalOperators.samplerate(data)))
 end
