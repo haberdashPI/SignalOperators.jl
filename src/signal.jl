@@ -116,7 +116,8 @@ function sink(x::T,::Type{A}=AxisArray;
             "calling `sink`.")
     end
 
-    sink(x,SignalTrait(T),inframes(Int,length,SignalOperators.samplerate(x)),A)
+    sink(x,SignalTrait(T),inframes(Int,maybeseconds(length),
+        SignalOperators.samplerate(x)),A)
 end
 
 function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
@@ -186,9 +187,6 @@ end
 function writesink(result::AbstractArray,i,v)
     result[i,:] .= v
 end
-
-Base.zero(x::AbstractSignal) = signal(zero(channel_eltype(x)),samplerate(x))
-Base.one(x::AbstractSignal) = signal(one(channel_eltype(x)),samplerate(x))
 
 # computed signals have to implement there own version of tosamplerate
 # (e.g. resample) to avoid inefficient computations

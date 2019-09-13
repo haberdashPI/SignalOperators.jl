@@ -181,7 +181,11 @@ struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
 end
 childsignal(x::NormedSignal) = x.x
 nsamples(x::NormedSignal) = nsamples(x.x)
-NormedSignal(x::Si) where Si = NormedSignal{Si,channel_eltype(Si)}(x)
+NormedSignal(x::Si) where Si = NormedSignal{Si,float(channel_eltype(Si))}(x)
+SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
+    SignalTrait(x,SignalTrait(S))
+SignalTrait(x::Type{<:NormedSignal{<:Any,T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
+    IsSignal{T,Fs,L}()
 
 struct NormedCheckpoint{R,V,C} <: AbstractCheckpoint
     rms::R
@@ -196,7 +200,7 @@ function checkpoints(x::NormedSignal,offset,len)
     vals = sink!(Array{channel_eltype(x)}(undef,siglen,nchannels(x)),
         x.x,offset=0)
 
-    rms = sqrt.(mean(vals.^2,dims=1))
+    rms = sqrt.(mean(float.(vals).^2,dims=1))
     map(checkpoints(x.x,offset,len)) do check
         NormedCheckpoint(Tuple(rms),vals,check,offset)
     end
@@ -222,7 +226,7 @@ end
 
 function normpower(x) 
     x = signal(x)
-    NormedSignal{typeof(x),channel_eltype(typeof(x))}(signal(x))
+    NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(signal(x))
 end
 # function normpower(x)
 #     fs = samplerate(x)

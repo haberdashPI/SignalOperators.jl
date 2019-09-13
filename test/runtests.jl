@@ -6,6 +6,7 @@ using Test
 using Statistics
 using WAV
 using AxisArrays
+using FixedPointNumbers
 
 dB = SignalOperators.Units.dB
 
@@ -111,6 +112,9 @@ test_files = [test_wav,example_wav,examples_wav]
         cutarray2 = signal(x,6Hz) |> until(0.5s) 
         @test sink(cutarray) == sink(cutarray2)
 
+        x = rand(12) |> signal(6Hz)
+        @test append(until(x,1s),after(x,1s)) |> nsamples == 12
+
         aftered = tone |> after(2s) 
         @test nsamples(aftered) == 44100*3
     end
@@ -209,7 +213,9 @@ test_files = [test_wav,example_wav,examples_wav]
         x = signal(sin,100Hz,ω=10Hz) |> until(5s)
         y = signal(sin,100Hz,ω=5Hz) |> until(5s)
         fading = fadeto(x,y,100ms)
+        result = sink(fading)
         @test nsamples(fading) == (5+5-0.1)*100
+        @test nsamples(result) == nsamples(fading)
 
         ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> until(100ms) |> 
             ramp(identity) |> sink
@@ -316,6 +322,8 @@ test_files = [test_wav,example_wav,examples_wav]
         samples = signal(1,5Hz) |> until(5s) |> sink
         @test samples isa AbstractArray{Int}
 
+        @test all(10 |> until(1s) |> sink(samplerate=10Hz) .== 10)
+
         dc_off = signal(1,10Hz) |> until(1s) |> amplify(20dB) |> sink
         @test all(dc_off .== 10)
         dc_off = signal(1,10Hz) |> until(1s) |> amplify(40dB) |> sink
@@ -374,6 +382,71 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
 
+    @tewstset "Test that non-signals correctly error" begin
+        x = r"nonsignal"
+        @test_throws ErrorException x |> samplerate 
+        @test_throws ErrorException x |> sink(samplerate=10Hz)
+        @test_throws ErrorException x |> duration
+        @test_throws ErrorException x |> until(5s)
+        @test_throws ErrorException x |> after(2s)
+        @test_throws ErrorException x |> nsamples 
+        @test_throws ErrorException x |> nchannels
+        @test_throws ErrorException x |> pad(zero)
+        @test_throws ErrorException x |> lowpass(3Hz) 
+        @test_throws ErrorException x |> normpower
+        @test_throws ErrorException x |> channel(1)
+        @test_throws ErrorException x |> ramp
+
+        x = rand(5,2)
+        y = r"nonsignal"
+        @test_throws ErrorException x |> append(y)
+        @test_throws ErrorException x |> mix(y)
+        @test_throws ErrorException x |> addchannel(y)
+        @test_throws ErrorException x |> fadeto(y)
+    end
+
+    @testset "Handle of frame units" begin    
+        x = signal(rand(100,2),10Hz)
+        y = signal(rand(50,2),10Hz)
+
+        @test x |> until(30frames) |> sink |> nsamples == 30
+        @test x |> after(30frames) |> sink |> nsamples == 70
+        @test x |> append(y) |> after(20frames) |> sink |> nsamples == 130
+        @test x |> append(y) |> until(130frames) |> sink |> nsamples == 130
+        @test x |> pad(zero) |> until(150frames) |> sink |> nsamples == 150
+        
+        # TODO: improve implementation to remove these errors
+        @test x |> ramp(10frames) |> sink |> nsamples == 100
+        @test x |> fadeto(y,10frames) |> sink |> nsamples == 100
+    end
+
+    @testset "Handle fixed point numbers" begin    
+        x = signal(rand(Fixed{Int16,15},100,2),10Hz)
+        y = signal(rand(Fixed{Int16,15},50,2),10Hz)
+        @test x |> samplerate == 10
+        @test x |> sink |> samplerate == 10
+        @test x |> duration == 10
+        @test x |> until(5s) |> duration == 5
+        @test x |> after(2s) |> duration == 8
+        @test x |> nsamples == 100
+        @test x |> nchannels == 2
+        @test x |> until(3s) |> sink |> nsamples == 30
+        @test x |> after(3s) |> sink |> nsamples == 70
+        @test x |> append(y) |> sink |> nsamples == 150
+        @test x |> append(y) |> after(2s) |> sink |> nsamples == 130
+        @test x |> append(y) |> until(13s) |> sink |> nsamples == 130
+        @test x |> pad(zero) |> until(15s) |> sink |> nsamples == 150
+        @test x |> lowpass(3Hz) |> sink |> sum < sum(x)
+        @test (x |> normpower |> amplify(-10dB) |> sink |> x -> sum(abs,x)) < sum(abs,x)
+        @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
+        @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
+        @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
+        
+        # TODO: improve implementation to remove these errors
+        @test x |> ramp |> sink |> nsamples == 100
+        @test x |> fadeto(y) |> sink |> nsamples > 100
+    end
+
     @testset "Handle unknown sample rates" begin    
         x = rand(100,2)
         y = rand(50,2)
@@ -395,7 +468,7 @@ test_files = [test_wav,example_wav,examples_wav]
             nsamples == 130
         @test x |> pad(zero) |> until(15s) |> sink(samplerate=10Hz) |>
             nsamples == 150
-        @test x |> lowpass(3Hz) |> sink(samplerate=10Hz) |> sum < sum(x)
+        @test x |> lowpass(3Hz) |> sink(samplerate=10Hz) |> x -> sum(abs,x) < sum(abs,x)
         @test x |> normpower |> amplify(-10dB) |> sink(samplerate=10Hz) |> 
             sum < sum(x)
         @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100

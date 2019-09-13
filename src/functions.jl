@@ -33,15 +33,15 @@ EvalTrait(x::SignalFunction) = ComputedSignal()
     t = j/x.samplerate
     if Fn <: typeof(sin)
         if Fr <: Missing
-            writesink(result,i,@. sinpi(2*(t+x.ϕ)))
+            writesink(result,i,sinpi(2*(t+x.ϕ)))
         else
-            writesink(result,i,@. sinpi(2*(t*x.ω + x.ϕ)))
+            writesink(result,i,sinpi(2*(t*x.ω + x.ϕ)))
         end
     else
         if Fr <: Missing
-            writesink(result,i,@. x.fn(t + x.ϕ))
+            writesink(result,i,x.fn(t + x.ϕ))
         else
-            writesink(result,i,@. x.fn(2π*(t*x.ω + x.ϕ)))
+            writesink(result,i,x.fn(2π*(t*x.ω + x.ϕ)))
         end
     end
 end
