@@ -6,12 +6,12 @@ module Units
     using Unitful
     using Unitful: Hz, s, kHz, ms, °, rad, dB
 
-    const frames = Hz*s
-    const FrameQuant = DimensionlessQuantity
-    export Hz, s, kHz, ms, frames, dB, °, rad
+    const samples = Hz*s
+    const SampleQuant = DimensionlessQuantity
+    export samples, Hz, s, kHz, ms, samples, dB, °, rad
 end
 using .Units
-using .Units: FrameQuant
+using .Units: SampleQuant
 
 """
     inradians([Type],x)
@@ -37,34 +37,34 @@ inradians(::Type{T},x::Number) where T <: Integer = trunc(T,x)
 inradians(::Type{T},x::Number) where T = convert(T,x)
 
 """
-    inframes([Type,]quantity[, rate])
+    insamples([Type,]quantity[, rate])
 
-Translate the given quantity to a (unitless) number of time frames,
+Translate the given quantity to a (unitless) number of time samples,
 given a particular samplerate. Note that this isn't quantized to integer numbers
-of frames. If given a `Type`, the result will first be coerced to the given type.
+of samples. If given a `Type`, the result will first be coerced to the given type.
 
 If the given quantity is Unitful, we use the given units. If it is not we assume
-it is already a value in frames.
+it is already a value in samples.
 
 # Example
 
-julia> inframes(0.5s, 44100Hz)
+julia> insamples(0.5s, 44100Hz)
 22050.0
 
 """
-inframes(frame::FrameQuant, rate=missing) = ustrip(uconvert(frames, frame))
-inframes(time::Unitful.Time, rate=missing) = inseconds(time)*inHz(rate)
-inframes(frame::Number, rate=missing) = frame
+insamples(frame::SampleQuant, rate=missing) = ustrip(uconvert(samples, frame))
+insamples(time::Unitful.Time, rate=missing) = inseconds(time)*inHz(rate)
+insamples(frame::Number, rate=missing) = frame
 
-function inframes(::Type{T}, frame::Number, rate=missing) where T
-    n = inframes(frame,rate)
+function insamples(::Type{T}, frame::Number, rate=missing) where T
+    n = insamples(frame,rate)
     ismissing(n) && return missing
     T <: Integer ? trunc(T,n) : convert(T,n)
 end
-inframes(::Missing,fs=missing) = missing
-inframes(::Type,::Missing,fs=missing) = missing
-inframes(::InfiniteLength,fs=missing) = inflen
-inframes(::Type, ::InfiniteLength,fs=missing) = inflen
+insamples(::Missing,fs=missing) = missing
+insamples(::Type,::Missing,fs=missing) = missing
+insamples(::InfiniteLength,fs=missing) = inflen
+insamples(::Type, ::InfiniteLength,fs=missing) = inflen
 
 """
     inHz(quantity)
@@ -97,18 +97,18 @@ seconds.
 If the given quantity is Unitful, we use the given units. If it is not we assume
 it is already a value in seconds.
 
-For some units (e.g. frames) you will need to specify a sample rate:
+For some units (e.g. samples) you will need to specify a sample rate:
 
 ## Examples
 julia> inseconds(50.0ms)
 0.05
 
-julia> inseconds(441frames, 44100Hz)
+julia> inseconds(441samples, 44100Hz)
 0.01
 
 """
 inseconds(x::Unitful.Time, rate=missing) = ustrip(uconvert(s,x))
-inseconds(x::FrameQuant, rate=missing) = inframes(x,rate) / inHz(rate)
+inseconds(x::SampleQuant, rate=missing) = insamples(x,rate) / inHz(rate)
 inseconds(x::Number, rate=missing) = x
 function inseconds(::Type{T},x::Number,rate=missing) where T
     n = inseconds(x,rate)

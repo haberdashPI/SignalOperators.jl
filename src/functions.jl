@@ -41,13 +41,31 @@ EvalTrait(x::SignalFunction) = ComputedSignal()
         if Fr <: Missing
             writesink(result,i,x.fn(t + x.ϕ))
         else
-            writesink(result,i,x.fn(2π*(t*x.ω + x.ϕ)))
+            writesink(result,i,x.fn(2π*((t*x.ω + x.ϕ) % 1)))
         end
     end
 end
 tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) = 
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.samplerate))
 
+"""
+## Functions
+
+    signal(fn,[samplerate];[ω/frequency],[ϕ/phase])
+
+Functions can define infinite length signals of known or unknown sample rate.
+The function `fn` can either return a number. Or, if you wish to specify a
+multi-channel signal, a tuple of values.
+
+The input to `fn` is either a phase value or a time value. If passed a
+frequency (using either the ω or frequency keyword), the input to `fn` will
+be a phase value in radians, ranging from 0 to 2π. If no frequency is
+specified the value passed to f is the total time in seconds. Specifying
+phase (by the ϕ or phase keyword) will first add that value to the input. The
+phase is assumed to be in units of radians (but you can also pass degrees by
+using `°`).
+
+"""
 function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
@@ -59,6 +77,13 @@ end
 struct RandFn{R}
     rng::R
 end
+"""
+
+If `fn == randn` no frequency or phase can be specified. Instead there is a
+signle keywored argument `rng` which allows you to specify the random number
+generator, which defaults to `Random.GLOBAL_RNG`.
+
+"""
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 @Base.propagate_inbounds function sampleat!(result,

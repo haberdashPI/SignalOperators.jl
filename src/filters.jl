@@ -2,28 +2,64 @@ export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
 const default_blocksize = 2^12
 
+"""
+    lowpass(x,low;[order=5],[method=Butterworth(order)],[blocksize])
+
+Apply a lowpass filter to x at the given cutoff frequency (`low`). 
+See [`filtersignal`](@ref) for details on `blocksize`.
+"""
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Lowpass(inHz(low),fs=inHz(_)),method)),
         blocksize=blocksize)
 
+"""
+    highpass(x,high;[order=5],[method=Butterworth(order)],[blocksize])
+
+Apply a highpass filter to x at the given cutoff frequency (`low`). 
+See [`filtersignal`](@ref) for details on `blocksize`.
+"""
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
 highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Highpass(inHz(high),fs=inHz(_)),method)), 
         blocksize=blocksize)
 
+"""
+    bandpass(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
+
+Apply a bandpass filter to x at the given cutoff frequencies (`low` and `high`). 
+See [`filtersignal`](@ref) for details on `blocksize`.
+"""
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Bandpass(inHz(low),inHz(high),fs=inHz(_)),
         method)), blocksize=blocksize)
 
+"""
+    bandstop(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
+
+Apply a bandstop filter to x at the given cutoff frequencies (`low` and `high`). 
+See [`filtersignal`](@ref) for details on `blocksize`.
+"""
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
     filtersignal(x, @λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=inHz(_)), 
         method)), blocksize=blocksize)
 
+"""
+    filtersignal(x,h;[blocksize])
+
+Apply the given filter `h` (from [`DSP`](https://github.com/JuliaDSP/DSP.jl))
+to signal `x`. 
+
+## Blocksize
+
+Blocksize determines the size of the buffer used when computing intermediate
+values of the filter. It defaults to 4096. It need not normally be adjusted.
+
+"""
 filtersignal(h;blocksize=default_blocksize) = 
     x -> filtersignal(x,h;blocksize=blocksize)
 filtersignal(x,fn::Function;kwds...) = 
@@ -224,6 +260,11 @@ function sampleat!(result,x::NormedSignal,::IsSignal,i,j,check::NormedCheckpoint
     writesink(result,i,view(check.vals,j+check.offset,:) ./ check.rms)
 end
 
+"""
+    normpower(x)
+
+Divide all samples by the root-mean-squared value of the signal.
+"""
 function normpower(x) 
     x = signal(x)
     NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(signal(x))

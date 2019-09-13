@@ -27,9 +27,14 @@ function SignalTrait(::Type{<:ItrApply{Si,Tm,Fn}},::IsSignal{T,Fs,L}) where
 end
     
 childsignal(x::ItrApply) = x.signal
-resolvelen(x::ItrApply) = inframes(Int,maybeseconds(x.time),samplerate(x))
+resolvelen(x::ItrApply) = insamples(Int,maybeseconds(x.time),samplerate(x))
        
 const TakeApply{S,T} = ItrApply{S,T,typeof(Iterators.take)}
+"""
+    until(x,time)
+
+Create a signal of all samples of `x` up until `time`.
+"""
 until(time) = x -> until(x,time)
 function until(x,time)
     ItrApply(signal(x),time,Iterators.take)
@@ -40,6 +45,11 @@ drop_(x::WrappedSignal,n) = drop_(childsignal(x),n)
 const DropApply{S,T} = ItrApply{S,T,typeof(drop_)}
 drop_(x::DropApply,n) = drop_(childsignal(x),x.time+n)
 drop_(x::TakeApply,n) = Iterators.take(drop_(childsignal(x),n),x.time - n)
+"""
+    after(x,time)
+
+Create a signal of all samples of `x` after `time`.
+"""
 after(time) = x -> after(x,time)
 function after(x,time)
     ItrApply(signal(x),time,drop_)

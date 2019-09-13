@@ -4,6 +4,17 @@ using AxisArrays
 errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions")
 
 # signals can be arrays with some metadata
+"""
+## Arrays
+
+Arrays can be treated as signals. The first dimension is time, the second
+channels. 
+
+[`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
+axis labled `time` and one or zero additioanl axes, can be treated as a signal.
+The time dimension must be represted using a `Range`.
+
+"""
 function signal(x::AbstractArray{<:Any,N},::IsSignal,
     fs::Union{Missing,Number}=missing) where N
 

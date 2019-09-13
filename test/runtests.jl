@@ -20,17 +20,17 @@ test_files = [test_wav,example_wav,examples_wav]
 @testset "SignalOperators.jl" begin
 
     @testset "Unit Conversions" begin
-        @test SignalOperators.inframes(1s,44.1kHz) == 44100
-        @test SignalOperators.inframes(Int,0.5s,44.1kHz) == 22050
-        @test SignalOperators.inframes(Int,5frames) == 5
-        @test SignalOperators.inframes(Int,5) == 5
-        @test SignalOperators.inframes(5) == 5
-        @test SignalOperators.inframes(1.0s,44.1kHz) isa Float64
-        @test ismissing(SignalOperators.inframes(missing))
-        @test ismissing(SignalOperators.inframes(Int,missing))
-        @test ismissing(SignalOperators.inframes(Int,missing,5))
-        @test ismissing(SignalOperators.inframes(missing,5))
-        @test ismissing(SignalOperators.inframes(10s))
+        @test SignalOperators.insamples(1s,44.1kHz) == 44100
+        @test SignalOperators.insamples(Int,0.5s,44.1kHz) == 22050
+        @test SignalOperators.insamples(Int,5samples) == 5
+        @test SignalOperators.insamples(Int,5) == 5
+        @test SignalOperators.insamples(5) == 5
+        @test SignalOperators.insamples(1.0s,44.1kHz) isa Float64
+        @test ismissing(SignalOperators.insamples(missing))
+        @test ismissing(SignalOperators.insamples(Int,missing))
+        @test ismissing(SignalOperators.insamples(Int,missing,5))
+        @test ismissing(SignalOperators.insamples(missing,5))
+        @test ismissing(SignalOperators.insamples(10s))
 
         @test SignalOperators.inHz(10) === 10
         @test SignalOperators.inHz(10Hz) === 10
@@ -40,19 +40,19 @@ test_files = [test_wav,example_wav,examples_wav]
 
         @test SignalOperators.inseconds(50ms) == 1//20
         @test SignalOperators.inseconds(50ms,10Hz) == 1//20
-        @test SignalOperators.inseconds(10frames,10Hz) == 1
+        @test SignalOperators.inseconds(10samples,10Hz) == 1
         @test SignalOperators.inseconds(1s,44.1kHz) == 1
         @test SignalOperators.inseconds(1,44.1kHz) == 1
         @test SignalOperators.inseconds(1) == 1
         @test ismissing(SignalOperators.inseconds(missing)) 
         @test SignalOperators.maybeseconds(2) == 2s
-        @test SignalOperators.maybeseconds(5frames) == 5frames
+        @test SignalOperators.maybeseconds(5samples) == 5samples
 
 
         @test SignalOperators.inradians(15) == 15
-        @test SignalOperators.inradians(15frames) == 15
+        @test SignalOperators.inradians(15samples) == 15
         @test SignalOperators.inradians(180°) ≈ π
-        @test ismissing(SignalOperators.inseconds(2frames))
+        @test ismissing(SignalOperators.inseconds(2samples))
     end
 
     @testset "Function Currying" begin
@@ -81,9 +81,9 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(x -> [1,2],5Hz) 
         noise = signal(randn,44.1kHz) |> until(5s) 
         @test isapprox(noise |> sink |> mean,0,atol=1e-2)
-        z = zero(noise) |> until(5s)
+        z = signal(0,10Hz) |> until(5s)
         @test all(z |> sink .== 0)
-        o = one(noise) |> until(5s)
+        o = signal(1,10Hz) |> until(5s)
         @test all(o |> sink .== 1)
     end
 
@@ -93,7 +93,7 @@ test_files = [test_wav,example_wav,examples_wav]
     end
 
     @testset "Files as signals" begin
-        tone = signal(range(0,1,length=4),10Hz) |> sink(test_wav)
+        tone = signal(range(0,1,length=4samples),10Hz) |> sink(test_wav)
         @test SignalTrait(signal(test_wav)) isa IsSignal
         @test isapprox(signal(test_wav), range(0,1,length=4),rtol=1e-6)
     end
@@ -140,7 +140,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test mean(abs.(tone[501:700])) == 0
 
         x = 5ones(5,2)
-        result = pad(x,zero) |> until(10frames) |> sink(samplerate=10Hz)
+        result = pad(x,zero) |> until(10samples) |> sink(samplerate=10Hz)
         all(iszero,result[6:10,:])
     end
         
@@ -296,7 +296,7 @@ test_files = [test_wav,example_wav,examples_wav]
 
 
     @testset "Operating over empty signals" begin
-        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> until(0frames)
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10samples) |> until(0samples)
         @test nsamples(tone) == 0
         @test mapsignal(-,tone) |> nsamples == 0
     end
@@ -313,8 +313,8 @@ test_files = [test_wav,example_wav,examples_wav]
         stereo = signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
         @test stereo |> nchannels == 2
         @test stereo |> sink |> size == (10,2)
-        @test stereo |> until(5frames) |> sink |> size == (5,2)
-        @test stereo |> after(5frames) |> sink |> size == (5,2)
+        @test stereo |> until(5samples) |> sink |> size == (5,2)
+        @test stereo |> after(5samples) |> sink |> size == (5,2)
         
         # Numbers
         tone = signal(sin,200Hz,ω=10Hz) |> mix(1.5) |> until(5s) |> sink
@@ -364,17 +364,17 @@ test_files = [test_wav,example_wav,examples_wav]
     end
 
     @testset "Handling of infinite signals" begin
-        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames) |> 
-            after(2frames)
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10samples) |> after(5samples) |> 
+            after(2samples)
         @test nsamples(tone) == 3
         @test size(sink(tone)) == (3,1)
 
-        tone = signal(sin,200Hz,ω=10Hz) |> after(5frames) |> until(5frames)
+        tone = signal(sin,200Hz,ω=10Hz) |> after(5samples) |> until(5samples)
         @test nsamples(tone) == 5
         @test size(sink(tone)) == (5,1)
         @test sink(tone)[1] > 0.9
 
-        tone = signal(sin,200Hz,ω=10Hz) |> until(10frames) |> after(5frames)
+        tone = signal(sin,200Hz,ω=10Hz) |> until(10samples) |> after(5samples)
         @test nsamples(tone) == 5
         @test size(sink(tone)) == (5,1)
         @test sink(tone)[1] > 0.9
@@ -382,7 +382,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(sin,200Hz) |> sink
     end
 
-    @tewstset "Test that non-signals correctly error" begin
+    @testset "Test that non-signals correctly error" begin
         x = r"nonsignal"
         @test_throws ErrorException x |> samplerate 
         @test_throws ErrorException x |> sink(samplerate=10Hz)
@@ -409,15 +409,14 @@ test_files = [test_wav,example_wav,examples_wav]
         x = signal(rand(100,2),10Hz)
         y = signal(rand(50,2),10Hz)
 
-        @test x |> until(30frames) |> sink |> nsamples == 30
-        @test x |> after(30frames) |> sink |> nsamples == 70
-        @test x |> append(y) |> after(20frames) |> sink |> nsamples == 130
-        @test x |> append(y) |> until(130frames) |> sink |> nsamples == 130
-        @test x |> pad(zero) |> until(150frames) |> sink |> nsamples == 150
+        @test x |> until(30samples) |> sink |> nsamples == 30
+        @test x |> after(30samples) |> sink |> nsamples == 70
+        @test x |> append(y) |> after(20samples) |> sink |> nsamples == 130
+        @test x |> append(y) |> until(130samples) |> sink |> nsamples == 130
+        @test x |> pad(zero) |> until(150samples) |> sink |> nsamples == 150
         
-        # TODO: improve implementation to remove these errors
-        @test x |> ramp(10frames) |> sink |> nsamples == 100
-        @test x |> fadeto(y,10frames) |> sink |> nsamples == 100
+        @test x |> ramp(10samples) |> sink |> nsamples == 100
+        @test x |> fadeto(y,10samples) |> sink |> nsamples > 100
     end
 
     @testset "Handle fixed point numbers" begin    
@@ -436,8 +435,8 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> append(y) |> after(2s) |> sink |> nsamples == 130
         @test x |> append(y) |> until(13s) |> sink |> nsamples == 130
         @test x |> pad(zero) |> until(15s) |> sink |> nsamples == 150
-        @test x |> lowpass(3Hz) |> sink |> sum < sum(x)
-        @test (x |> normpower |> amplify(-10dB) |> sink |> x -> sum(abs,x)) < sum(abs,x)
+        @test x |> lowpass(3Hz) |> sink |> nsamples == 100
+        @test x |> normpower |> amplify(-10dB) |> sink |> nsamples == 100
         @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
@@ -468,9 +467,8 @@ test_files = [test_wav,example_wav,examples_wav]
             nsamples == 130
         @test x |> pad(zero) |> until(15s) |> sink(samplerate=10Hz) |>
             nsamples == 150
-        @test x |> lowpass(3Hz) |> sink(samplerate=10Hz) |> x -> sum(abs,x) < sum(abs,x)
-        @test x |> normpower |> amplify(-10dB) |> sink(samplerate=10Hz) |> 
-            sum < sum(x)
+        @test x |> lowpass(3Hz) |> sink(samplerate=10Hz) |> nsamples == 100
+        @test x |> normpower |> amplify(-10dB) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100

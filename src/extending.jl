@@ -17,8 +17,19 @@ childsignal(x::AppendSignals) = x.signals[1]
 nsamples(x::AppendSignals,::IsSignal) = x.len
 duration(x::AppendSignals) = sum(duration.(x.signals))
 
+"""
+    append(x,y,rest...)
+
+Append a series of signals, one after the other.
+"""
 append(y) = x -> append(x,y)
+"""
+    prepend(xs...)
+
+Prepend the series of signals: `prepend(xs...) = append(reverse(xs)...)`.
+"""
 prepend(x) = y -> append(x,y)
+prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))
 function append(xs...)
     if any(isinf ∘ nsamples,xs[1:end-1])
         error("Cannot append to the end of an infinite signal")
@@ -107,6 +118,14 @@ tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;bl
 tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = PaddedSignal(tosamplerate(x.x,fs;blocksize=blocksize),x.pad)
 
+"""
+
+    pad(x,padding)
+
+Create a signal that appends an infinite number of values, `padding`, to `x`.
+The value `padding` can be a number or a function of a type (e.g. `zero`).
+
+"""
 pad(p) = x -> pad(x,p)
 function pad(x,p) 
     x = signal(x)

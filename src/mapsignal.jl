@@ -62,24 +62,24 @@ tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     mapsignal(fn,arguments...;padding,across_channels)
 
 Apply `fn` across the samples of arguments, producing a signal of the output
-of `fn`. All arguments are first interpreted as signals and reformatted so
-they share the same sample rate and channel count. Shorter signals are padded
-to accomodate the longest finite-length signal. The function `fn` can return a
-single number or a tuple of numbers. In either case it is expected to be a
-type stable function.
+of `fn`. Shorter signals are padded to accomodate the longest finite-length
+signal. The function `fn` can return a single number or a tuple of numbers.
+In either case it is expected to be a type stable function.
 
 ## Cross-channel functions
 
-The function is normally broadcast across channels, but if you wish to treate
-each channel seperately you can set `across_channels=true`.
+The function is normally broadcast across channels, but if you wish to treat
+each channel seperately you can set `across_channels=true`. In the case
+the inputs to `fn` will be tuples of all channel values for a given sample.
 
 ## Padding
 
 Padding determines how samples past the end of shorter signals are reported,
-and is set to a function specific default using `default_pad`. There is a
-fallback implementation which returns `zero`. `default_pad` should normally
-return a function of a type (normally either `one` or `zero`), but can
-optionally be a specific number.
+it is set to a default specific `fn` using `default_pad(fn)`. There is a
+fallback implementation which returns `zero`. You can pass a number or a
+function of a type (e.g. `zero`) to `padding`. The default for the four basic
+arithematic operators is their identity (`one` for `*` and `zero` for `+`).
+
 """
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     blocksize=default_blocksize)
@@ -163,16 +163,45 @@ default_pad(::typeof(*)) = one
 default_pad(::typeof(-)) = zero
 default_pad(::typeof(/)) = one
 
+"""
+
+    mix(xs...)
+
+Sum all signals together, using [`mapsignal`](@ref)
+
+"""
 mix(x) = y -> mix(x,y)
 mix(xs...) = mapsignal(+,xs...)
 
+"""
+
+    amplify(xs...)
+
+Multipy all signals by one another, using [`mapsignal`](@ref)
+
+"""
 amplify(x) = y -> amplify(x,y)
 amplify(xs...) = mapsignal(*,xs...)
 
+"""
+
+    addchannel(xs...)
+
+Concatenate the channels of all signals into one signal with
+`sum(nchannels,xs)` channels.
+
+"""
 addchannel(y) = x -> addchannel(x,y)
 addchannel(xs...) = mapsignal(tuplecat,xs...;across_channels=true)
 tuplecat(a,b) = (a...,b...)
 tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
 
+"""
+
+    channel(x,n)
+
+Select channel `n` of signal `x`, as a single channel signal.
+
+"""
 channel(n) = x -> channel(x,n)
 channel(x,n) = mapsignal(@λ(_[n]), x,across_channels=true)

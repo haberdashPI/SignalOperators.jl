@@ -2,6 +2,14 @@ struct NumberSignal{T,S} <: AbstractSignal{T}
     val::T
     samplerate::S
 end
+"""
+
+## Numbers
+
+Numbers can be treated as infinite length, constant signals of unknown
+sample rate.
+
+"""
 signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
 signal(val::Unitful.Gain,::Nothing,fs) = 
     NumberSignal(uconvertrp(NoUnits,val),inHz(Float64,fs))

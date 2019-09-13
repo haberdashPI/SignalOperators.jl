@@ -44,8 +44,8 @@ fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
 function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
     x,y = uniform((x,y))
     x = signal(x)
-    n = inframes(Int,maybeseconds(len),samplerate(x))
-    silence = signal(zero(channel_eltype(y))) |> until((nsamples(x) - n)*frames)
+    n = insamples(Int,maybeseconds(len),samplerate(x))
+    silence = signal(zero(channel_eltype(y))) |> until((nsamples(x) - n)*samples)
     x |> rampoff(len,fun) |> mix(
         y |> rampon(len,fun) |> prepend(silence))
 end
