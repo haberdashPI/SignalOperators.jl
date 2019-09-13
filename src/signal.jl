@@ -91,8 +91,7 @@ not need to be specified, it will use either the sample rate of `signal` or a
 default sample rate (which raises a warning). 
 
 You can specify a length for the signal, in seconds or frames. If the value
-is a unitless number, it is assumed to be the number of frames (and will be
-rounded as necessary). 
+is a unitless number, it is assumed to be the number of seconds. 
 
 If the signal is not specified, this creates a single argument function which,
 when called, sends the passed signal to the sink. (e.g. `mysignal |>

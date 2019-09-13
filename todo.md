@@ -1,18 +1,4 @@
-# Changes (before registration)
-- no more changes!!
-
-# More tests (before registration)
-- comprehensive test for handling of missing samplerates
-    - test all places it should work
-    - test all places it should fail
-- test handling of non-signal objects
-    - test all places it should work
-    - all it should fail
-- verify that filters do not share state across different applications
-    of the same filter definition
-- test with frame units 
-- verify exact cutting of stimuli by frames
-- test with fixed point numbers
+# More tests 
 - make more thorough tests of various combinations of signals: resampling
 in multiple places, changing length in multiple places, different channel
 counts, etc... just to exercise the various combinations that will

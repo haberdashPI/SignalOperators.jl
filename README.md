@@ -13,6 +13,7 @@ This package remains in an experimental stage. The tests all seem to be passing
 locally, and it seems to be working for the few small examples I've tried. It is not yet well battle tested, and I am still thinking through tests to verify all functionality. As of yet, I also make no guarantees regarding performance.
 
 ```julia
+using WAV
 using SignalOperators
 using SignalOperators.Units # allows the use of dB, Hz, s etc... as unitful values
 
