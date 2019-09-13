@@ -26,6 +26,8 @@ introduce concepts of
 
 move all features / refactoring to github issues
 
+- raise a warning when the sampling rate is too low to 
+    to handle a filter's settings.
 - there are a lot of internals that are pretty ugly,
     clean them up and document the procedure to create
     new computed signals

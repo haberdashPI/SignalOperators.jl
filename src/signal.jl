@@ -207,6 +207,14 @@ function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
 end
 sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
 
+"""
+    sink!(array,x;[samplerate],[offset])
+
+Write samples of the signal `x` to `array`, starting from the sample after
+`offset`. If no sample rate has been specified for `x` you can specify it
+now, using `samplerate` (it will default to 44.1kHz).
+
+"""
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     samplerate=SignalOperators.samplerate(x),offset=0) 
 

@@ -52,15 +52,17 @@ Infinite lengths are represented as the value `inflen`. This has overloaded defi
 
 ## Unspecified sample rates
 
-You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see Signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref) you can specify it then. ## Sinking
+You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see Signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref) you can specify it then. 
+
+## Sinking
 
 Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is itself a signal, so you can pass this to other signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
-sound1 |> sink("example.wav",samplerate=44.1kHz)
+sound1 |> sink("example.wav")
 ```
 
-In this case, since `sound1` had no defined sample rate, we have to tell sink what the sample rate is. If the signal already had a sample rate defined, we could just call `sink("example.wav")`. 
+In this case, since `sound1` had no defined sample rate, so the default sample rate of 44.1khz will be used. Using the default will raise a warning.
 
 ## Signal promotion
 
