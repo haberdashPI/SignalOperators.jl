@@ -85,7 +85,10 @@ function FilteredSignal(x::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,F
     T = float(channel_eltype(x))
     FilteredSignal{T,Si,Fn,Fs}(x,fn,Int(blocksize),newfs)
 end
-
+SignalTrait(x::Type{T}) where {S,T <: FilteredSignal{<:Any,S}} =
+    SignalTrait(x,SignalTrait(S))
+SignalTrait(x::Type{<:FilteredSignal{T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
+    IsSignal{T,Fs,L}()
 childsignal(x::FilteredSignal) = x.x
 samplerate(x::FilteredSignal) = x.samplerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
