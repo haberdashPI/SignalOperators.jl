@@ -1,5 +1,6 @@
+# Reference
 
-# Signal Generation
+## Signal Generation
 
 ```@docs
 signal
@@ -14,6 +15,15 @@ duration
 nsamples
 nchannels
 samplerate
+```
+
+## Reformatting
+
+```@docs
+tosamplerate
+tochannels
+format
+uniform
 ```
 
 ## Signal Manipulation
@@ -38,13 +48,4 @@ rampon
 rampoff
 ramp
 fadeto
-```
-
-## Reformatting
-
-```@docs
-tosamplerate
-tochannels
-format
-uniform
 ```

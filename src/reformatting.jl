@@ -1,6 +1,18 @@
 using DSP: FIRFilter, resample_filter
 export tosamplerate, tochannels, format, uniform
 
+"""
+
+    tosamplerate(x,fs;blocksize)
+
+Change the sample rate of `x` to the given sample rate `fs`. Functionally
+defined signals (e.g. `signal(sin)`) are resampled exactly: the function is
+simply called more times to generate more samples. Data-based signals
+(`signal(rand(50,2))`) are resampled using filtering. In this case you can
+use the keyword arugment `blocksize` to change the analysis window used. See
+[`filtersignal`](@ref) for more details.
+
+"""
 tosamplerate(fs;blocksize=default_blocksize) = 
     x -> tosamplerate(x,fs;blocksize=blocksize)
 tosamplerate(x,fs;blocksize=default_blocksize) = 
@@ -36,6 +48,14 @@ function __tosamplerate__(x,s::IsSignal{T},fs,blocksize) where T
     end
 end
 
+"""
+
+    tochannels(x,ch)
+
+Force a signal to have `ch` number of channels, by mixing channels together
+or broadcasting a single channel over multiple channels.
+
+"""
 tochannels(ch) = x -> tochannels(x,ch)
 tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
 tochannels(x,::Nothing,ch) = tochannels(signal(x),ch)
@@ -52,6 +72,15 @@ function tochannels(x,::IsSignal,ch)
     end
 end
 
+"""
+
+    format(x,fs,ch)
+
+Efficiently convert both the samplerate (`fs`) and channels `ch` of signal
+`x`. This selects an optimal ordering for `tosamplerate` and `tochannels` to
+avoid redundant computations.
+
+"""
 function format(x,fs,ch=nchannels(x))
     if ch > 1 && nchannels(x) == 0
         tosamplerate(x,fs) |> tochannels(ch)
@@ -60,6 +89,20 @@ function format(x,fs,ch=nchannels(x))
     end
 end
 
+"""
+
+    uniform(xs;channels=false)
+
+Promote the sample rate (and optionally the number of channels) to be the
+sample highest sample rate (and optionally channel count) of the passed value
+`xs`, and iterable of signals.
+
+!!! note
+
+    `uniform` rarely needs to be called directly. It is called implicitly,
+    within the body of [`mapsignal`](@ref) for example.
+
+"""
 function uniform(xs;channels=false)
     xs = signal.(xs)
     if any(!ismissing,SignalOperators.samplerate.(xs))

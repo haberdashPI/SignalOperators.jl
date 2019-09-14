@@ -26,6 +26,7 @@ introduce concepts of
 
 move all features / refactoring to github issues
 
+- fix bug in `format` where we have `nchannels(x) == 0`
 - raise a warning when the sampling rate is too low to 
     to handle a filter's settings.
 - there are a lot of internals that are pretty ugly,

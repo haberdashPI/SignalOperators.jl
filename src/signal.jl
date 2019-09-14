@@ -1,4 +1,4 @@
-export duration, nsamples, samplerate, nchannels, signal, sink, sink!
+export duration, nsamples, samplerate, nchannels, signal, sink, sink!, inflen
 using AxisArrays
 using FileIO
 
@@ -51,15 +51,17 @@ nsamples(x,s::Nothing) = nosignal(x)
 
 struct InfiniteLength
 end
-"""
+
+@doc """
 
     inflen
 
-Repreents an infinite length. Proper overloads are defined to handle 
+Represents an infinite length. Proper overloads are defined to handle 
 arithematic and ordering for the infinite value.
 
 """
 const inflen = InfiniteLength()
+
 Base.isinf(::InfiniteLength) = true
 isinf(x) = Base.isinf(x)
 # for our purposes, missing values always denote an unknown finite value

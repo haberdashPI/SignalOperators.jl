@@ -69,8 +69,17 @@ In either case it is expected to be a type stable function.
 ## Cross-channel functions
 
 The function is normally broadcast across channels, but if you wish to treat
-each channel seperately you can set `across_channels=true`. In the case
-the inputs to `fn` will be tuples of all channel values for a given sample.
+each channel seperately you can set `across_channels=true`. In this case the
+inputs to `fn` will be tuples of all channel values for a given sample, and
+`fn` should return a type-stable tuple value. For exmpale, the following
+would swap the left and right channels.
+
+```julia
+x = rand(10,2)
+swapped = mapsignal(x,across_channels=true) do (left,right)
+    right,left
+end
+```
 
 ## Padding
 
@@ -79,6 +88,16 @@ it is set to a default specific `fn` using `default_pad(fn)`. There is a
 fallback implementation which returns `zero`. You can pass a number or a
 function of a type (e.g. `zero`) to `padding`. The default for the four basic
 arithematic operators is their identity (`one` for `*` and `zero` for `+`).
+
+To define a new default for a specific function, just create a new method of
+`default_pad(fn)`
+
+```julia
+
+myfun(x) = 2x + 3
+SignalOperators.default_pad(myfun) = zero
+
+```
 
 """
 function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
