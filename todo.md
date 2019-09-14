@@ -1,3 +1,8 @@
+Next step:
+
+move all of the below todo's to github issues, and clarify their milestone
+and priority.
+
 # More tests 
 - make more thorough tests of various combinations of signals: resampling
 in multiple places, changing length in multiple places, different channel
@@ -9,24 +14,24 @@ be useful, and make sure codebase is better tested
      leads to many unecessary allocations, and if converting 
      all output to tuples within before calling `writesink` will help)
 
+- performance:
+    I'm pretty sure right now we are getting some dynamic calls
+    to functions, given the arg splatting and unknown channel counts.
+    (but who knows, maybe the compiler is smart enough...). I need to
+    test out some specific cases: examine allocaiton. 
+    This could invovle a rewrite of each signal type to include
+    channel count information, to allow fast, type-stable
+    tuples to be passed around and for the static call to the
+    functions used as operators. 
+
 # Documentation (after registration)
 
-document all public functions
- - TODO: list these all of these here
-
-provide an overview of functions and example processing chains
-
-introduce concepts of 
-    - piping signals
-    - unitful values
-    - assumed units,
-    - missing sample rates
+Prooferead documentation
 
 # New Features / Refactoring (after registration)
 
 move all features / refactoring to github issues
 
-- fix bug in `format` where we have `nchannels(x) == 0`
 - raise a warning when the sampling rate is too low to 
     to handle a filter's settings.
 - there are a lot of internals that are pretty ugly,
