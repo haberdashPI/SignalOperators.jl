@@ -44,8 +44,7 @@ Read more in the [documentation](https://haberdashPI.github.io/SignalOperators.j
 
 ## Status
 
-Should be useful and working for everyday use but it is still pretty early
-days for the package: there may be bugs or performance issues I have yet to catch. In particular I have not done a thorough test of performance yet.
+The functions should all *work*. However I have paid very little attention to performance, as of yet. Now that the interface and overall plan is stable, I plan to work on testing and improving any performance gaps with equivalent, bare-loop operations written in Julia.
 
 ## Acknowledgements
 
