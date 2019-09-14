@@ -82,7 +82,7 @@ avoid redundant computations.
 
 """
 function format(x,fs,ch=nchannels(x))
-    if ch > 1 && nchannels(x) == 0
+    if ch > 1 && nchannels(x) == 1
         tosamplerate(x,fs) |> tochannels(ch)
     else
         tochannels(x,ch) |> tosamplerate(fs)
