@@ -94,7 +94,7 @@ end
     uniform(xs;channels=false)
 
 Promote the sample rate (and optionally the number of channels) to be the
-sample highest sample rate (and optionally channel count) of the passed value
+highest sample rate (and optionally channel count) of the passed value
 `xs`, and iterable of signals.
 
 !!! note
