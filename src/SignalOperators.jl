@@ -1,13 +1,10 @@
 module SignalOperators
 using Requires, DSP, LambdaFn, Unitful, Compat
 
-# generic signal definitions
+# signal definition
 include("signal.jl")
-
-# handling of units
+include("sink.jl")
 include("units.jl")
-
-# definition of wrapped signals
 include("wrapping.jl")
 
 # types of signals
