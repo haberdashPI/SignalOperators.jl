@@ -83,11 +83,11 @@ end
 
 ## Padding
 
-Padding determines how samples past the end of shorter signals are reported,
-it is set to a default specific `fn` using `default_pad(fn)`. There is a
-fallback implementation which returns `zero`. You can pass a number or a
-function of a type (e.g. `zero`) to `padding`. The default for the four basic
-arithematic operators is their identity (`one` for `*` and `zero` for `+`).
+Padding determines how samples past the end of shorter signals are reported.
+You can pass a number or a function of a type (e.g. `zero`) to `padding`. The
+default for the four basic arithematic operators is their identity (`one` for
+`*` and `zero` for `+`). These defaults are set on the basis of `fn` using
+`default_pad(fn)`. A fallback implementation of `default_pad` returns `zero`.
 
 To define a new default for a specific function, just create a new method of
 `default_pad(fn)`
@@ -95,7 +95,7 @@ To define a new default for a specific function, just create a new method of
 ```julia
 
 myfun(x) = 2x + 3
-SignalOperators.default_pad(myfun) = zero
+SignalOperators.default_pad(myfun) = one
 
 ```
 

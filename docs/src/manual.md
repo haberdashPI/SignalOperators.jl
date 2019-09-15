@@ -182,8 +182,8 @@ a_minus_b = mapsignal(-,a,b)
 The function `mapsignal` cannot, itself be piped, due to ambiguity in the arguments, but shortcuts for this function have been provided for addition ([`mix`](@ref)) and multiplication ([`amplify`](@ref)]), the two most common operations, and these two shortcuts have piped versions available.
 
 ```julia
-a_plus_b = mix(a,b)
-a_times_b = amplify(a,b)
+a_plus_b = a |> mix(b)
+a_times_b = a |> amplify(b)
 ```
 
-You can add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `across_channels` is defined as true (see `mapsignal`'s documentation for details).
+You can add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `across_channels` is set to true (see `mapsignal`'s documentation for details).
