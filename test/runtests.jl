@@ -442,7 +442,6 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
         
-        # TODO: improve implementation to remove these errors
         @test x |> ramp |> sink |> nsamples == 100
         @test x |> fadeto(y) |> sink |> nsamples > 100
     end
