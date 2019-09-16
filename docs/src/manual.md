@@ -12,7 +12,7 @@ sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 
 This example creates a 1 kHz pure-tone (sine wave) that lasts 5 seconds. It's amplitude is 20 dB lower than a signal with unit 1 power. 
 
-There are a few things going on here: piping, the use of units, infinite length signals, and unspecified sample rates 
+There are a few things going on here: piping, the use of units, infinite length signals, and unspecified sample rates.
 
 ### Piping
 
@@ -36,7 +36,7 @@ sound1 = signal(sin,ω=1000)
 
 Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants you must call `using SignalOperators.Units`. The units defined are `samples`, `Hz`, `s` `kHz` `ms` `°`, `rad` and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. The `samples` unit is unique to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`.
 
-Note that the output of all functions to inspect a signal (e.g. `duration`, `samplerate`) are `Float64` values in the default unit (seconds or Hertz). They do not specify the units.
+Note that the output of functions to inspect a signal (e.g. `duration`, `samplerate`) are `Float64` values in the default unit (seconds or Hertz). No unit is explicitly provided by the return value.
 
 #### decibels
 
@@ -58,7 +58,7 @@ You may notice that the above signal has no defined sample rate. Such a signal i
 
 ### Sinking
 
-Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is itself a signal, so you can pass this to other signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
+Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default itself a signal, so you can pass this to other signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
 sound1 |> sink("example.wav")
@@ -100,13 +100,16 @@ samplerate(x) == 10
 
 ### Functions
 
-A function can be treated as an infinite signal. It should take a single argument which is the time in radians (*not* seconds). Radians are used to make defining the frequency of the signal for typical functions (e.g. sin), which is defined using the keyword argument `ω` or `frequency`. See [`signal`](@ref)'s documentation for more detail's.
+A function can be treated as an infinite signal. It should take a single
+argument which is the time. This value is in radians if yo specify a
+frequency using `ω` (or `frequency`), otherwise the input is in seconds. See
+[`signal`](@ref)'s documentation for more detail's.
 
 ```julia
 signal(sin,ω=1kHz) |> duration |> isinf == true
 ```
 
-An exception to this is `randn`. It can be used directly as a signal with unknown sample rate. 
+A small exception to this is `randn`. It can be used directly as a signal with unknown sample rate. 
 
 ```julia
 randn |> duration == isinf
