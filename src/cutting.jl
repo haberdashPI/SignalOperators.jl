@@ -3,112 +3,99 @@ export until, after
 ################################################################################
 # cutting signals
 
-struct ItrApply{Si,Tm,Fn,T} <: WrappedSignal{Si,T}
+struct CutApply{Si,Tm,K,T} <: WrappedSignal{Si,T}
     signal::Si
     time::Tm
-    fn::Fn
 end
-ItrApply(signal::T,time,fn) where T = ItrApply(signal,SignalTrait(T),time,fn)
-ItrApply(signal::Si,::IsSignal{T},time::Tm,fn::Fn) where {Si,Tm,Fn,T} = 
-    ItrApply{Si,Tm,Fn,T}(signal,time,fn)
+CutApply(signal::T,time,fn) where T = CutApply(signal,SignalTrait(T),time,fn)
+CutApply(signal::Si,::IsSignal{T},time::Tm,kind::K) where {Si,Tm,K,T} = 
+    CutApply{Si,Tm,K,T}(signal,time)
 
-SignalTrait(::Type{T}) where {Si,T <: ItrApply{Si}} =
+SignalTrait(::Type{T}) where {Si,T <: CutApply{Si}} =
     SignalTrait(T,SignalTrait(Si))
-function SignalTrait(::Type{<:ItrApply{Si,Tm,Fn}},::IsSignal{T,Fs,L}) where
-    {Si,Tm,Fn,T,Fs,L}
+function SignalTrait(::Type{<:CutApply{Si,Tm,K}},::IsSignal{T,Fs,L}) where
+    {Si,Tm,K,T,Fs,L}
 
     if Fs <: Missing
         IsSignal{T,Missing,Missing}()
-    elseif Fn <: typeof(Iterators.take)
+    elseif K <: Val{:until}
         IsSignal{T,Float64,Int}()
-    elseif Fn <: typeof(drop_)
+    elseif K <: Val{:after}
         IsSignal{T,Float64,L}()
     end
 end
     
-childsignal(x::ItrApply) = x.signal
-resolvelen(x::ItrApply) = insamples(Int,maybeseconds(x.time),samplerate(x))
+childsignal(x::CutApply) = x.signal
+resolvelen(x::CutApply) = insamples(Int,maybeseconds(x.time),samplerate(x))
        
-const TakeApply{S,T} = ItrApply{S,T,typeof(Iterators.take)}
+const UntilApply{S,T} = CutApply{S,T,Val{:until}}
+const AfterApply{S,T} = CutApply{S,T,Val{:after}}
+
 """
     until(x,time)
 
 Create a signal of all samples of `x` up until `time`.
 """
 until(time) = x -> until(x,time)
-function until(x,time)
-    ItrApply(signal(x),time,Iterators.take)
-end
+until(x,time) = CutApply(signal(x),time,Val{:until}())
 
-drop_(x,n) = Iterators.drop(x,n)
-drop_(x::WrappedSignal,n) = drop_(childsignal(x),n)
-const DropApply{S,T} = ItrApply{S,T,typeof(drop_)}
-drop_(x::DropApply,n) = drop_(childsignal(x),x.time+n)
-drop_(x::TakeApply,n) = Iterators.take(drop_(childsignal(x),n),x.time - n)
 """
     after(x,time)
 
 Create a signal of all samples of `x` after `time`.
 """
 after(time) = x -> after(x,time)
-function after(x,time)
-    ItrApply(signal(x),time,drop_)
-end
+after(x,time) = CutApply(signal(x),time,Val{:after}())
 
-function nsamples(x::TakeApply,::IsSignal)
-    take = resolvelen(x)
-    min(nsamples(x.signal),take)
-end
-duration(x::TakeApply) = 
+nsamples(x::UntilApply,::IsSignal) = min(nsamples(x.signal),resolvelen(x))
+duration(x::UntilApply) = 
     min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),samplerate(x)))
 
-function nsamples(x::DropApply,::IsSignal)
-    drop = resolvelen(x)
-    max(0,nsamples(x.signal) - drop)
-end
-duration(x::DropApply) = 
-    duration(x.signal) - inseconds(Float64,maybeseconds(x.time),samplerate(x))
+nsamples(x::AfterApply,::IsSignal) = max(0,nsamples(x.signal) - resolvelen(x))
+duration(x::AfterApply) = 
+    max(0,duration(x.signal) - inseconds(Float64,maybeseconds(x.time),samplerate(x)))
 
-EvalTrait(x::DropApply) = DataSignal()
-function tosamplerate(x::TakeApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
-    ItrApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,x.fn)
+EvalTrait(x::AfterApply) = DataSignal()
+function tosamplerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+    CutApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,
+        Val{:until}())
 end
-function tosamplerate(x::ItrApply,s::IsSignal{<:Any,Missing},__ignore__,fs;
-    blocksize)
+function tosamplerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
+    __ignore__,fs; blocksize) where K
 
-    ItrApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,x.fn)
+    CutApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,K())
 end
 
-struct DropCheckpoint{C} <: AbstractCheckpoint
+struct AfterCheckpoint{C} <: AbstractCheckpoint
     n::Int
     diff::Int
     child::C
 end
-checkindex(c::DropCheckpoint) = c.n
-function checkpoints(x::DropApply,offset,len)
+checkindex(c::AfterCheckpoint) = c.n
+function checkpoints(x::AfterApply,offset,len)
     n = resolvelen(x)
     children = checkpoints(x.signal,offset+n,len)
     map(children) do child
-        DropCheckpoint(checkindex(child)-n,n,child)
+        AfterCheckpoint(checkindex(child)-n,n,child)
     end
 end
-beforecheckpoint(x::DropApply,check,len) = 
+beforecheckpoint(x::AfterApply,check,len) = 
     beforecheckpoint(x.signal,check.child,len)
-aftercheckpoint(x::DropApply,check,len) = 
+aftercheckpoint(x::AfterApply,check,len) = 
     aftercheckpoint(x.signal,check.child,len)
 
-function checkpoints(x::TakeApply,offset,len) 
+function checkpoints(x::UntilApply,offset,len) 
     checkpoints(x.signal,offset,len)
 end
-beforecheckpoint(x::TakeApply,check,len) = 
+beforecheckpoint(x::UntilApply,check,len) = 
     beforecheckpoint(x.signal,check,len)
-aftercheckpoint(x::TakeApply,check,len) = 
+aftercheckpoint(x::UntilApply,check,len) = 
     aftercheckpoint(x.signal,check,len)
 
-function sampleat!(result,x::DropApply,sig::IsSignal,i,j,check)
+function sampleat!(result,x::AfterApply,sig::IsSignal,i,j,check)
     sampleat!(result,x.signal,SignalTrait(x.signal),i,j+check.diff,check.child)
 end
 
-function sampleat!(result,x::TakeApply,sig::IsSignal,i,j,check)
+function sampleat!(result,x::UntilApply,sig::IsSignal,i,j,check)
     sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check)
 end
