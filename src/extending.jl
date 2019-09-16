@@ -104,7 +104,7 @@ end
 ################################################################################
 # padding
 struct PaddedSignal{S,T} <: WrappedSignal{S,T}
-    x::S
+    signal::S
     pad::T
 end
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
@@ -114,9 +114,9 @@ SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
 nsamples(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
 tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
-    PaddedSignal(tosamplerate(x.x,fs,blocksize=blocksize),x.pad)
+    PaddedSignal(tosamplerate(x.signal,fs,blocksize=blocksize),x.pad)
 tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
-    blocksize) = PaddedSignal(tosamplerate(x.x,fs;blocksize=blocksize),x.pad)
+    blocksize) = PaddedSignal(tosamplerate(x.signal,fs;blocksize=blocksize),x.pad)
 
 """
 
@@ -137,7 +137,7 @@ usepad(x::PaddedSignal,s::IsSignal) = usepad(x,s,x.pad)
 usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T = convert(T,p)
 usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T = fn(T)
 
-childsignal(x::PaddedSignal) = x.x
+childsignal(x::PaddedSignal) = x.signal
 
 struct UsePad
 end
@@ -167,11 +167,11 @@ aftercheckpoint(x::PadCheckpoint,check,len) =
 function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
     check::PadCheckpoint{false})
 
-    sampleat!(result,x.x,SignalTrait(x.x),i,j,check.child)
+    sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check.child)
 end
 function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
     check::PadCheckpoint{true})
 
     val = usepad(x)
-    writesink(result,i,Tuple(val for _ in 1:nchannels(x.x)))
+    writesink(result,i,Tuple(val for _ in 1:nchannels(x.signal)))
 end

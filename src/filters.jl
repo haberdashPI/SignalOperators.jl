@@ -76,20 +76,20 @@ function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where 
     FilteredSignal(x,fn,blocksize,newfs)
 end
 struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
-    x::Si
+    signal::Si
     fn::Fn
     blocksize::Int
     samplerate::Fs
 end
-function FilteredSignal(x::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,Fs}
-    T = float(channel_eltype(x))
-    FilteredSignal{T,Si,Fn,Fs}(x,fn,Int(blocksize),newfs)
+function FilteredSignal(signal::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,Fs}
+    T = float(channel_eltype(signal))
+    FilteredSignal{T,Si,Fn,Fs}(signal,fn,Int(blocksize),newfs)
 end
 SignalTrait(x::Type{T}) where {S,T <: FilteredSignal{<:Any,S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:FilteredSignal{T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
     IsSignal{T,Fs,L}()
-childsignal(x::FilteredSignal) = x.x
+childsignal(x::FilteredSignal) = x.signal
 samplerate(x::FilteredSignal) = x.samplerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
 
@@ -110,7 +110,7 @@ end
 function FilterState(x::FilteredSignal)
     h = resolve_filter(x.fn(samplerate(x)))
     len = inputlength(h,x.blocksize)
-    input = Array{channel_eltype(x.x)}(undef,len,nchannels(x))
+    input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
     availableoutput = 0
     lastoffset = 0
@@ -123,26 +123,26 @@ end
 function tosamplerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
 blocksize)
     # is this a non-resampling filter?
-    if samplerate(x) == samplerate(x.x)
-        FilteredSignal(tosamplerate(x.x,fs,blocksize=blocksize),
+    if samplerate(x) == samplerate(x.signal)
+        FilteredSignal(tosamplerate(x.signal,fs,blocksize=blocksize),
             x.fn,x.blocksize,fs)
     else
-        tosamplerate(x.x,s,DataSignal(),fs,blocksize=blocksize)
+        tosamplerate(x.signal,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
 function tosamplerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
         blocksize)
-    FilteredSignal(tosamplerate(x.x,fs,blocksize=blocksize),
+    FilteredSignal(tosamplerate(x.signal,fs,blocksize=blocksize),
         x.fn,x.blocksize,fs)
 end
         
 function nsamples(x::FilteredSignal)
-    if ismissing(samplerate(x.x))
+    if ismissing(samplerate(x.signal))
         missing
-    elseif samplerate(x) == samplerate(x.x) 
-        nsamples(x.x)
+    elseif samplerate(x) == samplerate(x.signal) 
+        nsamples(x.signal)
     else
-        ceil(Int,nsamples(x.x)*samplerate(x)/samplerate(x.x))
+        ceil(Int,nsamples(x.signal)*samplerate(x)/samplerate(x.signal))
     end
 end
 
@@ -187,7 +187,7 @@ function beforecheckpoint(x::FilteredSignal,check,len)
 
             # write child samples to input buffer
             in_len = min(size(state.input,1),len)
-            padded = pad(x.x,zero)
+            padded = pad(x.signal,zero)
             sink!(view(state.input,1:in_len,:),
                 padded,SignalTrait(padded),state.lastoffset)
 
@@ -216,10 +216,10 @@ end
 # TODO: create an online version of normpower?
 # TODO: this should be excuted lazzily to allow for unkonwn samplerates
 struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
-    x::Si
+    signal::Si
 end
-childsignal(x::NormedSignal) = x.x
-nsamples(x::NormedSignal) = nsamples(x.x)
+childsignal(x::NormedSignal) = x.signal
+nsamples(x::NormedSignal) = nsamples(x.signal)
 NormedSignal(x::Si) where Si = NormedSignal{Si,float(channel_eltype(Si))}(x)
 SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
@@ -237,10 +237,10 @@ checkindex(x::NormedCheckpoint) = checkindex(x.child)
 function checkpoints(x::NormedSignal,offset,len)
     siglen = len + offset
     vals = sink!(Array{channel_eltype(x)}(undef,siglen,nchannels(x)),
-        x.x,offset=0)
+        x.signal,offset=0)
 
     rms = sqrt.(mean(float.(vals).^2,dims=1))
-    map(checkpoints(x.x,offset,len)) do check
+    map(checkpoints(x.signal,offset,len)) do check
         NormedCheckpoint(Tuple(rms),vals,check,offset)
     end
 end
@@ -251,12 +251,12 @@ aftercheckpoint(x::NormedCheckpoint,check,len) =
 function tosamplerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
     ::ComputedSignal,fs;blocksize)
 
-    NormedSignal(tosamplerate(x.x,fs,blocksize=blocksize))
+    NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     __ignore__,fs;blocksize)
 
-    NormedSignal(tosamplerate(x.x,fs,blocksize=blocksize))
+    NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 
 function sampleat!(result,x::NormedSignal,::IsSignal,i,j,check::NormedCheckpoint)

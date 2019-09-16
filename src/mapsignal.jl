@@ -4,27 +4,27 @@ export mapsignal, mix, amplify, addchannel, channel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,Args,Pd,PArgs,T} <: AbstractSignal{T}
+struct SignalOp{Fn,Fs,El,L,Si,Pd,PSi,T} <: AbstractSignal{T}
     fn::Fn
     val::El
     len::L
-    args::Args
+    signals::Si
     samplerate::Fs
     padding::Pd
-    pargs::PArgs
+    padded_signals::PSi
     blocksize::Int
     across_channels::Bool
 end
 
-function SignalOp(fn::Fn,val::El,len::L,args::Args,
+function SignalOp(fn::Fn,val::El,len::L,signals::Si,
     samplerate::Fs,padding::Pd,blocksize::Int,across_channels::Bool) where 
-        {Fn,El,L,Args,Fs,Pd}
+        {Fn,El,L,Si,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
-    pargs = pad.(args,Ref(padding))
-    PArgs = typeof(pargs)
-    SignalOp{Fn,Fs,El,L,Args,Pd,PArgs,T}(fn,val,len,args,samplerate,padding,
-        pargs,blocksize,across_channels)
+    padded_signals = pad.(signals,Ref(padding))
+    PSi = typeof(padded_signals)
+    SignalOp{Fn,Fs,El,L,Si,Pd,PSi,T}(fn,val,len,signals,samplerate,padding,
+        padded_signals,blocksize,across_channels)
 end
 
 struct NoValues
@@ -36,7 +36,7 @@ nsamples(x::SignalOp) = x.len
 nchannels(x::SignalOp) = length(x.val)
 samplerate(x::SignalOp) = x.samplerate
 function duration(x::SignalOp)
-    durs = duration.(x.args) |> collect
+    durs = duration.(x.signals) |> collect
     all(isinf,durs) ? inflen :
         any(ismissing,durs) ? missing :
         maximum(filter(!isinf,durs))
@@ -44,7 +44,7 @@ end
 function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
     if inHz(fs) < x.samplerate
         # resample input if we are downsampling 
-        mapsignal(x.fn,tosamplerate.(x.args,fs,blocksize=blocksize)...,
+        mapsignal(x.fn,tosamplerate.(x.signals,fs,blocksize=blocksize)...,
             padding=x.padding,across_channels=x.across_channels,
             blocksize=x.blocksize)
     else
@@ -54,7 +54,7 @@ function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,
 end
 
 tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
-    mapsignal(x.fn,tosamplerate.(x.args,fs,blocksize=blocksize)...,
+    mapsignal(x.fn,tosamplerate.(x.signals,fs,blocksize=blocksize)...,
         padding=x.padding,across_channels=x.across_channels,
         blocksize=x.blocksize)
 
@@ -129,15 +129,15 @@ checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
 
 function checkpoints(x::SignalOp,offset,len)
     # generate all children's checkpoints
-    child_checks = map(x.pargs) do arg
+    child_checks = map(x.padded_signals) do arg
         checkpoints(arg,offset,len)
     end 
     indices = mapreduce(@λ(checkindex.(_)),vcat,child_checks) |> sort!
     
     # combine children checkpoints in order
-    child_indices = ones(Int,length(x.pargs))
+    child_indices = ones(Int,length(x.padded_signals))
     mapreduce(vcat,indices) do index
-        mapreduce(vcat,enumerate(x.pargs)) do (i,arg)
+        mapreduce(vcat,enumerate(x.padded_signals)) do (i,arg)
             while checkindex(child_checks[i][child_indices[i]]) < index 
                 child_indices[i] == length(child_checks[i]) && break
                 child_indices[i] += 1
@@ -170,7 +170,7 @@ one_sample = OneSample()
 writesink(::OneSample,i,val) = val
 
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
-    vals = map(enumerate(x.pargs)) do (i,arg)
+    vals = map(enumerate(x.padded_signals)) do (i,arg)
         sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
     end
     writesink(result,i,x.fn(vals...))
