@@ -121,7 +121,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
     end
 end
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct SignalOpCheckpoint{C} <: AbstractCheckpoint
+struct SignalOpCheckpoint{N,C} <: AbstractCheckpoint
     leader::Int
     children::C
 end
@@ -152,7 +152,8 @@ function checkpoints(x::SignalOp,offset,len)
 
             if checkindex(child_checks[i][child_indices[i]]) == index
                 children = map(@λ(_[_]),child_checks,child_indices)
-                [SignalOpCheckpoint(i,children)]
+                N,C = ntuple_N(typeof(x.val)),typeof(children)
+                [SignalOpCheckpoint{N,C}(i,children)]
             else
                 []
             end
@@ -169,6 +170,8 @@ end
 one_sample = OneSample()
 writesink(::OneSample,i,val) = val
 
+# TODO: add specialized methods for small channel counts
+# (probably using @eval)
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
     vals = map(enumerate(x.padded_signals)) do (i,arg)
         sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
