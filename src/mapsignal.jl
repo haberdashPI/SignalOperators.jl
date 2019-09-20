@@ -170,6 +170,23 @@ end
 one_sample = OneSample()
 writesink(::OneSample,i,val) = val
 
+for M in 1:10
+    vars = [Symbol(string("_",i)) for i in 1:M]
+    @eval begin 
+        function sampleat!(result::SignalOp{<:Any,<:Any,$M},x:SignalOp,sig,i,j,
+                check)
+            $((quote 
+                $(var[i]) = 
+                    sampleat!(one_sample,x.padded_signals[i],
+                        SignalTrait(x.padded_signals[i]),1,j,
+                        check.children[i])
+               end for i in 1:$M)...)
+            result = x.fn($(vars...))
+            writesink(result,i,result)
+        end
+    end
+end
+
 # TODO: add specialized methods for small channel counts
 # (probably using @eval)
 @Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
