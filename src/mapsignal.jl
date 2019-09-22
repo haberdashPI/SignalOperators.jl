@@ -4,7 +4,7 @@ export mapsignal, mix, amplify, addchannel, channel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,Fs,El,L,Si,Pd,PSi,T} <: AbstractSignal{T}
+struct SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     fn::Fn
     val::El
     len::L
@@ -21,17 +21,18 @@ function SignalOp(fn::Fn,val::El,len::L,signals::Si,
         {Fn,El,L,Si,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
+    N = El == NoValues ? 0 : length(signals)
     padded_signals = pad.(signals,Ref(padding))
     PSi = typeof(padded_signals)
-    SignalOp{Fn,Fs,El,L,Si,Pd,PSi,T}(fn,val,len,signals,samplerate,padding,
+    SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,samplerate,padding,
         padded_signals,blocksize,across_channels)
 end
 
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:SignalOp{<:Any,Fs,El,L}}) where {Fs,El,L} = 
-    IsSignal{ntuple_T(El),Fs,L}()
+SignalTrait(x::Type{<:SignalOp{<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} = 
+    IsSignal{T,Fs,L}()
 nsamples(x::SignalOp) = x.len
 nchannels(x::SignalOp) = length(x.val)
 samplerate(x::SignalOp) = x.samplerate
@@ -170,30 +171,19 @@ end
 one_sample = OneSample()
 writesink(::OneSample,i,val) = val
 
-for M in 1:10
-    vars = [Symbol(string("_",i)) for i in 1:M]
-    @eval begin 
-        function sampleat!(result::SignalOp{<:Any,<:Any,$M},x:SignalOp,sig,i,j,
-                check)
-            $((quote 
-                $(var[i]) = 
-                    sampleat!(one_sample,x.padded_signals[i],
-                        SignalTrait(x.padded_signals[i]),1,j,
-                        check.children[i])
-               end for i in 1:$M)...)
-            result = x.fn($(vars...))
-            writesink(result,i,result)
-        end
-    end
-end
+# TODO: this should just be a generated function
+Base.@propagate_inbounds @generated function sampleat!(result,
+    x::SignalOp{<:Any,N},sig,i,j,check) where N
 
-# TODO: add specialized methods for small channel counts
-# (probably using @eval)
-@Base.propagate_inbounds function sampleat!(result,x::SignalOp,sig,i,j,check)
-    vals = map(enumerate(x.padded_signals)) do (i,arg)
-        sampleat!(one_sample,arg,SignalTrait(arg),1,j,check.children[i])
-    end
-    writesink(result,i,x.fn(vals...))
+   vars = [Symbol(string("_",i)) for i in 1:N] 
+   quote
+        $((:($(vars[i]) = 
+            sampleat!(one_sample,x.padded_signals[$i],
+                SignalTrait(x.padded_signals[$i]),1,j,
+                check.children[$i])) for i in 1:N)...)
+        y = x.fn($(vars...))
+        writesink(result,i,y)
+   end
 end
 
 default_pad(x) = zero
