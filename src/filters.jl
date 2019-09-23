@@ -266,7 +266,9 @@ end
 """
     normpower(x)
 
-Divide all samples by the root-mean-squared value of the signal.
+A signal with normalized power. That is, divide all samples by the
+root-mean-squared value of the entire signal.
+
 """
 function normpower(x) 
     x = signal(x)

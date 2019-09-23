@@ -34,7 +34,7 @@ const AfterApply{S,T} = CutApply{S,T,Val{:after}}
 """
     until(x,time)
 
-Create a signal of all samples of `x` up until `time`.
+Create a signal of all samples of `x` up until and including `time`.
 """
 until(time) = x -> until(x,time)
 until(x,time) = CutApply(signal(x),time,Val{:until}())

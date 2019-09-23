@@ -60,10 +60,13 @@ a tuple of values.
 The input to `fn` is either a phase value or a time value. If passed a
 frequency (using either the ω or frequency keyword), the input to `fn` will
 be a phase value in radians, ranging from 0 to 2π. If no frequency is
-specified the value passed to f is the total time in seconds. Specifying
-phase (by the ϕ or phase keyword) will first add that value to the input. The
-phase is assumed to be in units of radians (but you can also pass degrees by
-using `°` or a unit of time (e.g. `s` for seconds)).
+specified the value passed to f is the total time in seconds. 
+
+Specifying phase (by the ϕ or phase keyword) will first add that value to the
+input before passing it to `fn`. The phase is assumed to be in units of
+radians (but you can also pass degrees by using `°` or a unit of time (e.g.
+`s` for seconds)).
+
 """
 function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
@@ -79,8 +82,8 @@ end
 """
 
 If `fn == randn` no frequency or phase can be specified. Instead there is a
-signle keywored argument `rng` which allows you to specify the random number
-generator, which defaults to `Random.GLOBAL_RNG`.
+single keyword argument, `rng`, which allows you to specify the random number
+generator; `rng` defaults to `Random.GLOBAL_RNG`.
 
 """
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =

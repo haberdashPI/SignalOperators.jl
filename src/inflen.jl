@@ -8,7 +8,7 @@ end
     inflen
 
 Represents an infinite length. Proper overloads are defined to handle 
-arithematic and ordering for the infinite value. 
+arithmetic and ordering for the infinite value. 
 
 ## Missing values
 
