@@ -63,14 +63,13 @@ be a phase value in radians, ranging from 0 to 2π. If no frequency is
 specified the value passed to f is the total time in seconds. Specifying
 phase (by the ϕ or phase keyword) will first add that value to the input. The
 phase is assumed to be in units of radians (but you can also pass degrees by
-using `°`).
-
+using `°` or a unit of time (e.g. `s` for seconds)).
 """
 function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
     SignalFunction(fn,astuple(fn(0)),inHz(ω),
-        inradians(Float64,ϕ)/2π,
+        inradians(Float64,ϕ,ω)/2π,
         inHz(Float64,samplerate))
 end
 

@@ -88,6 +88,15 @@ test_files = [test_wav,example_wav,examples_wav]
         @test all(o |> sink .== 1)
     end
 
+    @testset "Function signals" begin
+        @test sink(signal(sin,ω=5Hz,ϕ=π),length=1s,samplerate=20Hz) == 
+            sink(signal(sin,ω=5Hz,ϕ=π*rad),length=1s,samplerate=20Hz)
+        @test sink(signal(sin,ω=5Hz,ϕ=π),length=1s,samplerate=20Hz) == 
+            sink(signal(sin,ω=5Hz,ϕ=100ms),length=1s,samplerate=20Hz)
+        @test sink(signal(sin,ω=5Hz,ϕ=π),length=1s,samplerate=20Hz) == 
+            sink(signal(sin,ω=5Hz,ϕ=180°),length=1s,samplerate=20Hz)
+    end
+
     @testset "Sink to arrays" begin
         tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> sink
         @test tone[1] .< tone[110] # verify bump of sine wave
