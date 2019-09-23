@@ -13,11 +13,11 @@ struct SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     padding::Pd
     padded_signals::PSi
     blocksize::Int
-    across_channels::Bool
+    bychannel::Bool
 end
 
 function SignalOp(fn::Fn,val::El,len::L,signals::Si,
-    samplerate::Fs,padding::Pd,blocksize::Int,across_channels::Bool) where 
+    samplerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where 
         {Fn,El,L,Si,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
@@ -25,7 +25,7 @@ function SignalOp(fn::Fn,val::El,len::L,signals::Si,
     padded_signals = pad.(signals,Ref(padding))
     PSi = typeof(padded_signals)
     SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,samplerate,padding,
-        padded_signals,blocksize,across_channels)
+        padded_signals,blocksize,bychannel)
 end
 
 struct NoValues
@@ -46,7 +46,7 @@ function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,
     if inHz(fs) < x.samplerate
         # resample input if we are downsampling 
         mapsignal(x.fn,tosamplerate.(x.signals,fs,blocksize=blocksize)...,
-            padding=x.padding,across_channels=x.across_channels,
+            padding=x.padding,bychannel=x.bychannel,
             blocksize=x.blocksize)
     else
         # resample output if we are upsampling
@@ -56,11 +56,11 @@ end
 
 tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     mapsignal(x.fn,tosamplerate.(x.signals,fs,blocksize=blocksize)...,
-        padding=x.padding,across_channels=x.across_channels,
+        padding=x.padding,bychannel=x.bychannel,
         blocksize=x.blocksize)
 
 """
-    mapsignal(fn,arguments...;padding,across_channels)
+    mapsignal(fn,arguments...;padding,bychannel)
 
 Apply `fn` across the samples of arguments, producing a signal of the output
 of `fn`. Shorter signals are padded to accommodate the longest finite-length
@@ -70,14 +70,15 @@ In either case it is expected to be a type stable function.
 ## Cross-channel functions
 
 The function is normally broadcast across channels, but if you wish to treat
-each channel separately you can set `across_channels=true`. In this case the
-inputs to `fn` will be tuples of all channel values for a given sample, and
-`fn` should return a type-stable tuple value. For example, the following
-would swap the left and right channels.
+each channel separately you can set `bychannel=false`. In this case the
+inputs to `fn` will be objects supporting `getindex` (tuples or arrays) of
+all channel values for a given sample, and `fn` should return a type-stable
+tuple value. For example, the following would swap the left and right
+channels.
 
 ```julia
 x = rand(10,2)
-swapped = mapsignal(x,across_channels=true) do (left,right)
+swapped = mapsignal(x,bychannel=false) do (left,right)
     right,left
 end
 ```
@@ -101,7 +102,7 @@ SignalOperators.default_pad(::typeof(myfun)) = one
 ```
 
 """
-function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
+function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     blocksize=default_blocksize)
 
     xs = uniform(xs)
@@ -112,13 +113,13 @@ function mapsignal(fn,xs...;padding = default_pad(fn),across_channels = false,
             maximum(filter(!isinf,lens)) 
 
     vals = testvalue.(xs)
-    if !across_channels
+    if bychannel
         fnbr(vals...) = fn.(vals...)
         SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize,
-            across_channels)
+            bychannel)
     else
         SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
-            across_channels)
+            bychannel)
     end
 end
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
@@ -187,9 +188,7 @@ Base.@propagate_inbounds @generated function sampleat!(result,
 end
 
 default_pad(x) = zero
-default_pad(::typeof(+)) = zero
 default_pad(::typeof(*)) = one
-default_pad(::typeof(-)) = zero
 default_pad(::typeof(/)) = one
 
 """
@@ -206,7 +205,8 @@ mix(xs...) = mapsignal(+,xs...)
 
     amplify(xs...)
 
-Multiply all signals by one another, using [`mapsignal`](@ref)
+Find the product, on a per-sample basis, for all signals `xs`, using
+[`mapsignal`](@ref).
 
 """
 amplify(x) = y -> amplify(x,y)
@@ -217,11 +217,11 @@ amplify(xs...) = mapsignal(*,xs...)
     addchannel(xs...)
 
 Concatenate the channels of all signals into one signal with
-`sum(nchannels,xs)` channels.
+`sum(nchannels,xs)` channels, using [`mapsignal`](@ref).
 
 """
 addchannel(y) = x -> addchannel(x,y)
-addchannel(xs...) = mapsignal(tuplecat,xs...;across_channels=true)
+addchannel(xs...) = mapsignal(tuplecat,xs...;bychannel=false)
 tuplecat(a,b) = (a...,b...)
 tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
 
@@ -229,8 +229,9 @@ tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
 
     channel(x,n)
 
-Select channel `n` of signal `x`, as a single channel signal.
+Select channel `n` of signal `x`, as a single channel signal, using
+[`mapsignal`](@ref).
 
 """
 channel(n) = x -> channel(x,n)
-channel(x,n) = mapsignal(@λ(_[n]), x,across_channels=true)
+channel(x,n) = mapsignal(@λ(_[n]),x,bychannel=false)

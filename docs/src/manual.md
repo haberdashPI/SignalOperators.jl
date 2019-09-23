@@ -191,4 +191,4 @@ a_plus_b = a |> mix(b)
 a_times_b = a |> amplify(b)
 ```
 
-You can add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `across_channels` is set to true (see `mapsignal`'s documentation for details).
+You can add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `bychannel` is set to true (see `mapsignal`'s documentation for details).
