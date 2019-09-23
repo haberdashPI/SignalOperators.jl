@@ -3,6 +3,7 @@ using Requires, DSP, LambdaFn, Unitful, Compat
 
 # signal definition
 include("signal.jl")
+include("inflen.jl")
 include("sink.jl")
 include("units.jl")
 include("wrapping.jl")
