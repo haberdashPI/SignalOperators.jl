@@ -31,10 +31,14 @@ julia> inradians(0.5π*rad)
 1.5707963267948966
 
 """
-inradians(x::Number) = x
-inradians(x::Quantity) = ustrip(uconvert(rad, x))
-inradians(::Type{T},x::Number) where T <: Integer = trunc(T,x)
-inradians(::Type{T},x::Number) where T = convert(T,x)
+inradians(x::Number, rate=missing) = x
+inradians(x::Quantity,rate=missing) = ustrip(uconvert(rad, x))
+inradians(x::Unitful.Time, rate=missing) =
+    ustrip(uconvert(Unitful.NoUnits, x * inHz(rate)*Hz))*2π * rad
+inradians(::Type{T},x::Number, rate=missing) where T <: Integer =
+    trunc(T,inradians(x,rate))
+inradians(::Type{T},x::Number, rate=missing) where T =
+    convert(T,inradians(x,rate))
 
 """
     insamples([Type,]quantity[, rate])

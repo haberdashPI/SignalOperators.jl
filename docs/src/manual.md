@@ -36,7 +36,7 @@ sound1 = signal(sin,ω=1000)
 
 Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants you must call `using SignalOperators.Units`. The units defined are `samples`, `Hz`, `s` `kHz` `ms` `°`, `rad` and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. The `samples` unit is unique to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`.
 
-Note that the output of functions to inspect a signal (e.g. `duration`, `samplerate`) are `Float64` values in the default unit (seconds or Hertz). No unit is explicitly provided by the return value.
+Note that the output of functions to inspect a signal (e.g. `duration`, `samplerate`) are bare values in the default unit (seconds or Hertz). No unit is explicitly provided by the return value.
 
 #### decibels
 
@@ -58,17 +58,19 @@ You may notice that the above signal has no defined sample rate. Such a signal i
 
 ### Sinking
 
-Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default itself a signal, so you can pass this to other signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
+Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default, itself a signal, so you can pass this to other signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
 sound1 |> sink("example.wav")
 ```
 
-In this case `sound1` had no defined sample rate, so the default sample rate of 44.1khz will be used. Using the default will raise a warning.
+In this case `sound1` had no defined sample rate, so the default sample rate
+of 44.1khz will be used. The absence of an explicit sample rate will raise a
+warning.
 
 ### Signal promotion
 
-A final concept, which may not be as obvious from the examples, is the use of automatic signal promotion. When multiple signals are passed to the same operator, and they have a different element type (e.g. `Float32` vs `Float64`), different number of channels, or different sample rate, the signals are first converted to the highest fidelity format and then operated on. This allows for a relatively seamless chain of operations where you don't have to worry about the specific format of the signal, and you won't loose information about your signals unless you explicitly request a lower fidelity signal format (e.g. using [`tochannels`](@ref) or [`tosamplerate`](@ref)). 
+A final concept, which is not as obvious from the examples, is the use of automatic signal promotion. When multiple signals are passed to the same operator, and they have a different element type (e.g. `Float32` vs `Float64`), different number of channels, or different sample rate, the signals are first converted to the highest fidelity format and then operated on. This allows for a relatively seamless chain of operations where you don't have to worry about the specific format of the signal, and you won't loose information about your signals unless you explicitly request a lower fidelity signal format (e.g. using [`tochannels`](@ref) or [`tosamplerate`](@ref)). 
 
 ## Signal generation
 
@@ -103,7 +105,7 @@ samplerate(x) == 10
 A function can be treated as an infinite signal. It should take a single
 argument which is the time. This value is in radians if yo specify a
 frequency using `ω` (or `frequency`), otherwise the input is in seconds. See
-[`signal`](@ref)'s documentation for more detail's.
+[`signal`](@ref)'s documentation for more details.
 
 ```julia
 signal(sin,ω=1kHz) |> duration |> isinf == true
