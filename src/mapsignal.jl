@@ -169,7 +169,7 @@ aftercheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
 struct OneSample
 end
 one_sample = OneSample()
-writesink(::OneSample,i,val) = val
+writesink!(::OneSample,i,val) = val
 
 # TODO: this should just be a generated function
 Base.@propagate_inbounds @generated function sampleat!(result,
@@ -182,7 +182,7 @@ Base.@propagate_inbounds @generated function sampleat!(result,
                 SignalTrait(x.padded_signals[$i]),1,j,
                 check.children[$i])) for i in 1:N)...)
         y = x.fn($(vars...))
-        writesink(result,i,y)
+        writesink!(result,i,y)
    end
 end
 

@@ -173,5 +173,5 @@ function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
     check::PadCheckpoint{true})
 
     val = usepad(x)
-    writesink(result,i,Tuple(val for _ in 1:nchannels(x.signal)))
+    writesink!(result,i,Tuple(val for _ in 1:nchannels(x.signal)))
 end

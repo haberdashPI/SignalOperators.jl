@@ -166,7 +166,7 @@ struct NullBuffer
 end
 Base.size(x::NullBuffer) = (x.len,x.ch)
 Base.size(x::NullBuffer,n) = (x.len,x.ch)[n]
-writesink(x::NullBuffer,i,y) = y
+writesink!(x::NullBuffer,i,y) = y
 Base.view(x::NullBuffer,i,j) = x
 
 function beforecheckpoint(x::FilteredSignal,check,len)
@@ -210,7 +210,7 @@ end
 @Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,
         sig,i,j,check)
     index = check.state.lastoutput+j-check.state.lastoffset
-    writesink(result,i,view(check.state.output,index,:))
+    writesink!(result,i,view(check.state.output,index,:))
 end
 
 # TODO: create an online version of normpower?
@@ -260,7 +260,7 @@ function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
 end
 
 function sampleat!(result,x::NormedSignal,::IsSignal,i,j,check::NormedCheckpoint)
-    writesink(result,i,view(check.vals,j+check.offset,:) ./ check.rms)
+    writesink!(result,i,view(check.vals,j+check.offset,:) ./ check.rms)
 end
 
 """

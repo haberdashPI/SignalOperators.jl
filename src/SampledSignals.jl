@@ -6,7 +6,7 @@ nchannels(x::SampleBuf,::IsSignal) = size(x,2)
 samplerate(x::SampleBuf,::IsSignal) = SampledSignals.samplerate(x)
 
 @Base.propagate_inbounds function sampleat!(result,x::SampleBuf,::IsSignal,i,j,check)
-    writesink(result,i,view(x,j,:))
+    writesink!(result,i,view(x,j,:))
 end
 
 function sink(x,sig::IsSignal{El},len::Number,::Type{<:SampleBuf}) where El

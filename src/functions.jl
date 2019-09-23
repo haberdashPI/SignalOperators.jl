@@ -33,15 +33,15 @@ EvalTrait(x::SignalFunction) = ComputedSignal()
     t = j/x.samplerate
     if Fn <: typeof(sin)
         if Fr <: Missing
-            writesink(result,i,sinpi(2*(t+x.ϕ)))
+            writesink!(result,i,sinpi(2*(t+x.ϕ)))
         else
-            writesink(result,i,sinpi(2*(t*x.ω + x.ϕ)))
+            writesink!(result,i,sinpi(2*(t*x.ω + x.ϕ)))
         end
     else
         if Fr <: Missing
-            writesink(result,i,x.fn(t + x.ϕ))
+            writesink!(result,i,x.fn(t + x.ϕ))
         else
-            writesink(result,i,x.fn(2π*((t*x.ω + x.ϕ) % 1)))
+            writesink!(result,i,x.fn(2π*((t*x.ω + x.ϕ) % 1)))
         end
     end
 end
@@ -88,5 +88,5 @@ signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG)
 @Base.propagate_inbounds function sampleat!(result,
     x::SignalFunction{<:RandFn},::IsSignal,i,j,check)
 
-    writesink(result,i,randn(x.fn.rng))
+    writesink!(result,i,randn(x.fn.rng))
 end

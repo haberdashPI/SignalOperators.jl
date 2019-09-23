@@ -76,10 +76,10 @@ const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 @Base.propagate_inbounds function sampleat!(result,x::AxTimeD1,
     ::IsSignal,i::Number,j::Number,check)
 
-    writesink(result,i,view(x,j,:))
+    writesink!(result,i,view(x,j,:))
 end
 @Base.propagate_inbounds function sampleat!(result,x::AxTimeD2,
     ::IsSignal,i::Number,j::Number,check)
 
-    writesink(result,i,view(x,:,j))
+    writesink!(result,i,view(x,:,j))
 end
