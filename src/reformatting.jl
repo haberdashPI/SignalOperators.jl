@@ -28,6 +28,21 @@ function tosamplerate(x,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;bloc
     __tosamplerate__(x,s,fs,blocksize)
 end
 
+struct ResamplerFn{T,Fs}
+    ratio::T
+    fs::Fs
+end
+function (fn::ResamplerFn)(fs)
+    h = resample_filter(fn.ratio)
+    self = FIRFilter(h, fn.ratio)
+    τ = timedelay(self)
+    setphase!(self, τ)
+
+    self
+end
+filterstring(fn::ResamplerFn) = 
+    string("tosamplerate(",inHz(fn.fs)*Hz,")")
+
 function __tosamplerate__(x,s::IsSignal{T},fs,blocksize) where T
     # copied and modified from DSP's `resample`
     ratio = rationalize(fs/samplerate(x))
@@ -35,16 +50,7 @@ function __tosamplerate__(x,s::IsSignal{T},fs,blocksize) where T
     if ratio == 1
         x
     else
-        function resamplerfn(__fs__)
-            h = resample_filter(ratio)
-            self = FIRFilter(h, ratio)
-            τ = timedelay(self)
-            setphase!(self, τ)
-
-            self
-        end
-
-        filtersignal(x,s,resamplerfn;blocksize=blocksize,newfs=fs)
+        filtersignal(x,s,ResamplerFn(ratio,fs);blocksize=blocksize,newfs=fs)
     end
 end
 
@@ -59,16 +65,23 @@ or broadcasting a single channel over multiple channels.
 tochannels(ch) = x -> tochannels(x,ch)
 tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
 tochannels(x,::Nothing,ch) = tochannels(signal(x),ch)
+
 struct AsNChannels
     ch::Int
 end
 (fn::AsNChannels)(x) = tuple((x[1] for _ in 1:fn.ch)...)
 mapstring(fn::AsNChannels) = string("tochannels(",fn.ch)
+
+struct As1Channel
+end
+(fn::As1Channel)(x) = sum(x)
+mapstring(fn::As1Channel) = string("tochannels(1")
+
 function tochannels(x,::IsSignal,ch) 
     if ch == nchannels(x)
         x
     elseif ch == 1
-        mix((channel(x,ch) for ch in 1:nchannels(x))...)
+        mapsignal(As1Channel(),x,bychannel=false)
     elseif nchannels(x) == 1
         mapsignal(AsNChannels(ch),x,bychannel=false)
     else

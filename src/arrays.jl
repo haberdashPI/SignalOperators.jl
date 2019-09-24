@@ -89,4 +89,7 @@ function signalshow(io,x::AbstractArray)
         MIME("text/plain"),x)
     show_fs(io,x)
 end
-signalshow(io,x::AxisArray) = signalshow(io,x.data)
+function signalshow(io,x::AxisArray) 
+    signalshow(io,x.data)
+    show_fs(io,x)
+end
