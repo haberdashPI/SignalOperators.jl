@@ -5,19 +5,12 @@ end
 
 NumberSignal(x::T,sr::Fs;dB=false) where {T,Fs} = NumberSignal{T,Fs,dB}(x,sr)
 function Base.show(io::IO, ::MIME"text/plain", x::NumberSignal{<:Any,<:Any,true})
-    show_number(io,x,uconvertrp(Units.dB, x.val))
+    show(io,MIME("text/plain"), uconvertrp(Units.dB, x.val))
+    show_fs(io,x)
 end
 function Base.show(io::IO, ::MIME"text/plain", x::NumberSignal{<:Any,<:Any,false})
-    show_number(io,x,x.val)
-end
-
-function show_number(io,x,val)
-    show(io, MIME("text/plain"), val)
-    if !get(io,:compact,false) && !ismissing(x.samplerate)
-        write(io," (")
-        show(io, MIME("text/plain"), x.samplerate)
-        write(io," Hz)")
-    end
+    show(io, MIME("text/plain"), x.val)
+    show_fs(io,x)
 end
 
 """

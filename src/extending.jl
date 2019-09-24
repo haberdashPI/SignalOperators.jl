@@ -101,6 +101,19 @@ function sampleat!(result,x::AppendSignals,sig::IsSignal,i,j,check)
     sampleat!(result,x.signals[check.sig_index],sig,i,j+check.offset,check.child)
 end
 
+Base.show(io::IO,::MIME"text/plain",x::AppendSignals) = pprint(io,x)
+function PrettyPrinting.tile(x::AppendSignals)
+    if length(x.signals) == 2
+        child = signaltile(x.signals[1])
+        operate = literal("append(") * signaltile(x.signals[2]) * literal(")") |
+            literal("append(") / indent(4) * signaltile(x.signals[2]) / literal(")")
+        tilepipe(child,operate)
+    else
+        list_layout(map(signaltile,x.signals),prefix="append",sep=",",sep_brk=",")
+    end
+end
+signaltile(x::AppendSignals) = PrettyPrinting.tile(x)
+
 ################################################################################
 # padding
 struct PaddedSignal{S,T} <: WrappedSignal{S,T}
@@ -175,3 +188,11 @@ function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
     val = usepad(x)
     writesink!(result,i,Tuple(val for _ in 1:nchannels(x.signal)))
 end
+
+Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)
+function PrettyPrinting.tile(x::PaddedSignal)
+    child = signaltile(x.signal)
+    operate = literal(string("pad(",x.pad,")"))
+    tilepipe(child,operate)
+end
+signaltile(x::PaddedSignal) = PrettyPrinting.tile(x)

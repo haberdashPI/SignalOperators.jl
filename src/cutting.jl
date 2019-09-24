@@ -47,6 +47,17 @@ Create a signal of all samples of `x` after `time`.
 after(time) = x -> after(x,time)
 after(x,time) = CutApply(signal(x),time,Val{:after}())
 
+Base.show(io::IO,::MIME"text/plain",x::CutApply) = pprint(io,x)
+function PrettyPrinting.tile(x::CutApply)
+    child = signaltile(x.signal)
+    operate = literal(string(cutname(x),"(",(x.time),")"))
+    tilepipe(child,operate)
+end
+signaltile(x::CutApply) = PrettyPrinting.tile(x)
+
+cutname(x::UntilApply) = "until"
+cutname(x::AfterApply) = "after"
+
 nsamples(x::UntilApply,::IsSignal) = min(nsamples(x.signal),resolvelen(x))
 duration(x::UntilApply) = 
     min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),samplerate(x)))

@@ -10,6 +10,20 @@ SignalTrait(x::T) where T = SignalTrait(T)
 SignalTrait(::Type{T}) where T = nothing
 IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 
+function show_fs(io,x)
+    if !get(io,:compact,false) && !ismissing(samplerate(x))
+        write(io," (")
+        show(io, MIME("text/plain"), samplerate(x))
+        write(io," Hz)")
+    end
+end
+signalshow(io,x) = show(io,MIME("text/plain"),x)
+function tilepipe(child,operate)
+    single = child * literal(" |> ") * operate
+    breaking = child * literal(" |>") / indent(4) * operate
+    single | breaking
+end
+
 # signals must implement
 # SignalTrait(x) for x as a value or a type
 # nchannels(x) (may return nothing)

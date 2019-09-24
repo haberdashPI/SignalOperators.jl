@@ -11,8 +11,9 @@ Arrays can be treated as signals. The first dimension is time, the second
 channels. 
 
 [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
-axis labeled `time` and one or zero additional axes, can be treated as a signal.
-The time dimension must be represented using a `Range`.
+axis labeled `time` and one or zero additional axes, can be treated as a
+signal. The time dimension must be represented using on object with the `step`
+function defined (e.g. any `AbstractRange`).
 
 """
 function signal(x::AbstractArray{<:Any,N},::IsSignal,
@@ -76,4 +77,15 @@ end
     ::IsSignal,i::Number,j::Number,check)
 
     writesink!(result,i,view(x,:,j))
+end
+
+function signaltile(x)
+    io = IOBuffer()
+    signalshow(io,x)
+    literal(String(take!(io)))
+end
+function signalshow(io,x::AbstractArray)
+    show(IOContext(io,:displaysize=>(1,30),:limit=>true),
+        MIME("text/plain"),x)
+    show_fs(io,x)
 end

@@ -17,6 +17,8 @@ to be unknown, but of finite length. For example: `inflen * missing == inflen`.
 
 """
 const inflen = InfiniteLength()
+Base.show(io::IO,::MIME"text/plain",::InfiniteLength) = 
+    write(io,"inflen")
 
 Base.isinf(::InfiniteLength) = true
 isinf(x) = Base.isinf(x)

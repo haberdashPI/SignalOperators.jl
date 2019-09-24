@@ -1,5 +1,7 @@
 module SignalOperators
-using Requires, DSP, LambdaFn, Unitful, Compat
+using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting
+
+using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
 
 # signal definition
 include("signal.jl")
