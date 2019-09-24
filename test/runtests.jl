@@ -239,6 +239,10 @@ test_files = [test_wav,example_wav,examples_wav]
     end
 
     @testset "Resampling" begin
+        # TODO:
+        # julia> rand(100,2) |> tosamplerate(10Hz) |> tosamplerate(20Hz) |> sink
+        # generates an error (add to tests, if not caught by below tests)
+
         tone = signal(sin,20Hz,ω=5Hz) |> until(5s)
         resamp = tosamplerate(tone,40Hz)
         @test samplerate(resamp) == 40
