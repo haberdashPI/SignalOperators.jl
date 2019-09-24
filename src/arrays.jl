@@ -32,12 +32,6 @@ function signal(x::AbstractArray{<:Any,N},::IsSignal,
     end
 end
 
-function signal(x::AxisArray,::IsSignal,fs::Union{Missing,Number}=missing)
-    times = axisvalues(AxisArrays.axes(x,Axis{:time}))[1]
-    !isconsistent(fs,1/step(times))
-    x
-end
-
 tosamplerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
     signal(x,fs)
 tosamplerate(x::AxisArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
