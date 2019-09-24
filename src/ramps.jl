@@ -75,7 +75,7 @@ function rampoff(x,len::Number=10ms,fun::Function=sinramp)
     signal(rampoff_fn(x,len,fun),samplerate(x)) |> amplify(x)
 end
 
-const RampOp{Fn} = SignalOp{<:FnBr{<:typeof(*)},<:Any,<:Any,<:Any,<:Any,<:Any,
+const RampOp{Fn} = MapSignal{<:FnBr{<:typeof(*)},<:Any,<:Any,<:Any,<:Any,<:Any,
     <:Tuple{<:SignalFunction{<:Fn},<:Any}}
     
 function PrettyPrinting.tile(x::RampOp{<:RampOffFn{<:typeof(sinramp)}})

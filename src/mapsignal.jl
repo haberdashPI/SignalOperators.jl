@@ -4,7 +4,7 @@ export mapsignal, mix, amplify, addchannel, channel
 ################################################################################
 # binary operators
 
-struct SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
+struct MapSignal{Fn,N,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     fn::Fn
     val::El
     len::L
@@ -16,7 +16,7 @@ struct SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     bychannel::Bool
 end
 
-function SignalOp(fn::Fn,val::El,len::L,signals::Si,
+function MapSignal(fn::Fn,val::El,len::L,signals::Si,
     samplerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where 
         {Fn,El,L,Si,Fs,Pd}
 
@@ -24,25 +24,25 @@ function SignalOp(fn::Fn,val::El,len::L,signals::Si,
     N = El == NoValues ? 0 : length(signals)
     padded_signals = pad.(signals,Ref(padding))
     PSi = typeof(padded_signals)
-    SignalOp{Fn,N,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,samplerate,padding,
+    MapSignal{Fn,N,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,samplerate,padding,
         padded_signals,blocksize,bychannel)
 end
 
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:SignalOp{<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} = 
+SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} = 
     IsSignal{T,Fs,L}()
-nsamples(x::SignalOp) = x.len
-nchannels(x::SignalOp) = length(x.val)
-samplerate(x::SignalOp) = x.samplerate
-function duration(x::SignalOp)
+nsamples(x::MapSignal) = x.len
+nchannels(x::MapSignal) = length(x.val)
+samplerate(x::MapSignal) = x.samplerate
+function duration(x::MapSignal)
     durs = duration.(x.signals) |> collect
     all(isinf,durs) ? inflen :
         any(ismissing,durs) ? missing :
         maximum(filter(!isinf,durs))
 end
-function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+function tosamplerate(x::MapSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
     if inHz(fs) < x.samplerate
         # resample input if we are downsampling 
         mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
@@ -54,7 +54,7 @@ function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,
     end
 end
 
-tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
+tosamplerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
         padding=x.padding,bychannel=x.bychannel,
         blocksize=x.blocksize)
@@ -116,7 +116,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     if bychannel
         fn = FnBr(fn)
     end
-    SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
+    MapSignal(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
         bychannel)
 end
 
@@ -134,7 +134,7 @@ struct SignalOpCheckpoint{N,C} <: AbstractCheckpoint
 end
 checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
 
-function checkpoints(x::SignalOp,offset,len)
+function checkpoints(x::MapSignal,offset,len)
     # generate all children's checkpoints
     child_checks = map(x.padded_signals) do arg
         checkpoints(arg,offset,len)
@@ -167,9 +167,9 @@ function checkpoints(x::SignalOp,offset,len)
         end
     end
 end
-beforecheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
+beforecheckpoint(x::MapSignal,check::SignalOpCheckpoint,len) =
     beforecheckpoint(x,check.children[check.leader],len)
-aftercheckpoint(x::SignalOp,check::SignalOpCheckpoint,len) =
+aftercheckpoint(x::MapSignal,check::SignalOpCheckpoint,len) =
     aftercheckpoint(x,check.children[check.leader],len)
 
 struct OneSample
@@ -179,7 +179,7 @@ writesink!(::OneSample,i,val) = val
 
 # TODO: this should just be a generated function
 Base.@propagate_inbounds @generated function sampleat!(result,
-    x::SignalOp{<:Any,N},sig,i,j,check) where N
+    x::MapSignal{<:Any,N},sig,i,j,check) where N
 
    vars = [Symbol(string("_",i)) for i in 1:N] 
    quote
@@ -196,8 +196,8 @@ default_pad(x) = zero
 default_pad(::typeof(*)) = one
 default_pad(::typeof(/)) = one
 
-Base.show(io::IO,::MIME"text/plain",x::SignalOp) = pprint(io,x)
-function PrettyPrinting.tile(x::SignalOp)
+Base.show(io::IO,::MIME"text/plain",x::MapSignal) = pprint(io,x)
+function PrettyPrinting.tile(x::MapSignal)
     if length(x.signals) == 1
         tilepipe(signaltile(x.signals[1]),literal(string(mapstring(x.fn),")")))
     elseif length(x.signals) == 2
