@@ -3,12 +3,14 @@ export rampon, rampoff, ramp, fadeto, sinramp
 
 function rampon_fn(x,len,fun)
     time = inseconds(Float64,len,samplerate(x))
+    RampOnFn(fun,time)
 end
 struct RampOnFn{Fn,T} <: Functor
     ramp::Fn
     time::T
 end
-(fn::RampOnFn)(t) = t -> t ≤ time ? fn.ramp(t/time) : 1.0
+(fn::RampOnFn)(t) =
+    t ≤ fn.time ? fn.ramp(t/fn.time) : 1.0
 
 sinramp(x) = sinpi(0.5x)
 
@@ -42,14 +44,15 @@ function rampoff_fn(x,len,fun)
               "Define the samplerate or signal length earlier in the ",
               "processing chain.")
     end
-    RampOffFn(fn,ramp_start,time)
+    RampOffFn(fun,ramp_start,time)
 end
 struct RampOffFn{Fn,S,T} <: Functor
     ramp::Fn
     ramp_start::S
     time::T
 end
-(fn::RampOffFn)(t) = t < fn.ramp_start ? 1.0 : fn.ramp(1.0 - (t-fn.ramp_start)/time)
+(fn::RampOffFn)(t) =
+    t < fn.ramp_start ? 1.0 : fn.ramp(1.0 - (t-fn.ramp_start)/fn.time)
 
 """
 
@@ -72,24 +75,25 @@ function rampoff(x,len::Number=10ms,fun::Function=sinramp)
     signal(rampoff_fn(x,len,fun),samplerate(x)) |> amplify(x)
 end
 
-const RampOp{Fn} = SignalOp{FnBr{<:typeof(*)},<:Any,<:Any,<:Any,<:Any,<:Any,
-    <:Tuple{<:SignalFunction{Fn},<:Any}}
+const RampOp{Fn} = SignalOp{<:FnBr{<:typeof(*)},<:Any,<:Any,<:Any,<:Any,<:Any,
+    <:Tuple{<:SignalFunction{<:Fn},<:Any}}
+    
 function PrettyPrinting.tile(x::RampOp{<:RampOffFn{<:typeof(sinramp)}})
     tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampoff(",x.fn.time," s)")) )
+        literal(string("rampoff(",x.signals[1].fn.time," s)")) )
 end
 function PrettyPrinting.tile(x::RampOp{<:RampOffFn})
     tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampoff(",x.fn.time," s, ",x.fn,")")) )
+        literal(string("rampoff(",x.signals[1].fn.time," s, ",x.signals[1].fn.ramp,")")) )
 end
 
 function PrettyPrinting.tile(x::RampOp{<:RampOnFn{<:typeof(sinramp)}})
     tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampon(",x.fn.time," s)")) )
+        literal(string("rampon(",x.signals[1].fn.time," s)")) )
 end
 function PrettyPrinting.tile(x::RampOp{<:RampOnFn})
     tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampon(",x.fn.time," s, ",x.fn,")")) )
+        literal(string("rampon(",x.signals[1].fn.time," s, ",x.signals[1].fn.ramp,")")) )
 end
 
 """

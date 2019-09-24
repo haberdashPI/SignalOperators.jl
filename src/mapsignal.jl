@@ -58,8 +58,6 @@ tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
         padding=x.padding,bychannel=x.bychannel,
         blocksize=x.blocksize)
-cleanfn(x) = x
-cleanfn(x::FnBr) = x.fn
 
 """
     mapsignal(fn,arguments...;padding,bychannel)
@@ -121,10 +119,14 @@ function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
         bychannel)
 end
+
 struct FnBr{Fn}
     fn::Fn
 end
 (fn::FnBr)(xs...) = fn.fn.(xs...)
+cleanfn(x) = x
+cleanfn(x::FnBr) = x.fn
+
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
 struct SignalOpCheckpoint{N,C} <: AbstractCheckpoint
     leader::Int

@@ -59,13 +59,18 @@ or broadcasting a single channel over multiple channels.
 tochannels(ch) = x -> tochannels(x,ch)
 tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
 tochannels(x,::Nothing,ch) = tochannels(signal(x),ch)
+struct AsNChannels
+    ch::Int
+end
+(fn::AsNChannels)(x) = tuple((x[1] for _ in 1:fn.ch)...)
+mapstring(fn::AsNChannels) = string("tochannels(",fn.ch)
 function tochannels(x,::IsSignal,ch) 
     if ch == nchannels(x)
         x
     elseif ch == 1
         mix((channel(x,ch) for ch in 1:nchannels(x))...)
     elseif nchannels(x) == 1
-        mapsignal(x -> tuple((x[1] for _ in 1:ch)...),x,bychannel=false)
+        mapsignal(AsNChannels(ch),x,bychannel=false)
     else
         error("No rule to convert signal with $(nchannels(x)) channels to",
             " a signal with $ch channels.")

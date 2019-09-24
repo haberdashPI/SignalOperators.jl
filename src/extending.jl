@@ -30,6 +30,11 @@ Prepend the series of signals: `prepend(xs...) = append(reverse(xs)...)`.
 """
 prepend(x) = y -> append(x,y)
 prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))
+struct ToEltypeFn{El}
+end
+(fn::ToEltypeFn{El})(x) where El = convert(El,x)
+mapstring(fn::ToEltypeFn{El}) where El = string("aseltype{",El,"}")
+
 function append(xs...)
     if any(isinf ∘ nsamples,xs[1:end-1])
         error("Cannot append to the end of an infinite signal")
@@ -39,7 +44,7 @@ function append(xs...)
     El = promote_type(channel_eltype.(xs)...)
     xs = map(xs) do x
         if channel_eltype(x) != El
-            mapsignal(@λ(convert(El,_)),x)
+            mapsignal(ToEltypeFn{El}(),x)
         else
             x
         end
