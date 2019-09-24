@@ -30,7 +30,7 @@ EvalTrait(x::SignalFunction) = ComputedSignal()
 function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction) 
     if ismissing(x.ω) && iszero(x.ϕ)
         write(io,string(x.fn))
-        show_fs(io,x,fn_prefix(x.fn))
+        show_fs(io,x)
     else
         write(io,"signal(")
         write(io,string(x.fn))
@@ -63,6 +63,9 @@ end
 tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) = 
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.samplerate))
 
+abstract type Functor
+end
+
 """
 ## Functions
 
@@ -83,7 +86,7 @@ radians (but you can also pass degrees by using `°` or a unit of time (e.g.
 `s` for seconds)).
 
 """
-function signal(fn::Function,samplerate::Union{Missing,Number}=missing;
+function signal(fn::Union{Function,Functor},samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
     SignalFunction(fn,astuple(fn(0)),inHz(ω),

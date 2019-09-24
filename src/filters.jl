@@ -2,6 +2,15 @@ export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
 
 const default_blocksize = 2^12
 
+struct FilterFn{D,M,A}
+    design::D
+    method::M
+    args::A
+end
+(fn::FilterFn)(fs) =
+    digitalfilter(fn.design(inHz.(fn.args)...,fs=inHz(fs)),fn.method)
+filterfn(design,method,args...) = FilterFn(design,method,args)
+
 """
     lowpass(x,low;[order=5],[method=Butterworth(order)],[blocksize])
 
@@ -10,8 +19,7 @@ See [`filtersignal`](@ref) for details on `blocksize`.
 """
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
 lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
-    filtersignal(x, @λ(digitalfilter(Lowpass(inHz(low),fs=inHz(_)),method)),
-        blocksize=blocksize)
+    filtersignal(x, filterfn(Lowpass,method,low), blocksize=blocksize)
 
 """
     highpass(x,high;[order=5],[method=Butterworth(order)],[blocksize])
@@ -21,8 +29,7 @@ See [`filtersignal`](@ref) for details on `blocksize`.
 """
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
 highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
-    filtersignal(x, @λ(digitalfilter(Highpass(inHz(high),fs=inHz(_)),method)), 
-        blocksize=blocksize)
+    filtersignal(x, filterfn(Highpass,method,high),blocksize=blocksize)
 
 """
     bandpass(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
@@ -33,8 +40,7 @@ See [`filtersignal`](@ref) for details on `blocksize`.
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
-    filtersignal(x, @λ(digitalfilter(Bandpass(inHz(low),inHz(high),fs=inHz(_)),
-        method)), blocksize=blocksize)
+    filtersignal(x, filterfn(Bandpass,method,low,high),blocksize=blocksize)
 
 """
     bandstop(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
@@ -45,8 +51,7 @@ See [`filtersignal`](@ref) for details on `blocksize`.
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order),
     blocksize=default_blocksize) = 
-    filtersignal(x, @λ(digitalfilter(Bandstop(inHz(low),inHz(high),fs=inHz(_)), 
-        method)), blocksize=blocksize)
+    filtersignal(x, filterfn(Bandstop,method,low,high),blocksize=blocksize)
 
 """
     filtersignal(x,h;[blocksize])
@@ -62,13 +67,18 @@ values of the filter. It defaults to 4096. It need not normally be adjusted.
 """
 filtersignal(h;blocksize=default_blocksize) = 
     x -> filtersignal(x,h;blocksize=blocksize)
-filtersignal(x,fn::Function;kwds...) = 
+filtersignal(x,fn::Union{FilterFn,Function};kwds...) = 
     filtersignal(x,SignalTrait(x),fn;kwds...)
 filtersignal(x,h;kwds...) = 
-    filtersignal(x,SignalTrait(x),x -> h;kwds...)
+    filtersignal(x,SignalTrait(x),RawFilterFn(h);kwds...)
 function filtersignal(x,::Nothing,args...;kwds...)
     filtersignal(signal(x),args...;kwds...)
 end
+
+struct RawFilterFn{H}
+    h::H
+end
+(fn::RawFilterFn)(fs) = fn.h
 
 resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
@@ -92,6 +102,28 @@ SignalTrait(x::Type{<:FilteredSignal{T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} 
 childsignal(x::FilteredSignal) = x.signal
 samplerate(x::FilteredSignal) = x.samplerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
+
+Base.show(io::IO,::MIME"text/plain",x::FilteredSignal) = pprint(io,x)
+function PrettyPrinting.tile(x::FilteredSignal)
+    child = signaltile(x.signal)
+    operate = literal(filterstring(x.fn))
+    tilepipe(child,operate)
+end
+signaltile(x::FilteredSignal) = PrettyPrinting.tile(x)
+filterstring(fn::FilterFn) =
+    string(filterstring(fn.design),"(",join(string.(fn.args),","),")")
+filterstring(fn::Function) = string("filtersignal(",string(fn),")")
+function filtertring(fn::RawFilterFn)
+    io = IOBuffer()
+    show(IOContext(io,:displaysize=>(1,30),:limit=>true),
+        MIME("text/plain"),x)
+    string("filtersignal(",String(take!(io)),")")
+end
+filterstring(::Type{<:Lowpass}) = "lowpass"
+filterstring(::Type{<:Highpass}) = "highpass"
+filterstring(::Type{<:Bandpass}) = "bandpass"
+filterstring(::Type{<:Bandstop}) = "bandstop"
+filterstring(x) = string(x)
 
 mutable struct FilterState{H,Fs,S,T}
     h::H
@@ -274,8 +306,9 @@ function normpower(x)
     x = signal(x)
     NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(signal(x))
 end
-# function normpower(x)
-#     fs = samplerate(x)
-#     x = sink(x)
-#     x ./ sqrt.(mean(x.^2,dims=1)) |> signal(fs*Hz)
-# end
+
+Base.show(io::IO,::MIME"text/plain",x::NormedSignal) = pprint(io,x)
+function PrettyPrinting.tile(x::NormedSignal)
+    tilepipe(signaltile(x.signal),literal("normpower"))
+end
+signaltile(x::NormedSignal) = PrettyPrinting.tile(x)

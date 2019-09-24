@@ -49,9 +49,8 @@ after(x,time) = CutApply(signal(x),time,Val{:after}())
 
 Base.show(io::IO,::MIME"text/plain",x::CutApply) = pprint(io,x)
 function PrettyPrinting.tile(x::CutApply)
-    child = signaltile(x.signal)
     operate = literal(string(cutname(x),"(",(x.time),")"))
-    tilepipe(child,operate)
+    tilepipe(signaltile(x.signal),operate)
 end
 signaltile(x::CutApply) = PrettyPrinting.tile(x)
 

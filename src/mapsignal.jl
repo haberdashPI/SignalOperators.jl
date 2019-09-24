@@ -45,7 +45,7 @@ end
 function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
     if inHz(fs) < x.samplerate
         # resample input if we are downsampling 
-        mapsignal(x.fn,tosamplerate.(x.signals,fs,blocksize=blocksize)...,
+        mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
             padding=x.padding,bychannel=x.bychannel,
             blocksize=x.blocksize)
     else
@@ -55,9 +55,11 @@ function tosamplerate(x::SignalOp,s::IsSignal{<:Any,<:Number},c::ComputedSignal,
 end
 
 tosamplerate(x::SignalOp,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
-    mapsignal(x.fn,tosamplerate.(x.signals,fs,blocksize=blocksize)...,
+    mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
         padding=x.padding,bychannel=x.bychannel,
         blocksize=x.blocksize)
+cleanfn(x) = x
+cleanfn(x::FnBr) = x.fn
 
 """
     mapsignal(fn,arguments...;padding,bychannel)
@@ -114,14 +116,15 @@ function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
 
     vals = testvalue.(xs)
     if bychannel
-        fnbr(vals...) = fn.(vals...)
-        SignalOp(fnbr,astuple(fnbr(vals...)),len,xs,fs,padding,blocksize,
-            bychannel)
-    else
-        SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
-            bychannel)
+        fn = FnBr(fn)
     end
+    SignalOp(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
+        bychannel)
 end
+struct FnBr{Fn}
+    fn::Fn
+end
+(fn::FnBr)(xs...) = fn.fn.(xs...)
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
 struct SignalOpCheckpoint{N,C} <: AbstractCheckpoint
     leader::Int
@@ -191,6 +194,26 @@ default_pad(x) = zero
 default_pad(::typeof(*)) = one
 default_pad(::typeof(/)) = one
 
+Base.show(io::IO,::MIME"text/plain",x::SignalOp) = pprint(io,x)
+function PrettyPrinting.tile(x::SignalOp)
+    if length(x.signals) == 1
+        tilepipe(signaltile(x.signals[1]),literal(string(mapstring(x.fn),")")))
+    elseif length(x.signals) == 2
+        operate = 
+            literal(mapstring(x.fn)) * signaltile(x.signals[2]) * literal(")") |
+            literal(mapstring(x.fn)) / indent(4) * signaltile(x.signals[2]) / 
+                literal(")")
+        tilepipe(signaltile(x.signals[1]),operate)
+    else
+        list_layout(signaltile.(x.signals),par=(mapstring(x.fn),")"))
+    end
+    # TODO: report the padding and bychannel values if a they are non-default
+    # values
+end
+signaltile(x::CutApply) = PrettyPrinting.tile(x)
+mapstring(fn) = string("mapsignal(",fn,",")
+mapstring(x::FnBr) = string("mapsignal(",x.fn,",")
+
 """
 
     mix(xs...)
@@ -198,8 +221,9 @@ default_pad(::typeof(/)) = one
 Sum all signals together, using [`mapsignal`](@ref)
 
 """
-mix(x) = y -> mix(x,y)
+mix(y) = x -> mix(x,y)
 mix(xs...) = mapsignal(+,xs...)
+mapstring(::FnBr{<:typeof(+)}) = "mix("
 
 """
 
@@ -209,8 +233,9 @@ Find the product, on a per-sample basis, for all signals `xs`, using
 [`mapsignal`](@ref).
 
 """
-amplify(x) = y -> amplify(x,y)
+amplify(y) = x -> amplify(x,y)
 amplify(xs...) = mapsignal(*,xs...)
+mapstring(::FnBr{<:typeof(*)}) = "amplify("
 
 """
 
@@ -224,6 +249,7 @@ addchannel(y) = x -> addchannel(x,y)
 addchannel(xs...) = mapsignal(tuplecat,xs...;bychannel=false)
 tuplecat(a,b) = (a...,b...)
 tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
+mapstring(::typeof(tuplecat)) = "addchannel("
 
 """
 
@@ -234,4 +260,7 @@ Select channel `n` of signal `x`, as a single channel signal, using
 
 """
 channel(n) = x -> channel(x,n)
-channel(x,n) = mapsignal(@λ(_[n]),x,bychannel=false)
+channel(x,n) = mapsignal(GetChanFn(n),x,bychannel=false)
+struct GetChanFn; n::Int; end
+(fn::GetChanFn)(x) = x[fn.n]
+mapstring(fn::GetChanFn) = string("channel(",fn.n)
