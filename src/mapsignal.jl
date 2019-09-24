@@ -64,8 +64,9 @@ tosamplerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
 
 Apply `fn` across the samples of arguments, producing a signal of the output
 of `fn`. Shorter signals are padded to accommodate the longest finite-length
-signal. The function `fn` can return a single number or a tuple of numbers.
-In either case it is expected to be a type stable function.
+signal. The function `fn` can return a single number (single-channel signal)
+or a tuple of numbers (multi-channel signal). In either case it is expected
+to be a type stable function.
 
 ## Cross-channel functions
 
