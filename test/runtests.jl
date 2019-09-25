@@ -352,6 +352,11 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x isa AbstractArray{Float64}
         @test signal(10.0.*(1:10),5Hz) |> SignalOperators.channel_eltype == 
             Float64
+
+        # AxisArray
+        x = AxisArray(rand(2,10),Axis{:channel}(1:2),
+            Axis{:time}(range(0,1,length=10)))
+        @test x |> until(500ms) |> sink |> size == (4,2)
     end
 
     @testset "Handling of padded mix and amplify" begin
@@ -433,6 +438,52 @@ test_files = [test_wav,example_wav,examples_wav]
         
         @test x |> ramp(10samples) |> sink |> nsamples == 100
         @test x |> fadeto(y,10samples) |> sink |> nsamples > 100
+    end
+
+    function showstring(x)
+        io = IOBuffer()
+        show(io,MIME("text/plain"),x)
+        String(take!(io))
+    end
+
+    @testset "Handle printing" begin
+        x = signal(rand(100,2),10Hz)
+        y = signal(rand(50,2),10Hz)
+        @test x |> until(5s) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> until(5 s)"
+        @test x |> after(2s) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> after(2 s)"
+        @test x |> append(y) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    append(50×2 Array{Float64,2}: … (10.0 Hz))"
+        @test x |> pad(zero) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> pad(zero)"
+        @test x |> lowpass(3Hz) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> lowpass(3 Hz)"
+        @test x |> normpower |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> normpower"
+        @test x |> mix(y) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> mix(50×2 Array{Float64,2}: … (10.0 Hz))"
+        @test x |> amplify(y) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    amplify(50×2 Array{Float64,2}: … (10.0 Hz))"
+        @test x |> addchannel(y) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    addchannel(50×2 Array{Float64,2}: … (10.0 Hz))"
+        @test x |> channel(1) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> channel(1)"
+        @test mapsignal(identity,x) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> mapsignal(identity,)"
+        @test x |> tosamplerate(20Hz) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> tosamplerate(20 Hz)"
+        @test x |> tochannels(1) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> tochannels(1)"
+        @test x[:,1] |> tochannels(2) |> showstring ==
+            "100-element Array{Float64,1}: … (10.0 Hz) |> tochannels(2)"
+        @test startswith(rand(5,2) |> filtersignal(fs -> Highpass(10,20,fs=fs)) |> showstring,
+            "5×2 Array{Float64,2}: … |> filtersignal(")
+        
+        @test x |> ramp |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s) |> rampoff(0.01 s)"
+        @test x |> fadeto(y) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s) |>\n    mix(0.0 (10.0 Hz) |> until(100 Hz s) |> tochannels(2) |>\n            append(50×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s)))"
     end
 
     @testset "Handle fixed point numbers" begin    
