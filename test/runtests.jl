@@ -86,6 +86,9 @@ test_files = [test_wav,example_wav,examples_wav]
         @test all(z |> sink .== 0)
         o = signal(1,10Hz) |> until(5s)
         @test all(o |> sink .== 1)
+        @test_throws ErrorException signal(rand(5),10Hz) |> signal(5Hz)
+        @test_throws ErrorException signal(randn,10Hz) |> signal(5Hz)
+
     end
 
     @testset "Function signals" begin
@@ -357,6 +360,9 @@ test_files = [test_wav,example_wav,examples_wav]
         x = AxisArray(rand(2,10),Axis{:channel}(1:2),
             Axis{:time}(range(0,1,length=10)))
         @test x |> until(500ms) |> sink |> size == (4,2)
+
+        # poorly shaped arrays
+        @test_throws ErrorException signal(rand(2,2,2))
     end
 
     @testset "Handling of padded mix and amplify" begin
@@ -482,8 +488,12 @@ test_files = [test_wav,example_wav,examples_wav]
         
         @test x |> ramp |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s) |> rampoff(0.01 s)"
+        @test x |> ramp(identity) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    rampon(0.01 s, identity) |> rampoff(0.01 s, identity)"
         @test x |> fadeto(y) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s) |>\n    mix(0.0 (10.0 Hz) |> until(100 Hz s) |> tochannels(2) |>\n            append(50×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s)))"
+        @test x |> fadeto(y,identity) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s, identity) |>\n    mix(0.0 (10.0 Hz) |> until(100 Hz s) |>\n            tochannels(2) |> append(50×2 Array{Float64,2}: … (10.0 Hz) |>\n                                        rampon(0.01 s, identity)))"
     end
 
     @testset "Handle fixed point numbers" begin    
