@@ -32,6 +32,13 @@ function signal(x::AbstractArray{<:Any,N},::IsSignal,
         errordim()
     end
 end
+function signal(x::AxisArray,::IsSignal,fs::Union{Missing,Number}=missing)
+    if !isconsistent(fs,samplerate(x))
+        error("Signal expected to have sample rate of $fs Hz.")
+    else
+        x
+    end
+end
 
 tosamplerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
     signal(x,fs)
