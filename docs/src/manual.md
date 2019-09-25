@@ -16,7 +16,7 @@ There are a few things going on here: piping, the use of units, infinite length 
 
 ### Piping
 
-All of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument to a signal operator, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
+Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument to a signal operator, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
 
 ```julia
 sound1 = signal(sin,ω=1kHz) |> until(5s)
@@ -27,24 +27,28 @@ The use of piping makes it easier to read the sequence of operations that are pe
 
 ### Units
 
-In any place where a signal operator needs a time or a frequency, it can be specified using units. If units are not specified, time is assumed to be in seconds, and frequency in Hertz. So, for example, the following two statements are equivalent. 
+In any place where a signal operator needs a time or a frequency, it can be specified in appropriate units. There are many places where units can be passed. They all have a default assumed unit, if a plain number, without units, is passed. The default units are seconds, Hertz, and radians as appropriate for the given argument.
 
 ```julia
 sound1 = signal(sin,ω=1kHz)
 sound1 = signal(sin,ω=1000)
 ```
 
-Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants you must call `using SignalOperators.Units`. The units defined are `samples`, `Hz`, `s` `kHz` `ms` `°`, `rad` and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. The `samples` unit is unique to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`.
+Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of these units are rexported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported. 
 
-Note that the output of functions to inspect a signal (e.g. `duration`, `samplerate`) are bare values in the default unit (seconds or Hertz). No unit is explicitly provided by the return value.
+!!! note
 
-#### decibels
+    You can find the available powers-of-ten for units in `Unitful.prefixdict`
+
+Note that the output of functions to inspect a signal (e.g. `duration`, `samplerate`) are bare values in the default unit (e.g. seconds or Hertz). No unit is explicitly provided by the return value.
+
+#### Decibels
 
 You can pass an amplification value as unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead it's assumed to be the actual ratio by which you wish to multiply the signal. E.g. `amplify(x,2)` will make `x` twice as loud. 
 
 ### Infinite lengths
 
-Some of the ways you can define a signal lead to an infinite length signal. You cannot store an infinite signal. It is represented as a function of some kind. Operations on signals are generally lazy, meaning the samples of the signal aren't evaluated until necessary. To allow actual data to be created from a signal, you have to specify the length, using [`until`](@ref). For example, when using `signal(sin)`, the signal is an infinite length sine wave. That's why, in the example above we use [`until`](@ref) to specify the length, like so: 
+Some of the ways you can define a signal lead to an infinite length signal. You cannot store an infinite signal. It is represented as a function of some kind. Operations on signals are generally lazy, meaning the samples of the signal aren't computed until necessary. To allow actual data to be created from a signal, you have to specify the length, using [`until`](@ref). For example, when using `signal(sin)`, the signal is an infinite length sine wave. That's why, in the example above we use [`until`](@ref) to specify the length, like so: 
 
 ```julia
 signal(sin,ω=1kHz) |> until(5s)
@@ -58,7 +62,7 @@ You may notice that the above signal has no defined sample rate. Such a signal i
 
 ### Sinking
 
-Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default, itself a signal, so you can pass this to other signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
+Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default, itself a signal. This means you can pass it to subsequent signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
 sound1 |> sink("example.wav")
@@ -103,7 +107,7 @@ samplerate(x) == 10
 ### Functions
 
 A function can be treated as an infinite signal. It should take a single
-argument which is the time. This value is in radians if yo specify a
+argument which is the time. This value is in radians if you specify a
 frequency using `ω` (or `frequency`), otherwise the input is in seconds. See
 [`signal`](@ref)'s documentation for more details.
 
@@ -184,11 +188,11 @@ b = signal(sin,ω=1kHz) |> until(3s)
 a_minus_b = mapsignal(-,a,b)
 ```
 
-The function `mapsignal` cannot, itself be piped, due to ambiguity in the arguments, but shortcuts for this function have been provided for addition ([`mix`](@ref)) and multiplication ([`amplify`](@ref)]), the two most common operations, and these two shortcuts have piped versions available.
+The function `mapsignal` cannot, itself be piped, due to ambiguity in the arguments, but shortcuts for this function have been provided for addition ([`mix`](@ref)) and multiplication ([`amplify`](@ref)), the two most common operations, and these two shortcuts have piped versions available.
 
 ```julia
 a_plus_b = a |> mix(b)
 a_times_b = a |> amplify(b)
 ```
 
-You can add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `bychannel` is set to true (see `mapsignal`'s documentation for details).
+You can also add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `bychannel` is set to `false` (see `mapsignal`'s documentation for details).

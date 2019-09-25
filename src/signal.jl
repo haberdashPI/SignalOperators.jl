@@ -67,7 +67,7 @@ nsamples(x,s::Nothing) = nosignal(x)
 
     samplerate(x)
 
-Returns the sample rate of the signal (in Hz). May return `missing` if the 
+Returns the sample rate of the signal (in Hertz). May return `missing` if the 
 sample rate is unknown.
 
 """
@@ -104,16 +104,16 @@ isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 """
     signal(x,[samplerate])
 
-Coerce `x` to be a signal, optionally specifying its sample rate (usually in Hz).
-Signal operations first coerce their arguments to be a signal so this needs
-only to be specified when the additional arguments to signal are needed.
+Coerce `x` to be a signal, optionally specifying its sample rate (usually in
+Hz). All signal operators first call `signal(x)` for each argument. This
+means you only need to call `signal` when you want to pass additional
+arguments to it.
 
 !!! note
 
     If you pipe `signal` (e.g. `myobject |> signal(2kHz)`) you must specify
-    the units of the sample rate. This is because a raw number is ambiguous,
-    and could be interpreted as a signal (i.e. an infinite length signal of
-    with constant valued samples).
+    the units of the sample rate, if passed. A unitless number is always
+    interpreted as a constant, infinite-length signal (see below).
 
 The types of objects that can be coerced to signals are as follows.
 """
@@ -128,7 +128,7 @@ signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 
 Any existing signal just returns itself from `signal`. If a sample rate is
 specified it will be set if `x` has an unknown sample rate. If it has a known
-sample rate and doesn't match `samplerate(x)` and error will be throwns. If
+sample rate and doesn't match `samplerate(x)` an error will be thrown. If
 you want to change the sample rate of a signal use [`tosamplerate`](@ref).
 
 """

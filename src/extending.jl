@@ -26,7 +26,7 @@ append(y) = x -> append(x,y)
 """
     prepend(xs...)
 
-Prepend the series of signals: `prepend(xs...) = append(reverse(xs)...)`.
+Prepend the series of signals: `prepend(xs...) == append(reverse(xs)...)`.
 """
 prepend(x) = y -> append(x,y)
 prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))

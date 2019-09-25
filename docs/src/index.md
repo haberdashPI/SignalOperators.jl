@@ -22,7 +22,7 @@ sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 sound2 = "example.wav" |> normpower |> amplify(-20dB)
 
 # a 1kHz sawtooth wave 
-sound3 = signal(ϕ -> ϕ/π - 1,ω=1kHz) |> ramp |> normpower |> amplify(-20dB)
+sound3 = signal(ϕ -> ϕ/π,ω=1kHz,ϕ=-π) |> ramp |> normpower |> amplify(-20dB)
 
 # a 5 Hz amplitude modulated noise
 sound4 = randn |> 
