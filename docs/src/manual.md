@@ -10,7 +10,7 @@ There are several important concepts employed across the public interface. Let's
 sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 ```
 
-This example creates a 1 kHz pure-tone (sine wave) that lasts 5 seconds. It's amplitude is 20 dB lower than a signal with unit 1 power. 
+This example creates a 1 kHz pure-tone (sine wave) that lasts 5 seconds. Its amplitude is 20 dB lower than a signal with unit 1 power. 
 
 There are a few things going on here: piping, the use of units, infinite length signals, and unspecified sample rates.
 
@@ -34,7 +34,7 @@ sound1 = signal(sin,ω=1kHz)
 sound1 = signal(sin,ω=1000)
 ```
 
-Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of these units are rexported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported. 
+Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of these units are rexported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported. 
 
 !!! note
 
@@ -44,7 +44,7 @@ Note that the output of functions to inspect a signal (e.g. `duration`, `sampler
 
 #### Decibels
 
-You can pass an amplification value as unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead it's assumed to be the actual ratio by which you wish to multiply the signal. E.g. `amplify(x,2)` will make `x` twice as loud. 
+You can pass an amplification value as unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. E.g. `amplify(x,2)` will make `x` twice as loud. 
 
 ### Infinite lengths
 
@@ -58,7 +58,7 @@ Infinite lengths are represented as the value [`inflen`](@ref). This has overloa
 
 ### Unspecified sample rates
 
-You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref) you can specify it then. 
+You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref), you can specify it then. 
 
 ### Sinking
 
