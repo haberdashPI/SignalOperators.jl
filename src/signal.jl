@@ -117,7 +117,8 @@ only to be specified when the additional arguments to signal are needed.
 
 The types of objects that can be coerced to signals are as follows.
 """
-signal(fs::Quantity) = x -> signal(x,fs)
+signal(;kwds...) = x -> signal(x;kwds...)
+signal(fs::Quantity;kwds...) = x -> signal(x,fs;kwds...)
 signal(x,fs::Union{Number,Missing}=missing) = signal(x,SignalTrait(x),fs)
 signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 
