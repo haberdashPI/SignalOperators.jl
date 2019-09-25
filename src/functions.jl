@@ -3,7 +3,7 @@ using Random
 # helpers
 astuple(x::Number) = (x,)
 astuple(x::Tuple) = x
-astuple(x) = (@show(x); error("Function must return number or tuple of numbers."))
+astuple(x) = error("Function must return number or tuple of numbers.")
 ntuple_T(::Type{<:NTuple{<:Any,T}}) where T = T
 ntuple_N(::Type{<:NTuple{N}}) where N = N
 
