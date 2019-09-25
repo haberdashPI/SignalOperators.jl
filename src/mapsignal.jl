@@ -213,7 +213,7 @@ function PrettyPrinting.tile(x::MapSignal)
     # TODO: report the padding and bychannel values if a they are non-default
     # values
 end
-signaltile(x::CutApply) = PrettyPrinting.tile(x)
+signaltile(x::MapSignal) = PrettyPrinting.tile(x)
 mapstring(fn) = string("mapsignal(",fn,",")
 mapstring(x::FnBr) = string("mapsignal(",x.fn,",")
 
