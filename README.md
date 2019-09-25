@@ -44,7 +44,7 @@ Read more in the [documentation](https://haberdashPI.github.io/SignalOperators.j
 
 ## Status
 
-The functions should all *work*. However I have paid very little attention to performance, as of yet. Now that the interface and overall plan is stable, I plan to work on testing and improving any performance gaps with equivalent, bare-loop operations written in Julia.
+The functions should all *work*. However, I have paid very little attention to performance as of yet. Now that the interface and overall plan is stable, I plan to work on testing and improving any performance gaps with equivalent, bare-loop operations written in Julia.
 
 ## Acknowledgements
 
