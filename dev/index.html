@@ -10,7 +10,7 @@ sound1 = signal(sin,ω=1kHz) |&gt; until(5s) |&gt; ramp |&gt; normpower |&gt; am
 sound2 = &quot;example.wav&quot; |&gt; normpower |&gt; amplify(-20dB)
 
 # a 1kHz sawtooth wave 
-sound3 = signal(ϕ -&gt; ϕ/π - 1,ω=1kHz) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB)
+sound3 = signal(ϕ -&gt; ϕ/π,ω=1kHz,ϕ=-π) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB)
 
 # a 5 Hz amplitude modulated noise
 sound4 = randn |&gt; 
