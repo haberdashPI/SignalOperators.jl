@@ -113,7 +113,7 @@ end
 
 Promote the sample rate (and optionally the number of channels) to be the
 highest sample rate (and optionally channel count) of the passed value
-`xs`, and iterable of signals.
+`xs`, an iterable of signals.
 
 !!! note
 
