@@ -1,17 +1,16 @@
-using SignalOperators
-using SignalOperators.Units
-using SignalOperators.Units: samples
-using DSP
+using SignalOperators,SignalOperators.Units
+using SignalOperators: SignalTrait, IsSignal
+
 using LambdaFn
 using Test
 using Statistics
 using WAV
 using AxisArrays
 using FixedPointNumbers
+using Unitful
 
+using DSP
 dB = SignalOperators.Units.dB
-
-using SignalOperators: SignalTrait, IsSignal
 
 test_wav = "test.wav"
 example_wav = "example.wav"
@@ -51,7 +50,7 @@ test_files = [test_wav,example_wav,examples_wav]
 
 
         @test SignalOperators.inradians(15) == 15
-        @test SignalOperators.inradians(15samples) == 15
+        @test_throws Unitful.DimensionError SignalOperators.inradians(15samples)
         @test SignalOperators.inradians(180°) ≈ π
         @test ismissing(SignalOperators.inseconds(2samples))
     end
@@ -491,9 +490,9 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> ramp(identity) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    rampon(0.01 s, identity) |> rampoff(0.01 s, identity)"
         @test x |> fadeto(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s) |>\n    mix(0.0 (10.0 Hz) |> until(100 Hz s) |> tochannels(2) |>\n            append(50×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s)))"
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(50×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s)))"
         @test x |> fadeto(y,identity) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s, identity) |>\n    mix(0.0 (10.0 Hz) |> until(100 Hz s) |>\n            tochannels(2) |> append(50×2 Array{Float64,2}: … (10.0 Hz) |>\n                                        rampon(0.01 s, identity)))"
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s, identity) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |>\n            tochannels(2) |> append(50×2 Array{Float64,2}: … (10.0 Hz) |>\n                                        rampon(0.01 s, identity)))"
     end
 
     @testset "Handle fixed point numbers" begin    

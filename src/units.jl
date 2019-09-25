@@ -6,9 +6,19 @@ module Units
     using Unitful
     using Unitful: Hz, s, kHz, ms, °, rad, dB
 
-    const samples = Hz*s
-    const SampleQuant = DimensionlessQuantity
-    export samples, Hz, s, kHz, ms, samples, dB, °, rad
+    @dimension 𝐒 "𝐒" Sample
+    @refunit samples "samples" Samples 𝐒 true
+    const SampDim = Unitful.Dimensions{(Unitful.Dimension{:Sample}(1//1),)}
+    const SampleQuant{N} = Quantity{N,𝐒}
+
+    const localunits = Unitful.basefactors
+    const localpromotion = Unitful.promotion
+    function __init__()
+        merge!(Unitful.basefactors,localunits)
+        merge!(Unitful.promotion, localpromotion)
+    end
+
+    export ksamples, samples, Hz, s, kHz, ms, dB, °, rad
 end
 using .Units
 using .Units: SampleQuant
