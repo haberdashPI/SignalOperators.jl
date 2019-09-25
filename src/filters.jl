@@ -78,7 +78,7 @@ end
 struct RawFilterFn{H}
     h::H
 end
-(fn::RawFilterFn)(fs) = fn.h
+(fn::RawFilterFn)(fs) = copy(fn.h)
 
 resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
@@ -126,29 +126,29 @@ filterstring(::Type{<:Bandstop}) = "bandstop"
 filterstring(x) = string(x)
 
 mutable struct FilterState{H,Fs,S,T}
-    h::H
+    hs::Vector{H}
     samplerate::Fs
     lastoffset::Int
     lastoutput::Int
     availableoutput::Int
     input::Matrix{S}
     output::Matrix{T}
-    function FilterState(h::H,fs::Fs,lastoffset::Int,lastoutput::Int,
+    function FilterState(hs::Vector{H},fs::Fs,lastoffset::Int,lastoutput::Int,
         availableoutput::Int,input::Matrix{S},output::Matrix{T}) where {H,Fs,S,T}
     
-        new{H,Fs,S,T}(h,fs,lastoffset,lastoutput,availableoutput,input,output)
+        new{H,Fs,S,T}(hs,fs,lastoffset,lastoutput,availableoutput,input,output)
     end
 end
 function FilterState(x::FilteredSignal)
-    h = resolve_filter(x.fn(samplerate(x)))
-    len = inputlength(h,x.blocksize)
+    hs = [resolve_filter(x.fn(samplerate(x))) for _ in 1:nchannels(x.signal)]
+    len = inputlength(hs[1],x.blocksize)
     input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
     availableoutput = 0
     lastoffset = 0
     lastoutput = 0
 
-    FilterState(h,float(samplerate(x)),lastoffset,lastoutput,availableoutput,
+    FilterState(hs,float(samplerate(x)),lastoffset,lastoutput,availableoutput,
         input,output)
 end
 
@@ -224,10 +224,10 @@ function beforecheckpoint(x::FilteredSignal,check,len)
                 padded,SignalTrait(padded),state.lastoffset)
 
             # filter the input to the output buffer
-            state.availableoutput = outputlength(state.h,in_len)
+            state.availableoutput = outputlength(state.hs[1],in_len)
             for ch in 1:size(state.output,2)
                 filt!(view(state.output,1:state.availableoutput,ch),
-                    state.h,view(state.input,1:in_len,ch))
+                    state.hs[ch],view(state.input,1:in_len,ch))
             end
 
             state.lastoutput = 0

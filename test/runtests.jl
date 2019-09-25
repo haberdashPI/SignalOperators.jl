@@ -254,6 +254,8 @@ test_files = [test_wav,example_wav,examples_wav]
 
         resampled = resamp |> sink
         @test size(resampled,1) == 2nsamples(tone)
+        resampled_ch2 = toned |> tochannels(2) |> tosamplerate(40Hz) |> sink
+        @test size(resampled_ch2,1) == 2nsamples(tone)
 
         # verify that the state of the filter is proplery reset
         # (so it should produce same output a second time)
