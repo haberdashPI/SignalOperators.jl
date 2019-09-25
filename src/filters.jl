@@ -78,7 +78,7 @@ end
 struct RawFilterFn{H}
     h::H
 end
-(fn::RawFilterFn)(fs) = copy(fn.h)
+(fn::RawFilterFn)(fs) = deepcopy(fn.h)
 
 resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
