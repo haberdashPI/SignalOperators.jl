@@ -54,6 +54,8 @@ Write samples of the signal `x` to `array`, starting from the sample after
 now, using `samplerate` (it will default to 44.1kHz).
 
 """
+sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) = 
+    x -> sink!(result,x;kwds...)
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     samplerate=SignalOperators.samplerate(x),offset=0) 
 
