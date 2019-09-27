@@ -102,7 +102,9 @@ beforecheckpoint(x::AppendCheckpoint,check,len) =
     beforecheckpoint(x.signal,check.child,len)
 aftercheckpoint(x::AppendCheckpoint,check,len) = 
     aftercheckpoint(x.signal,check.child,len)
-function sampleat!(result,x::AppendSignals,sig::IsSignal,i,j,check)
+@Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
+    sig::IsSignal,i,j,check)
+
     sampleat!(result,x.signals[check.sig_index],sig,i,j+check.offset,check.child)
 end
 
@@ -182,13 +184,13 @@ beforecheckpoint(x::PadCheckpoint,check,len) =
 aftercheckpoint(x::PadCheckpoint,check,len) = 
     aftercheckpoint(x.child,check.child,len)
 
-function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
-    check::PadCheckpoint{false})
+@Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
+    ::IsSignal,i,j,check::PadCheckpoint{false})
 
     sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check.child)
 end
-function sampleat!(result,x::PaddedSignal,::IsSignal,i,j,
-    check::PadCheckpoint{true})
+@Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
+    ::IsSignal,i,j,check::PadCheckpoint{true})
 
     val = usepad(x)
     writesink!(result,i,Tuple(val for _ in 1:nchannels(x.signal)))

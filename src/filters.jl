@@ -291,7 +291,9 @@ function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 
-function sampleat!(result,x::NormedSignal,::IsSignal,i,j,check::NormedCheckpoint)
+@Base.propagate_inbounds function sampleat!(result,x::NormedSignal,
+    ::IsSignal,i,j,check::NormedCheckpoint)
+
     writesink!(result,i,view(check.vals,j+check.offset,:) ./ check.rms)
 end
 
