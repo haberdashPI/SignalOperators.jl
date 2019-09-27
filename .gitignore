@@ -11,3 +11,4 @@ example.wav
 examples.wav
 coverage/
 settings.json
+/test/params.json
