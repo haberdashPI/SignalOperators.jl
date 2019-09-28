@@ -161,7 +161,7 @@ function checkpoints(x::MapSignal,offset,len)
             end
 
             if checkindex(child_checks[i][child_indices[i]]) == index
-                children = map(@λ(_[_]),child_checks,child_indices)
+                children = map(@λ(_[_]),child_checks,child_indices) |> Tuple
                 N,C = ntuple_N(typeof(x.val)),typeof(children)
                 [SignalOpCheckpoint{N,C}(i,children)]
             else

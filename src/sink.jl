@@ -110,4 +110,5 @@ function sink_helper!(result,n,x,sig,check,len)
 end
 @Base.propagate_inbounds function writesink!(result::AbstractArray,i,v)
     result[i,:] .= v
+    v
 end
