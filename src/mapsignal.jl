@@ -180,7 +180,23 @@ end
 one_sample = OneSample()
 writesink!(::OneSample,i,val) = val
 
-# TODO: this should just be a generated function
+# expand the N == 2 case just to amke debugging
+# easier (this is exactly what the generated function
+# would produce)
+Base.@propagate_inbounds function sampleat!(result,
+    x::MapSignal{<:Any,2},sig,i,j,check)
+
+    _1 = sampleat!(one_sample,x.padded_signals[1],
+                SignalTrait(x.padded_signals[1]),1,j,
+                check.children[1])
+    _2 = sampleat!(one_sample,x.padded_signals[2],
+                SignalTrait(x.padded_signals[2]),1,j,
+                check.children[2])
+
+    y = x.fn(_1,_2)
+    writesink!(result,i,y)
+end
+
 Base.@propagate_inbounds @generated function sampleat!(result,
     x::MapSignal{<:Any,N},sig,i,j,check) where N
 
