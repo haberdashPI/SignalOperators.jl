@@ -9,6 +9,8 @@ rng = MersenneTwister(1983)
 x = rand(rng,10^5,2)
 y = rand(rng,10^5,2)
 
+suite["signal cutting"] = @benchmarkable x |> until(5*10^4*samples) |> sink(samplerate=1000Hz)
+suite["baseline cutting"] = @benchmarkable x[1:(5*10^4)]
 suite["signal mapping"] = @benchmarkable sink(mix($x,$y),samplerate=1000Hz)
 suite["baseline mapping"] = @benchmarkable $x .+ $y
 
