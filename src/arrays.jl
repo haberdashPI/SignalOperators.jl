@@ -53,6 +53,8 @@ function SignalTrait(::Type{A}) where{T,N,A<:AbstractArray{T,N}}
         else
             IsSignal{T,Missing,Int}()
         end
+    else
+        error("Array must have 1 or 2 dimensions to be treated as a signal.")
     end
 end
 

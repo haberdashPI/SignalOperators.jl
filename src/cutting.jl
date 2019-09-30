@@ -22,6 +22,8 @@ function SignalTrait(::Type{<:CutApply{Si,Tm,K}},::IsSignal{T,Fs,L}) where
         IsSignal{T,Float64,Int}()
     elseif K <: Val{:after}
         IsSignal{T,Float64,L}()
+    else
+        error("Unexpected cut apply type $K")
     end
 end
     
