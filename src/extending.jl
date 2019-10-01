@@ -59,9 +59,9 @@ tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;b
 tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
 
-struct AppendCheckpoint{C} <: AbstractCheckpoint
+struct AppendCheckpoint{C,S} <: AbstractCheckpoint
     n::Int
-    sig_index::Int
+    signal::S
     offset::Int
     child::C
 end
@@ -93,7 +93,7 @@ function checkpoints(x::AppendSignals,offset,len)
             []
         end
 
-        [AppendCheckpoint(checkindex(c)+index-1,sig_index,-index+1,c) 
+        [AppendCheckpoint(checkindex(c)+index-1,x.signals[sig_index],-index+1,c) 
          for c in checks]
     end
 
@@ -106,7 +106,7 @@ aftercheckpoint(x::AppendCheckpoint,check,len) =
 @Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
     sig::IsSignal,i,j,check)
 
-    sampleat!(result,x.signals[check.sig_index],sig,i,j+check.offset,check.child)
+    sampleat!(result,check.signal,sig,i,j+check.offset,check.child)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::AppendSignals) = pprint(io,x)
