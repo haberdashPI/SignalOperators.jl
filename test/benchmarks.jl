@@ -23,7 +23,9 @@ end
 suite["baseline"]["functions"] = @benchmarkable begin
     sinpi.(range(0,step=1/1000,length=10^4) .* (2*10))
 end
-suite["signal"]["cutting"] = @benchmarkable x |> until(5*10^3*samples) |> sink(samplerate=1000Hz)
+suite["signal"]["cutting"] = @benchmarkable begin
+    x |> until(5*10^3*samples) |> sink(samplerate=1000Hz)
+end
 suite["baseline"]["cutting"] = @benchmarkable x[1:(5*10^3)]
 suite["signal"]["mapping"] = @benchmarkable sink(mix($x,$y),samplerate=1000Hz)
 suite["baseline"]["mapping"] = @benchmarkable $x .+ $y
