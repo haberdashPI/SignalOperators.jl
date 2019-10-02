@@ -104,9 +104,9 @@ beforecheckpoint(x::AppendCheckpoint,check,len) =
 aftercheckpoint(x::AppendCheckpoint,check,len) = 
     aftercheckpoint(x.signal,check.child,len)
 @Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
-    sig::IsSignal,i,j,check)
+    i,j,check)
 
-    sampleat!(result,check.signal,sig,i,j+check.offset,check.child)
+    sampleat!(result,check.signal,i,j+check.offset,check.child)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::AppendSignals) = pprint(io,x)
@@ -186,13 +186,13 @@ aftercheckpoint(x::PadCheckpoint,check,len) =
     aftercheckpoint(x.child,check.child,len)
 
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    ::IsSignal,i,j,check::PadCheckpoint{false})
+    i,j,check::PadCheckpoint{false})
 
-    sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check.child)
+    sampleat!(result,x.signal,i,j,check.child)
 end
 
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    ::IsSignal,i,j,check::PadCheckpoint{true})
+    i,j,check::PadCheckpoint{true})
 
     val = usepad(x)
     writesink!(result,i,Fill(val,nchannels(x.signal)))

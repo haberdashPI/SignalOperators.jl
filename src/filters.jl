@@ -239,8 +239,7 @@ function aftercheckpoint(x::FilteredSignal,check,len)
     check.state.lastoffset += len
 end
 
-@Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,
-        sig,i,j,check)
+@Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,i,j,check)
     index = check.state.lastoutput+j-check.state.lastoffset
     writesink!(result,i,view(check.state.output,index,:))
 end
@@ -257,29 +256,6 @@ SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:NormedSignal{<:Any,T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
     IsSignal{T,Fs,L}()
-
-struct NormedCheckpoint{R,V,C} <: AbstractCheckpoint
-    rms::R
-    vals::V
-    child::C
-    offset::Int
-end
-checkindex(x::NormedCheckpoint) = checkindex(x.child)
-
-function checkpoints(x::NormedSignal,offset,len)
-    siglen = len + offset
-    vals = sink!(Array{channel_eltype(x)}(undef,siglen,nchannels(x)),
-        x.signal,offset=0)
-
-    rms = sqrt.(mean(float.(vals).^2,dims=1))
-    map(checkpoints(x.signal,offset,len)) do check
-        NormedCheckpoint(Tuple(rms),vals,check,offset)
-    end
-end
-beforecheckpoint(x::NormedCheckpoint,check,len) = 
-    beforecheckpoint(x.child,check.child,len)
-aftercheckpoint(x::NormedCheckpoint,check,len) = 
-    aftercheckpoint(x.child,check.child,len)
 function tosamplerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
     ::ComputedSignal,fs;blocksize)
 
@@ -291,10 +267,26 @@ function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 
-@Base.propagate_inbounds function sampleat!(result,x::NormedSignal,
-    ::IsSignal,i,j,check::NormedCheckpoint)
+struct NormedCheckpoint{V,C} <: AbstractCheckpoint
+    n::Int
+    vals::V
+end
+checkindex(x::NormedCheckpoint) = x.n
 
-    writesink!(result,i,view(check.vals,j+check.offset,:) ./ check.rms)
+function checkpoints(x::NormedSignal,offset,len)
+    siglen = len + offset
+    vals = sink!(Array{channel_eltype(x)}(undef,siglen,nchannels(x)),
+        x.signal,offset=0)
+
+    rms = sqrt.(mean(float.(vals).^2,dims=1))
+    vals ./= rms
+    [NormedCheckpoint(offset+1,vals),NormedCheckpoint(offset+len+1,vals)]
+end
+
+@Base.propagate_inbounds function sampleat!(result,x::NormedSignal,
+    i,j,check::NormedCheckpoint)
+
+    writesink!(result,i,view(check.vals,j,:))
 end
 
 """

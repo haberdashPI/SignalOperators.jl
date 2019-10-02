@@ -95,16 +95,16 @@ function sink!(result,x,sig::IsSignal,checks::AbstractArray)
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
         beforecheckpoint(x,check,len)
-        sink_helper!(result,n,x,sig,check,len)
+        sink_helper!(result,n,x,check,len)
         aftercheckpoint(x,check,len)
     end
     result
 end
 
-function sink_helper!(result,n,x,sig,check,len)
+function sink_helper!(result,n,x,check,len)
     if len > 0
         @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
-            sampleat!(result,x,sig,n+i,i,check)
+            sampleat!(result,x,n+i,i,check)
         end
     end
 end

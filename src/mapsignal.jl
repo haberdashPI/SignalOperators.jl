@@ -184,28 +184,24 @@ writesink!(::OneSample,i,val) = val
 # easier (this is exactly what the generated function
 # would produce)
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:Any,2},sig,i,j,check)
+    x::MapSignal{<:Any,2},i,j,check)
 
-    _1 = sampleat!(one_sample,x.padded_signals[1],
-                SignalTrait(x.padded_signals[1]),1,j,
-                check.children[1])
-    _2 = sampleat!(one_sample,x.padded_signals[2],
-                SignalTrait(x.padded_signals[2]),1,j,
-                check.children[2])
+    _1 = sampleat!(one_sample,x.padded_signals[1],1,j,check.children[1])
+    _2 = sampleat!(one_sample,x.padded_signals[2],1,j,check.children[2])
 
     y = x.fn(_1,_2)
     writesink!(result,i,y)
 end
 
 Base.@propagate_inbounds @generated function sampleat!(result,
-    x::MapSignal{<:Any,N},sig,i,j,check) where N
+    x::MapSignal{<:Any,N},i,j,check) where N
 
    vars = [Symbol(string("_",i)) for i in 1:N] 
    quote
         $((:($(vars[i]) = 
-            sampleat!(one_sample,x.padded_signals[$i],
-                SignalTrait(x.padded_signals[$i]),1,j,
-                check.children[$i])) for i in 1:N)...)
+            sampleat!(one_sample,x.padded_signals[$i],1,j,check.children[$i])) 
+                for i in 1:N)...)
+
         y = x.fn($(vars...))
         writesink!(result,i,y)
    end

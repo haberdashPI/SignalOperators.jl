@@ -104,10 +104,10 @@ beforecheckpoint(x::UntilApply,check,len) =
 aftercheckpoint(x::UntilApply,check,len) = 
     aftercheckpoint(x.signal,check,len)
 
-@Base.propagate_inbounds function sampleat!(result,x::AfterApply,sig::IsSignal,i,j,check)
-    sampleat!(result,x.signal,SignalTrait(x.signal),i,j+check.diff,check.child)
+@Base.propagate_inbounds function sampleat!(result,x::AfterApply,i,j,check)
+    sampleat!(result,x.signal,i,j+check.diff,check.child)
 end
 
-@Base.propagate_inbounds function sampleat!(result,x::UntilApply,sig::IsSignal,i,j,check)
-    sampleat!(result,x.signal,SignalTrait(x.signal),i,j,check)
+@Base.propagate_inbounds function sampleat!(result,x::UntilApply,i,j,check)
+    sampleat!(result,x.signal,i,j,check)
 end
