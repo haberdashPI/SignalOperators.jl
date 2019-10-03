@@ -101,12 +101,18 @@ function sink!(result,x,sig::IsSignal,checks::AbstractArray)
     result
 end
 
-function sink_helper!(result,n,x,check,len)
+@noinline function sink_helper!(result,n,x,check,len)
     if len > 0
         @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
             sampleat!(result,x,n+i,i,check)
         end
     end
+end
+@Base.propagate_inbounds function writesink!(result::AbstractArray,i,v::BroadcastNum)
+    for ch in 1:size(result,2)
+        result[i,ch] = v.x
+    end
+    v
 end
 @Base.propagate_inbounds function writesink!(result::AbstractArray,i,v)
     for ch in 1:length(v)

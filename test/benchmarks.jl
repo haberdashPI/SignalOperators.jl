@@ -4,6 +4,7 @@ using BenchmarkTools
 using SignalOperators
 using SignalOperators.Units
 using Random
+using Traceur
 using Statistics
 using DSP
 
@@ -12,8 +13,10 @@ suite["signal"] = BenchmarkGroup()
 suite["baseline"] = BenchmarkGroup()
 
 rng = MersenneTwister(1983)
-x = rand(rng,10^4,2)
-y = rand(rng,10^4,2)
+x = rand(rng,10^1,2)
+y = rand(rng,10^1,2)
+# x = rand(rng,10^4,2)
+# y = rand(rng,10^4,2)
 
 suite["signal"]["sinking"] = @benchmarkable signal(x,1000Hz) |> sink
 suite["baseline"]["sinking"] = @benchmarkable copy(x)
@@ -27,14 +30,20 @@ suite["signal"]["cutting"] = @benchmarkable begin
     x |> until(5*10^3*samples) |> sink(samplerate=1000Hz)
 end
 suite["baseline"]["cutting"] = @benchmarkable x[1:(5*10^3)]
+suite["signal"]["padding"] = @benchmarkable begin
+    pad($x,zero) |> until(20_000samples) |> sink(samplerate=1000Hz)
+end
+
+# discovery: the allocation arises in the call to usepad because of the call to
+# SignalTrait
+
+@trace pad(rand(10,2),zero) |> until(20samples) |> sink(samplerate=1000Hz) modules=[SignalOperators]
+
+suite["baseline"]["padding"] = @benchmarkable vcat($x,zero($x))
 suite["signal"]["mapping"] = @benchmarkable sink(mix($x,$y),samplerate=1000Hz)
 suite["baseline"]["mapping"] = @benchmarkable $x .+ $y
 # suite["signal"]["appending"] = @benchmarkable sink(append($x,$y),samplerate=1000Hz)
 # suite["baseline"]["appending"] = @benchmarkable vcat($x,$y)
-# suite["signal"]["padding"] = @benchmarkable begin
-#     pad($x,zero) |> until(2_000samples) |> sink(samplerate=1000Hz)
-# end
-# suite["baseline"]["padding"] = @benchmarkable vcat($x,zeros($x))
 # suite["signal"]["filtering"] = @benchmarkable begin
 #     lowpass($x,20Hz) |> sink(samplerate=1000Hz)
 # end

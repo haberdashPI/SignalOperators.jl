@@ -1,5 +1,4 @@
 export append, prepend, pad
-using FillArrays
 
 ################################################################################
 # appending signals
@@ -191,11 +190,14 @@ aftercheckpoint(x::PadCheckpoint,check,len) =
     sampleat!(result,x.signal,i,j,check.child)
 end
 
+struct BroadcastNum{T}
+    x::T
+end
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
     i,j,check::PadCheckpoint{true})
 
     val = usepad(x)
-    writesink!(result,i,Fill(val,nchannels(x.signal)))
+    writesink!(result,i,BroadcastNum(val))
 end
 
 Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)
