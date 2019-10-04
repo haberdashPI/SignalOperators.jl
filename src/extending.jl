@@ -154,8 +154,8 @@ end
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
 usepad(x::PaddedSignal,s::IsSignal) = usepad(x,s,x.pad)
-usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T = convert(T,p)
-usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T = fn(T)
+usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T = BroadcastNum(convert(T,p))
+usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T = BroadcastNum(fn(T))
 
 childsignal(x::PaddedSignal) = x.signal
 
@@ -165,6 +165,7 @@ const use_pad = UsePad()
 
 struct PadCheckpoint{P,C} <: AbstractCheckpoint
     n::Int
+    pad::P
     child::C
 end
 checkindex(c::PadCheckpoint) = c.n
@@ -172,12 +173,12 @@ function checkpoints(x::PaddedSignal,offset,len)
     child_len = nsamples(childsignal(x))
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
     
-    dopad = false
+    p = nothing
     oldchecks = map(child_checks) do child
-        dopad = checkindex(child) > child_len
-        PadCheckpoint{dopad,typeof(child)}(checkindex(child),child)
+        p = checkindex(child) > child_len ? usepad(x) : nothing
+        PadCheckpoint(checkindex(child),p,child)
     end
-    [oldchecks; PadCheckpoint{dopad,Nothing}(offset+len+1,nothing)]
+    [oldchecks; PadCheckpoint(offset+len+1,p,nothing)]
 end
 beforecheckpoint(x::PadCheckpoint,check,len) = 
     beforecheckpoint(x.child,check.child,len)
@@ -185,19 +186,15 @@ aftercheckpoint(x::PadCheckpoint,check,len) =
     aftercheckpoint(x.child,check.child,len)
 
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    i,j,check::PadCheckpoint{false})
+    i,j,check::PadCheckpoint{<:Nothing})
 
     sampleat!(result,x.signal,i,j,check.child)
 end
 
-struct BroadcastNum{T}
-    x::T
-end
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    i,j,check::PadCheckpoint{true})
+    i,j,check::PadCheckpoint)
 
-    val = usepad(x)
-    writesink!(result,i,BroadcastNum(val))
+    writesink!(result,i,check.pad)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)

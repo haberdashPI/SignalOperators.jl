@@ -108,6 +108,10 @@ end
         end
     end
 end
+
+struct BroadcastNum{T}
+    x::T
+end
 @Base.propagate_inbounds function writesink!(result::AbstractArray,i,v::BroadcastNum)
     for ch in 1:size(result,2)
         result[i,ch] = v.x
