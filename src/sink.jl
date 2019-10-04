@@ -112,12 +112,17 @@ end
 struct BroadcastNum{T}
     x::T
 end
-@Base.propagate_inbounds function writesink!(result::AbstractArray,i,v::BroadcastNum)
+
+Base.getindex(x::BroadcastNum,ixs::Int...) = x.x
+@Base.propagate_inbounds function writesink!(result::AbstractArray,i,
+    v::BroadcastNum)
+
     for ch in 1:size(result,2)
         result[i,ch] = v.x
     end
     v
 end
+
 @Base.propagate_inbounds function writesink!(result::AbstractArray,i,v)
     for ch in 1:length(v)
         result[i,ch] = v[ch]
