@@ -267,7 +267,7 @@ function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 
-struct NormedCheckpoint{V,C} <: AbstractCheckpoint
+struct NormedCheckpoint{V} <: AbstractCheckpoint
     n::Int
     vals::V
 end

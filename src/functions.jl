@@ -105,7 +105,7 @@ generator; `rng` defaults to `Random.GLOBAL_RNG`.
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 @Base.propagate_inbounds function sampleat!(result,
-    x::SignalFunction{<:RandFn},i,j,check)
+    x::SignalFunction{<:RandFn,<:Missing},i,j,check)
 
     writesink!(result,i,randn(x.fn.rng))
 end
