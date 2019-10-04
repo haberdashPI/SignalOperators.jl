@@ -93,6 +93,8 @@ end
 struct RandFn{R}
     rng::R
 end
+Base.string(x::RandFn) = "randn"
+
 """
 
 If `fn == randn` no frequency or phase can be specified. Instead there is a
