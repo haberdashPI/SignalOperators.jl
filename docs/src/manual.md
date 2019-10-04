@@ -1,6 +1,6 @@
 # Manual
 
-SignalOperators is a package that aims to provide a clean interface for generating and manipulating regularly sampled signals, typically sounds. 
+SignalOperators is composed of a set of functions for generating, inspecting and operating over signals. Here, a "signal" is represented as a number of channels (e.g. left and right speaker) with values (e.g. `Float64`) sampled regularly in time (e.g. every 100th of a second, or 100 Hz).
 
 ## Key concepts
 
@@ -16,7 +16,7 @@ There are a few things going on here: piping, the use of units, infinite length 
 
 ### Piping
 
-Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument to a signal operator, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
+Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument that function, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
 
 ```julia
 sound1 = signal(sin,ω=1kHz) |> until(5s)
@@ -27,14 +27,14 @@ The use of piping makes it easier to read the sequence of operations that are pe
 
 ### Units
 
-In any place where a signal operator needs a time or a frequency, it can be specified in appropriate units. There are many places where units can be passed. They all have a default assumed unit, if a plain number, without units, is passed. The default units are seconds, Hertz, and radians as appropriate for the given argument.
+In any place where a function needs a time or a frequency, it can be specified in appropriate units. There are many places where units can be passed. They all have a default assumed unit, if a plain number, without units, is passed. The default units are seconds, Hertz, and radians as appropriate for the given argument.
 
 ```julia
 sound1 = signal(sin,ω=1kHz)
 sound1 = signal(sin,ω=1000)
 ```
 
-Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of these units are rexported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported. 
+Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of the default units have been re-exported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported (e.g. you would have to call `SignalOperators.Units: Msamples` before using `20Msamples`). 
 
 !!! note
 
@@ -44,7 +44,7 @@ Note that the output of functions to inspect a signal (e.g. `duration`, `sampler
 
 #### Decibels
 
-You can pass an amplification value as unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. E.g. `amplify(x,2)` will make `x` twice as loud. 
+You can pass an amplification value as a unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. E.g. `amplify(x,2)` will make `x` twice as loud. 
 
 ### Infinite lengths
 
@@ -62,7 +62,7 @@ You may notice that the above signal has no defined sample rate. Such a signal i
 
 ### Sinking
 
-Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default, itself a signal. This means you can pass it to subsequent signal operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
+Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default, itself a signal. This means you can continue to processes it with more operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
 sound1 |> sink("example.wav")
@@ -78,7 +78,7 @@ A final concept, which is not as obvious from the examples, is the use of automa
 
 ## Signal generation
 
-There are four basic types that can be interpreted as signals: numbers, arrays, functions and files. Internally the function [`signal`](@ref) is called on any object passed to a signal operator; you can call this function yourself if you want to specify more information. For example, you want to provide the exact sample rate the signal should be interpreted to have.
+There are four basic types that can be interpreted as signals: numbers, arrays, functions and files. Internally the function [`signal`](@ref) is called on any object passed to a function that inspects or operates on a signal; you can call `signal` yourself if you want to specify more information. For example, you want to provide the exact sample rate the signal should be interpreted to have.
 
 ### Numbers
 
@@ -135,9 +135,9 @@ x = signal("example.wav")
 
 You can examine the properties of a signal using [`nsamples`](@ref), [`nchannels`](@ref), [`samplerate`](@ref), and [`duration`](@ref).
 
-## Signal manipulation
+## Signal operators
 
-There are several categories of signal manipulation: extending, cutting, filtering, ramping, and mapping.
+There are several categories of signal operators: extending, cutting, filtering, ramping, and mapping.
 
 ### Extending
 
@@ -149,6 +149,7 @@ append(x,y) |> duration == duration(x) + duration(y)
 ```
 
 ### Cutting
+
 You can cut signals apart, removing either the end of the signal ([`until`](@ref)) or the beginning ([`after`](@ref)). The operations are exact compliments of one another.
 
 ```julia
@@ -156,6 +157,7 @@ append(until(x,2s),after(x,2s)) |> nsamples == nsamples(x)
 ```
 
 ### Filtering
+
 You can filter signals, removing undesired frequencies using [`lowpass`](@ref), [`highpass`](@ref), [`bandpass`](@ref), [`bandstop`](@ref) and [`filtersignal`](@ref). The latter allows the use of any arbitrary filter defined using `DSP`. 
 
 ```julia
@@ -164,9 +166,9 @@ signal(randn) |> lowpass(20Hz)
 
 !!! warning
 
-    If you use `using DSP` you will have to also call `dB = SignalOperators.Units.dB` if you want to make use of the proper meaning of `dB` for `SignalOperators`: `DSP` also defines a value for `dB`.
+    If you write `using DSP` you will have to also write `dB = SignalOperators.Units.dB` if you want to make use of the proper meaning of `dB` for `SignalOperators`: `DSP` also defines a value for `dB`.
 
-A unusual filter is [`normpower`](@ref): it computes the root mean squared power of the signal and then normalizes each sample by that value.
+An unusual filter is [`normpower`](@ref): it computes the root mean squared power of the signal and then normalizes each sample by that value.
 
 ### Ramping
 

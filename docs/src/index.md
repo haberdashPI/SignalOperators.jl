@@ -36,7 +36,7 @@ y = signal(randn) |> until(1s) |> bandstop(0.5kHz,2kHz) |> normpower |>
   amplify(-20dB)
 scene = mix(x,y)
 
-# write all of the signal to a single file, at 44.1 kHz
+# write all of the signals to a single file, at 44.1 kHz
 append(sound1,sound2,sound3,sound4,scene) |> tosamplerate(44.1kHz) |> sink("examples.wav")
 
 ```
