@@ -1,21 +1,21 @@
 
 """
-    sink([signal],[to=AxisArray];length,samplerate)
+    sink([signal],[to=AxisArray];duration,samplerate)
 
 Creates a given type of object (`to`) from a signal. By default it is an
 `AxisArray` with time as the rows and channels as the columns. If a filename
 is specified for `to`, the signal is written to the given file. If given a
-type (e.g. `Array`) the signal is written to that type. The sample rate does
+type (e.g. `Array`) the signal is written to a value of that type. The sample rate does
 not need to be specified, it will use either the sample rate of `signal` or a
 default sample rate (which raises a warning). 
 
-You can specify a length or samplerate for the signal when calling sink if it
+You can specify a duration or sample rate for the signal when calling sink if it
 has yet to be defined.
 
 """
 sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
 function sink(x::T,::Type{A}=AxisArray;
-        length=missing,
+        duration=missing,
         samplerate=SignalOperators.samplerate(x)) where {T,A}
 
     if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
@@ -23,14 +23,14 @@ function sink(x::T,::Type{A}=AxisArray;
         samplerate = 44.1kHz
     end
     x = signal(x,samplerate)
-    length = coalesce(length,nsamples(x)*samples)
+    duration = coalesce(duration,nsamples(x)*samples)
 
-    if isinf(length)
-        error("Cannot store infinite signal. Specify a length when ",
+    if isinf(duration)
+        error("Cannot store infinite signal. Specify a duration when ",
             "calling `sink`.")
     end
 
-    sink(x,SignalTrait(T),insamples(Int,maybeseconds(length),
+    sink(x,SignalTrait(T),insamples(Int,maybeseconds(duration),
         SignalOperators.samplerate(x)),A)
 end
 

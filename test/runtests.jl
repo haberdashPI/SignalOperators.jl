@@ -91,12 +91,12 @@ test_files = [test_wav,example_wav,examples_wav]
     end
 
     @testset "Function signals" begin
-        @test sink(signal(sin,ω=5Hz,ϕ=π),length=1s,samplerate=20Hz) == 
-            sink(signal(sin,ω=5Hz,ϕ=π*rad),length=1s,samplerate=20Hz)
-        @test sink(signal(sin,ω=5Hz,ϕ=π),length=1s,samplerate=20Hz) == 
-            sink(signal(sin,ω=5Hz,ϕ=100ms),length=1s,samplerate=20Hz)
-        @test sink(signal(sin,ω=5Hz,ϕ=π),length=1s,samplerate=20Hz) == 
-            sink(signal(sin,ω=5Hz,ϕ=180°),length=1s,samplerate=20Hz)
+        @test sink(signal(sin,ω=5Hz,ϕ=π),duration=1s,samplerate=20Hz) == 
+            sink(signal(sin,ω=5Hz,ϕ=π*rad),duration=1s,samplerate=20Hz)
+        @test sink(signal(sin,ω=5Hz,ϕ=π),duration=1s,samplerate=20Hz) == 
+            sink(signal(sin,ω=5Hz,ϕ=100ms),duration=1s,samplerate=20Hz)
+        @test sink(signal(sin,ω=5Hz,ϕ=π),duration=1s,samplerate=20Hz) == 
+            sink(signal(sin,ω=5Hz,ϕ=180°),duration=1s,samplerate=20Hz)
     end
 
     @testset "Sink to arrays" begin
@@ -554,7 +554,7 @@ test_files = [test_wav,example_wav,examples_wav]
     end
 
     @testset "Flexible sample rate / signal interpretation" begin
-        randn |> normpower |> sink(example_wav,length=2s,samplerate=44.1kHz)
+        randn |> normpower |> sink(example_wav,duration=2s,samplerate=44.1kHz)
 
         sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> 
             amplify(-20dB)
