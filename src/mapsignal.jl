@@ -4,7 +4,7 @@ export mapsignal, mix, amplify, addchannel, channel
 ################################################################################
 # binary operators
 
-struct MapSignal{Fn,N,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
+struct MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     fn::Fn
     val::El
     len::L
@@ -22,16 +22,17 @@ function MapSignal(fn::Fn,val::El,len::L,signals::Si,
 
     T = El == NoValues ? Nothing : ntuple_T(El)
     N = El == NoValues ? 0 : length(signals)
+    C = El == NoValues ? 1 : nchannels(signals[1])
     padded_signals = pad.(signals,Ref(padding))
     PSi = typeof(padded_signals)
-    MapSignal{Fn,N,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,samplerate,padding,
+    MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,samplerate,padding,
         padded_signals,blocksize,bychannel)
 end
 
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} = 
+SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} = 
     IsSignal{T,Fs,L}()
 nsamples(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
@@ -108,7 +109,7 @@ SignalOperators.default_pad(::typeof(myfun)) = one
 function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     blocksize=default_blocksize)
 
-    xs = uniform(xs)
+    xs = uniform(xs,channels=true)
     fs = samplerate(xs[1])
     lens = nsamples.(xs) |> collect
     len = all(isinf,lens) ? inflen :
@@ -184,28 +185,66 @@ writesink!(::OneSample,i,val) = val
 # easier (this is exactly what the generated function
 # would produce)
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:Any,2},i,j,check)
+    x::MapSignal{<:FnBr,2,2},i,j,check)
 
     _1 = sampleat!(one_sample,x.padded_signals[1],1,j,check.children[1])
     _2 = sampleat!(one_sample,x.padded_signals[2],1,j,check.children[2])
 
-    y = x.fn(_1,_2)
-    writesink!(result,i,y)
+    y_1 = x.fn(_1[1],_2[1])
+    y_2 = x.fn(_1[2],_2[2])
+    writesink!(result,i,(y_1,y_2))
 end
 
 Base.@propagate_inbounds @generated function sampleat!(result,
-    x::MapSignal{<:Any,N},i,j,check) where N
+    x::MapSignal{<:FnBr,N,C},i,j,check) where {C,N}
 
-   vars = [Symbol(string("_",i)) for i in 1:N] 
-   quote
-        $((:($(vars[i]) = 
-            sampleat!(one_sample,x.padded_signals[$i],1,j,check.children[$i])) 
-                for i in 1:N)...)
+    in_vars = [Symbol(string("in_",i)) for i in 1:N] 
+    out_vars = [Symbol(string("out_",i)) for i in 1:N]
 
-        y = x.fn($(vars...))
+    function fncall(out,ch)
+        :($out = x.fn($((:($(in_vars[i])[ch]) for i in 1:N)...)))
+    end
+
+    if C ≤ 32
+        quote
+            $((:($(in_vars[i]) = 
+                sampleat!(one_sample,x.padded_signals[$i],1,j,
+                    check.children[$i])) for i in 1:N)...)
+
+            $((fncall(out_vars[ch],ch) for ch in 1:C)...)
+            writesink!(result,i,$(Tuple(out_vars)))
+        end
+    else
+        quote
+            $((:($(in_vars[i]) = 
+                sampleat!(one_sample,x.padded_signals[$i],1,j,
+                    check.children[$i])) for i in 1:N)...)
+            
+            channels = Array{}
+            for ch in 1:$C
+
+
+end
+
+Base.@propagate_inbounds @generated function sampleat!(result,
+    x::MapSignal{<:Any,N,C},i,j,check) where {C,N}
+
+    in_vars = [Symbol(string("in_",i)) for i in 1:N] 
+
+    function fncall(out,ch)
+        :($out = x.fn($((:($(in_vars[i])[ch]) for i in 1:N)...)))
+    end
+
+    quote
+        $((:($(in_vars[i]) = 
+            sampleat!(one_sample,x.padded_signals[$i],1,j,
+                check.children[$i])) for i in 1:N)...)
+
+        y = x.fn($in_vars)
         writesink!(result,i,y)
    end
 end
+
 
 default_pad(x) = zero
 default_pad(::typeof(*)) = one
