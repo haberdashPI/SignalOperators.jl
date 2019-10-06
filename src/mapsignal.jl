@@ -132,11 +132,14 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct SignalOpCheckpoint{N,C} <: AbstractCheckpoint
+struct SignalOpCheckpoint{C,Ch} <: AbstractCheckpoint
     leader::Int
     children::C
+    channels::Ch
 end
 checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
+
+const MAX_CHANNEL_STACK = 32
 
 function checkpoints(x::MapSignal,offset,len)
     # generate all children's checkpoints
@@ -163,8 +166,14 @@ function checkpoints(x::MapSignal,offset,len)
 
             if checkindex(child_checks[i][child_indices[i]]) == index
                 children = map(@λ(_[_]),child_checks,child_indices) |> Tuple
-                N,C = ntuple_N(typeof(x.val)),typeof(children)
-                [SignalOpCheckpoint{N,C}(i,children)]
+                C = typeof(children)
+                Ch = ntuple_N(typeof(x.val))
+                if Ch > MAX_CHANNEL_STACK
+                    channels = Array{channel_eltype(x)}(undef,Ch)
+                else
+                    channels = nothing
+                end
+                [SignalOpCheckpoint(i,children,channels)]
             else
                 []
             end
@@ -202,10 +211,10 @@ Base.@propagate_inbounds @generated function sampleat!(result,
     out_vars = [Symbol(string("out_",i)) for i in 1:N]
 
     function fncall(out,ch)
-        :($out = x.fn($((:($(in_vars[i])[ch]) for i in 1:N)...)))
+        :($out = x.fn($((:($(in_vars[i])[$ch]) for i in 1:N)...)))
     end
 
-    if C ≤ 32
+    if C ≤ MAX_CHANNEL_STACK
         quote
             $((:($(in_vars[i]) = 
                 sampleat!(one_sample,x.padded_signals[$i],1,j,
@@ -220,10 +229,12 @@ Base.@propagate_inbounds @generated function sampleat!(result,
                 sampleat!(one_sample,x.padded_signals[$i],1,j,
                     check.children[$i])) for i in 1:N)...)
             
-            channels = Array{}
             for ch in 1:$C
-
-
+                check.channels[ch] = x.fn($((:($(in_vars[i])[ch]) for i in 1:N)...))
+            end
+            writesink!(reuslt,i,check.channels)
+        end
+    end
 end
 
 Base.@propagate_inbounds @generated function sampleat!(result,
