@@ -1,5 +1,5 @@
 module SignalOperators
-using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting
+using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting, FillArrays
 
 using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
 

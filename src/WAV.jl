@@ -1,10 +1,10 @@
 using .WAV
 
 sink(to::String;kwds...) = x -> sink(x,to;kwds...)
-function sink(x,to::String;length=missing,
+function sink(x,to::String;duration=missing,
     samplerate=SignalOperators.samplerate(x))
 
-    data = sink(x,length=length,samplerate=samplerate)
+    data = sink(x,duration=duration,samplerate=samplerate)
     wavwrite(data,to,Fs=round(Int,SignalOperators.samplerate(data)))
 end
 

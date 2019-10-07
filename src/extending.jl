@@ -154,8 +154,10 @@ end
 
 usepad(x::PaddedSignal) = usepad(x,SignalTrait(x))
 usepad(x::PaddedSignal,s::IsSignal) = usepad(x,s,x.pad)
-usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T = BroadcastNum(convert(T,p))
-usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T = BroadcastNum(fn(T))
+usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T =
+    Fill(convert(T,p),nchannels(x.signal))
+usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T =
+    Fill(fn(T),nchannels(x.signal))
 
 childsignal(x::PaddedSignal) = x.signal
 

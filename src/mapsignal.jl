@@ -109,7 +109,7 @@ SignalOperators.default_pad(::typeof(myfun)) = one
 function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     blocksize=default_blocksize)
 
-    xs = uniform(xs,channels=true)
+    xs = uniform(xs,channels=bychannel)
     fs = samplerate(xs[1])
     lens = nsamples.(xs) |> collect
     len = all(isinf,lens) ? inflen :

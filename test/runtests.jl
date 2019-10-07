@@ -170,6 +170,14 @@ test_files = [test_wav,example_wav,examples_wav]
         complex = mix(a,b)
         @test duration(complex) == 5
         @test length(sink(complex)) == 500
+
+        x = rand(20,SignalOperators.MAX_CHANNEL_STACK+1)
+        y = rand(20,SignalOperators.MAX_CHANNEL_STACK+1)
+        @test (mix(x,y) |> sink(samplerate=20Hz)) == (x .+ y)
+
+        x = rand(20,2)
+        result = mapsignal(reverse,x,bychannel=false) |> sink(samplerate=20Hz)
+        @test result == [x[:,2] x[:,1]]
     end 
 
     @testset "Filtering" begin
@@ -385,8 +393,9 @@ test_files = [test_wav,example_wav,examples_wav]
 
         x = rand(10,2)
         y = rand(5,2)
-        result = signal(x,10Hz) |> addchannel(y) |> sink
-        @test all(iszero,result[6:10,3:4])
+        z = ones(10,4)
+        signal(x,10Hz) |> addchannel(y) |> sink!(z)
+        @test all(iszero,z[6:10,3:4])
     end
 
     @testset "Handling of infinite signals" begin
@@ -486,13 +495,13 @@ test_files = [test_wav,example_wav,examples_wav]
             "5×2 Array{Float64,2}: … |> filtersignal(")
         
         @test x |> ramp |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s) |> rampoff(0.01 s)"
+            "rampoff_fn(0.01) (10.0 Hz) |>\n    tochannels(2) |> amplify(rampon_fn(0.01) (10.0 Hz) |> tochannels(2) |>\n                                 amplify(100×2 Array{Float64,2}: … (10.0 Hz)))"
         @test x |> ramp(identity) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    rampon(0.01 s, identity) |> rampoff(0.01 s, identity)"
+            "rampoff_fn(0.01,identity) (10.0 Hz) |> tochannels(2) |>\n    amplify(rampon_fn(0.01,identity) (10.0 Hz) |>\n                tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)))"
         @test x |> fadeto(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(50×2 Array{Float64,2}: … (10.0 Hz) |> rampon(0.01 s)))"
+            "rampoff_fn(0.01) (10.0 Hz) |>\n    tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(rampon_fn(0.01) (10.0 Hz) |> tochannels(2) |>\n                       amplify(50×2 Array{Float64,2}: … (10.0 Hz))))"
         @test x |> fadeto(y,identity) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> rampoff(0.01 s, identity) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |>\n            tochannels(2) |> append(50×2 Array{Float64,2}: … (10.0 Hz) |>\n                                        rampon(0.01 s, identity)))"
+            "rampoff_fn(0.01,identity) (10.0 Hz) |>\n    tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(rampon_fn(0.01,identity) (10.0 Hz) |> tochannels(2) |>\n                       amplify(50×2 Array{Float64,2}: … (10.0 Hz))))"
     end
 
     @testset "Handle fixed point numbers" begin    
@@ -517,8 +526,8 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
         
-        @test x |> ramp |> sink |> nsamples == 100
-        @test x |> fadeto(y) |> sink |> nsamples > 100
+        @test_throws InexactError x |> ramp |> sink |> nsamples
+        @test_throws InexactError x |> fadeto(y) |> sink |> nsamples
     end
 
     @testset "Handle unknown sample rates" begin    

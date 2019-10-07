@@ -43,7 +43,7 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
 end
 
 @Base.propagate_inbounds sampleat!(result,x::SignalFunction,i,j,check) =
-    writesink!(result,i,x.fn(2π*((t/x.samplerate*x.ω + x.ϕ) % 1)))
+    writesink!(result,i,x.fn(2π*((j/x.samplerate*x.ω + x.ϕ) % 1)))
 
 @Base.propagate_inbounds sampleat!(result,
     x::SignalFunction{<:Any,Missing},i,j,check) =
@@ -105,7 +105,7 @@ generator; `rng` defaults to `Random.GLOBAL_RNG`.
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 @Base.propagate_inbounds function sampleat!(result,
-    x::SignalFunction{<:RandFn,<:Missing},i,j,check)
+    x::SignalFunction{<:RandFn,Missing},i,j,check)
 
     writesink!(result,i,randn(x.fn.rng))
 end

@@ -1,6 +1,8 @@
 
 export rampon, rampoff, ramp, fadeto, sinramp
 
+sinramp(x) = sinpi(0.5x)
+
 function rampon_fn(x,len,fun)
     time = inseconds(Float64,len,samplerate(x))
     RampOnFn(fun,time)
@@ -11,8 +13,8 @@ struct RampOnFn{Fn,T} <: Functor
 end
 (fn::RampOnFn)(t) =
     t ≤ fn.time ? fn.ramp(t/fn.time) : 1.0
-
-sinramp(x) = sinpi(0.5x)
+Base.string(x::RampOnFn{<:typeof(sinramp)}) = string("rampon_fn(",x.time,")")
+Base.string(x::RampOnFn) = string("rampon_fn(",x.time,",",x.ramp,")")
 
 """
 
@@ -53,6 +55,8 @@ struct RampOffFn{Fn,S,T} <: Functor
 end
 (fn::RampOffFn)(t) =
     t < fn.ramp_start ? 1.0 : fn.ramp(1.0 - (t-fn.ramp_start)/fn.time)
+Base.string(x::RampOffFn{<:typeof(sinramp)}) = string("rampoff_fn(",x.time,")")
+Base.string(x::RampOffFn) = string("rampoff_fn(",x.time,",",x.ramp,")")
 
 """
 
@@ -73,27 +77,6 @@ rampoff(len::Number=10ms,fun::Function=sinramp) = x -> rampoff(x,len,fun)
 function rampoff(x,len::Number=10ms,fun::Function=sinramp)
     x = signal(x)
     signal(rampoff_fn(x,len,fun),samplerate(x)) |> amplify(x)
-end
-
-const RampOp{Fn} = MapSignal{<:FnBr{<:typeof(*)},<:Any,<:Any,<:Any,<:Any,<:Any,
-    <:Tuple{<:SignalFunction{<:Fn},<:Any}}
-    
-function PrettyPrinting.tile(x::RampOp{<:RampOffFn{<:typeof(sinramp)}})
-    tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampoff(",x.signals[1].fn.time," s)")) )
-end
-function PrettyPrinting.tile(x::RampOp{<:RampOffFn})
-    tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampoff(",x.signals[1].fn.time," s, ",x.signals[1].fn.ramp,")")) )
-end
-
-function PrettyPrinting.tile(x::RampOp{<:RampOnFn{<:typeof(sinramp)}})
-    tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampon(",x.signals[1].fn.time," s)")) )
-end
-function PrettyPrinting.tile(x::RampOp{<:RampOnFn})
-    tilepipe(signaltile(x.signals[2]), 
-        literal(string("rampon(",x.signals[1].fn.time," s, ",x.signals[1].fn.ramp,")")) )
 end
 
 """
