@@ -26,6 +26,13 @@ end
 suite["baseline"]["functions"] = @benchmarkable begin
     sinpi.(range(0,step=1/1000,length=10^4) .* (2*10))
 end
+suite["signal"]["numbers"] = @benchmarkable begin
+    1 |> sink(duration=10_000samples,samplerate=1000Hz)
+end
+suite["baseline"]["numbers"] = @benchmarkable begin
+    ones(10_000)
+end
+
 suite["signal"]["cutting"] = @benchmarkable begin
     x |> until(5*10^3*samples) |> sink(samplerate=1000Hz)
 end
