@@ -132,14 +132,13 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct SignalOpCheckpoint{C,Ch} <: AbstractCheckpoint
+struct SignalOpCheckpoint{C,Ch,I} <: AbstractCheckpoint
     leader::Int
     children::C
     channels::Ch
+    inputs::I
 end
 checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
-
-const MAX_CHANNEL_STACK = 32
 
 function checkpoints(x::MapSignal,offset,len)
     # generate all children's checkpoints
@@ -166,13 +165,15 @@ function checkpoints(x::MapSignal,offset,len)
 
             if checkindex(child_checks[i][child_indices[i]]) == index
                 children = map(@λ(_[_]),child_checks,child_indices) |> Tuple
-                C = typeof(children)
-                Ch = ntuple_N(typeof(x.val))
-                if Ch > MAX_CHANNEL_STACK
-                    channels = Array{channel_eltype(x)}(undef,Ch)
+
+                nch = ntuple_N(typeof(x.val))
+                if nch > MAX_CHANNEL_STACK
+                    channels = Array{channel_eltype(x)}(undef,nch)
                 else
                     channels = nothing
                 end
+
+                if 
                 [SignalOpCheckpoint(i,children,channels)]
             else
                 []
@@ -230,7 +231,8 @@ Base.@propagate_inbounds @generated function sampleat!(result,
                     check.children[$i])) for i in 1:N)...)
             
             for ch in 1:$C
-                check.channels[ch] = x.fn($((:($(in_vars[i])[ch]) for i in 1:N)...))
+                check.channels[ch] = x.fn($((:($(in_vars[i])[ch]) 
+                    for i in 1:N)...))
             end
             writesink!(reuslt,i,check.channels)
         end
