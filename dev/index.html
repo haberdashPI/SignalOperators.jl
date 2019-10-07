@@ -24,6 +24,6 @@ y = signal(randn) |&gt; until(1s) |&gt; bandstop(0.5kHz,2kHz) |&gt; normpower |&
   amplify(-20dB)
 scene = mix(x,y)
 
-# write all of the signal to a single file, at 44.1 kHz
+# write all of the signals to a single file, at 44.1 kHz
 append(sound1,sound2,sound3,sound4,scene) |&gt; tosamplerate(44.1kHz) |&gt; sink(&quot;examples.wav&quot;)
 </code></pre><h2><a class="nav-anchor" id="Acknowledgements-1" href="#Acknowledgements-1">Acknowledgements</a></h2><p>Many thanks to @ssfrr for some great discussions during this <a href="https://github.com/JuliaAudio/SampledSignals.jl/pull/44">PR</a>, and related issues on the <a href="https://github.com/JuliaAudio/SampledSignals.jl">SampledSignals</a> package. Those interactions definitely influenced my final design here.</p><footer><hr/><a class="next" href="manual/"><span class="direction">Next</span><span class="title">Manual</span></a></footer></article></body></html>
