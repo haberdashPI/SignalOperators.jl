@@ -93,6 +93,12 @@ git-tree-sha1 = "351f001a78aa1b7ad2696e386e110b5abd071c71"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.0.7"
 
+[[FillArrays]]
+deps = ["LinearAlgebra", "Random", "SparseArrays"]
+git-tree-sha1 = "16974065d5bfa867446d3228bc63f05a440e910b"
+uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
+version = "0.7.2"
+
 [[FixedPointNumbers]]
 git-tree-sha1 = "d14a6fa5890ea3a7e5dcab6811114f132fec2b4b"
 uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
@@ -179,6 +185,12 @@ git-tree-sha1 = "62142bd65d3f8aeb2226ec64dd8493349147df94"
 uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 version = "0.5.2"
 
+[[PrettyPrinting]]
+deps = ["Markdown", "Pkg"]
+git-tree-sha1 = "d81528303e2715c32706d4519b2ddf0550805533"
+uuid = "54e16d92-306c-5ea0-a30b-337be88ac337"
+version = "0.1.0"
+
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
@@ -220,10 +232,10 @@ deps = ["Distributed", "Mmap", "Random", "Serialization"]
 uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
 [[SignalOperators]]
-deps = ["AxisArrays", "Compat", "DSP", "FileIO", "FixedPointNumbers", "LambdaFn", "MetaArrays", "Random", "Requires", "Statistics", "Unitful", "WAV"]
+deps = ["AxisArrays", "Compat", "DSP", "FileIO", "FillArrays", "LambdaFn", "MetaArrays", "PrettyPrinting", "Random", "Requires", "Statistics", "Unitful"]
 path = ".."
 uuid = "4d633899-0529-4c96-b1ed-a77d049c39ef"
-version = "0.1.0"
+version = "0.1.2"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"

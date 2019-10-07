@@ -11,7 +11,6 @@ makedocs(;
     repo="https://github.com/haberdashPI/SignalOperators.jl/blob/{commit}{path}#L{line}",
     sitename="SignalOperators.jl",
     authors="David Little",
-    assets=String[],
 )
 
 deploydocs(;
