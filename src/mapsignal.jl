@@ -132,10 +132,10 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct SignalOpCheckpoint{C,Ch} <: AbstractCheckpoint
+struct SignalOpCheckpoint{Ch,C} <: AbstractCheckpoint
     leader::Int
-    children::C
     channels::Ch
+    children::C
 end
 checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
 
@@ -168,13 +168,13 @@ function checkpoints(x::MapSignal,offset,len)
                 children = map(@λ(_[_]),child_checks,child_indices) |> Tuple
 
                 nch = ntuple_N(typeof(x.val))
-                if nch > MAX_CHANNEL_STACK
+                if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
                     channels = Array{channel_eltype(x)}(undef,nch)
                 else
                     channels = nothing
                 end
 
-                [SignalOpCheckpoint(i,children,channels)]
+                [SignalOpCheckpoint(i,channels,children)]
             else
                 []
             end
@@ -216,84 +216,33 @@ function __sample_signals(j::Int,sigs::Tuple,checks::Tuple,::Val{N}) where N
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:FnBr,N,C},i,j,check) where {N,C}
+    x::MapSignal{<:FnBr,N,C},i,j,check::SignalOpCheckpoint{<:Nothing}) where {N,C}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
-    if C ≤ MAX_CHANNEL_STACK
-        channels = map(trange(Val{C}())) do ch
-            x.fn(map(@λ(_[ch]),inputs)...)
-        end
-        writesink!(result,i,channels)
-    else
-        map!(check.channels,1:C) do ch
-            x.fn(map(@λ(_[ch]),inputs)...)
-        end
-        writesink!(result,i,check.channels)
+
+    channels = map(trange(Val{C}())) do ch
+        x.fn(map(@λ(_[ch]),inputs)...)
     end
+    writesink!(result,i,channels)
+end
+
+Base.@propagate_inbounds function sampleat!(result,
+    x::MapSignal{<:FnBr,N,C},i,j,check::SignalOpCheckpoint{<:Array}) where {N,C}
+
+    inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
+
+    map!(check.channels,1:C) do ch
+        x.fn(map(@λ(_[ch]),inputs)...)
+    end
+    writesink!(result,i,check.channels)
 end
 
 Base.@propagate_inbounds function sampleat!(result,
     x::MapSignal{<:Any,N},i,j,check) where N
 
-    inputs = map(trange(N)) do i
-        sampleat!(one_sample,x.padded_signals[i],1,j,check.children[i])
-    end
+    inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
     writesink!(result,i,x.fn(inputs...))
 end
-
-# Base.@propagate_inbounds @generated function sampleat!(result,
-#     x::MapSignal{<:FnBr,N,C},i,j,check) where {C,N}
-
-#     in_vars = [Symbol(string("in_",i)) for i in 1:N] 
-#     out_vars = [Symbol(string("out_",i)) for i in 1:N]
-
-#     function fncall(out,ch)
-#         :($out = x.fn($((:($(in_vars[i])[$ch]) for i in 1:N)...)))
-#     end
-
-#     if C ≤ MAX_CHANNEL_STACK
-#         quote
-#             $((:($(in_vars[i]) = 
-#                 sampleat!(one_sample,x.padded_signals[$i],1,j,
-#                     check.children[$i])) for i in 1:N)...)
-
-#             $((fncall(out_vars[ch],ch) for ch in 1:C)...)
-#             writesink!(result,i,$(Tuple(out_vars)))
-#         end
-#     else
-#         quote
-#             $((:($(in_vars[i]) = 
-#                 sampleat!(one_sample,x.padded_signals[$i],1,j,
-#                     check.children[$i])) for i in 1:N)...)
-            
-#             for ch in 1:$C
-#                 check.channels[ch] = x.fn($((:($(in_vars[i])[ch]) 
-#                     for i in 1:N)...))
-#             end
-#             writesink!(reuslt,i,check.channels)
-#         end
-#     end
-# end
-
-# Base.@propagate_inbounds @generated function sampleat!(result,
-#     x::MapSignal{<:Any,N,C},i,j,check) where {C,N}
-
-#     in_vars = [Symbol(string("in_",i)) for i in 1:N] 
-
-#     function fncall(out,ch)
-#         :($out = x.fn($((:($(in_vars[i])[ch]) for i in 1:N)...)))
-#     end
-
-#     quote
-#         $((:($(in_vars[i]) = 
-#             sampleat!(one_sample,x.padded_signals[$i],1,j,
-#                 check.children[$i])) for i in 1:N)...)
-
-#         y = x.fn($in_vars)
-#         writesink!(result,i,y)
-#    end
-# end
-
 
 default_pad(x) = zero
 default_pad(::typeof(*)) = one
