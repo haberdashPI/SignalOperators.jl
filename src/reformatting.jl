@@ -1,5 +1,5 @@
 using DSP: FIRFilter, resample_filter
-export tosamplerate, tochannels, format, uniform
+export tosamplerate, tochannels, format, uniform, toeltype
 
 """
 
