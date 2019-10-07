@@ -132,12 +132,12 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct SignalOpCheckpoint{Ch,C} <: AbstractCheckpoint
+struct MapSignalCheckpoint{Ch,C} <: AbstractCheckpoint
     leader::Int
     channels::Ch
     children::C
 end
-checkindex(x::SignalOpCheckpoint) = checkindex(x.children[x.leader])
+checkindex(x::MapSignalCheckpoint) = checkindex(x.children[x.leader])
 
 const MAX_CHANNEL_STACK = 64
 
@@ -174,16 +174,16 @@ function checkpoints(x::MapSignal,offset,len)
                     channels = nothing
                 end
 
-                [SignalOpCheckpoint(i,channels,children)]
+                [MapSignalCheckpoint(i,channels,children)]
             else
                 []
             end
         end
     end
 end
-beforecheckpoint(x::MapSignal,check::SignalOpCheckpoint,len) =
+beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len) =
     beforecheckpoint(x,check.children[check.leader],len)
-aftercheckpoint(x::MapSignal,check::SignalOpCheckpoint,len) =
+aftercheckpoint(x::MapSignal,check::MapSignalCheckpoint,len) =
     aftercheckpoint(x,check.children[check.leader],len)
 
 struct OneSample
@@ -216,7 +216,7 @@ function __sample_signals(j::Int,sigs::Tuple,checks::Tuple,::Val{N}) where N
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:FnBr,N,C},i,j,check::SignalOpCheckpoint{<:Nothing}) where {N,C}
+    x::MapSignal{<:FnBr,N,C},i,j,check::MapSignalCheckpoint{<:Nothing}) where {N,C}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
 
@@ -227,7 +227,7 @@ Base.@propagate_inbounds function sampleat!(result,
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:FnBr,N,C},i,j,check::SignalOpCheckpoint{<:Array}) where {N,C}
+    x::MapSignal{<:FnBr,N,C},i,j,check::MapSignalCheckpoint{<:Array}) where {N,C}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
 
