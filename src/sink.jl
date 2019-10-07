@@ -30,7 +30,7 @@ function sink(x::T,::Type{A}=AxisArray;
             "calling `sink`.")
     end
 
-    sink(x,SignalTrait(T),insamples(Int,maybeseconds(duration),
+    sink(x,SignalTrait(x),insamples(Int,maybeseconds(duration),
         SignalOperators.samplerate(x)),A)
 end
 
