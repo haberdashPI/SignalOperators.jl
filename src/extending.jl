@@ -40,7 +40,7 @@ function append(xs...)
     El = promote_type(channel_eltype.(xs)...)
     xs = map(xs) do x
         if channel_eltype(x) != El
-            toeltype(x)
+            toeltype(x,El)
         else
             x
         end

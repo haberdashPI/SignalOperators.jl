@@ -101,7 +101,8 @@ mapstring(fn::ToEltypeFn{El}) where El = string("toeltype(",El,")")
 
 Converts individual samples in signal `x` to type `T`.
 """
-toeltype(x,::Type{T}) where T = mapsignal(ToEltypeFn{T},x)
+toeltype(::Type{T}) where T = x -> toeltype(x,T)
+toeltype(x,::Type{T}) where T = mapsignal(ToEltypeFn{T}(),x)
 
 """
 
