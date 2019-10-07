@@ -74,7 +74,15 @@ warning.
 
 ### Signal promotion
 
-A final concept, which is not as obvious from the examples, is the use of automatic signal promotion. When multiple signals are passed to the same operator, and they have a different element type (e.g. `Float32` vs `Float64`), different number of channels, or different sample rate, the signals are first converted to the highest fidelity format and then operated on. This allows for a relatively seamless chain of operations where you don't have to worry about the specific format of the signal, and you won't loose information about your signals unless you explicitly request a lower fidelity signal format (e.g. using [`tochannels`](@ref) or [`tosamplerate`](@ref)). 
+A final concept, which is not as obvious from the examples, is the use of
+automatic signal promotion. When multiple signals are passed to the same
+operator, and they have a different number of channels, or different sample
+rate, the signals are first converted to the highest fidelity format and then
+operated on. This allows for a relatively seamless chain of operations where
+you don't have to worry about the specific format of the signal, and you
+won't loose information about your signals unless you explicitly request a
+lower fidelity signal format (e.g. using [`tochannels`](@ref) or
+[`tosamplerate`](@ref)).
 
 ## Signal generation
 

@@ -30,10 +30,6 @@ Prepend the series of signals: `prepend(xs...) == append(reverse(xs)...)`.
 """
 prepend(x) = y -> append(x,y)
 prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))
-struct ToEltypeFn{El}
-end
-(fn::ToEltypeFn{El})(x) where El = convert(El,x)
-mapstring(fn::ToEltypeFn{El}) where El = string("aseltype{",El,"}")
 
 function append(xs...)
     if any(isinf ∘ nsamples,xs[1:end-1])
@@ -44,7 +40,7 @@ function append(xs...)
     El = promote_type(channel_eltype.(xs)...)
     xs = map(xs) do x
         if channel_eltype(x) != El
-            mapsignal(ToEltypeFn{El}(),x)
+            toeltype(x)
         else
             x
         end

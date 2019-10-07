@@ -22,6 +22,7 @@ samplerate
 ```@docs
 tosamplerate
 tochannels
+toeltype
 format
 uniform
 ```

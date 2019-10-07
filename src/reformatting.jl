@@ -90,6 +90,19 @@ function tochannels(x,::IsSignal,ch)
     end
 end
 
+
+struct ToEltypeFn{El}
+end
+(fn::ToEltypeFn{El})(x) where El = convert(El,x)
+mapstring(fn::ToEltypeFn{El}) where El = string("toeltype(",El,")")
+
+"""
+    toeltype(x,T)
+
+Converts individual samples in signal `x` to type `T`.
+"""
+toeltype(x,::Type{T}) where T = mapsignal(ToEltypeFn{T},x)
+
 """
 
     format(x,fs,ch)
