@@ -48,7 +48,7 @@ The functions are relatively stable and thoroughly documented.
 
 Everything here will run pretty fast. All calls should fall within the same order of magnitude of equivalent "raw" julia code performing the same operations.
 
-I'm the only person I know who has made use thorough use of this package: so it's obviously possible there are still some bugs or performance issues lurking about. (Please feel free to submit issues!!)
+I'm the only person I know who has made thorough use of this package: so it's obviously possible there are still some bugs or performance issues lurking about. (Please feel free to submit issues!!)
 
 ## Acknowledgements
 
