@@ -67,7 +67,10 @@ Apply `fn` across the samples of arguments, producing a signal of the output
 of `fn`. Shorter signals are padded to accommodate the longest finite-length
 signal. The function `fn` should treat each argument as a single number and
 return a single number. This operation is broadcast across all channels of
-the input. It is expected to be a type stable function.
+the input. It is expected to be a type stable function. 
+
+Normally the signals are first promoted to have the same samle rate and the
+same number of channels using [`unify`](@ref) (with `channels=true`).
 
 ## Cross-channel functions
 
@@ -76,7 +79,7 @@ each channel separately you can set `bychannel=false`. In this case the
 inputs to `fn` will be objects supporting `getindex` (tuples or arrays) of
 all channel values for a given sample, and `fn` should return a type-stable
 tuple value (for a multi-channle or single-channel result) or a number (for a
-signle-channel result only). For example, the following would swap the left
+single-channel result only). For example, the following would swap the left
 and right channels.
 
 ```julia
@@ -85,6 +88,9 @@ swapped = mapsignal(x,bychannel=false) do (left,right)
     right,left
 end
 ```
+
+When `bychannel=false` the channels of each signal are not promoted:
+[`unify`](@ref) is called with `channels=false`.
 
 ## Padding
 

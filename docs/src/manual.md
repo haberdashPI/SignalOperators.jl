@@ -16,7 +16,7 @@ There are a few things going on here: piping, the use of units, infinite length 
 
 ### Piping
 
-Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument that function, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
+Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument to a function, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
 
 ```julia
 sound1 = signal(sin,ω=1kHz) |> until(5s)
@@ -44,11 +44,11 @@ Note that the output of functions to inspect a signal (e.g. `duration`, `sampler
 
 #### Decibels
 
-You can pass an amplification value as a unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. E.g. `amplify(x,2)` will make `x` twice as loud. 
+You can pass an amplification value as a unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. For example, `amplify(x,2)` will make `x` twice as loud. 
 
 ### Infinite lengths
 
-Some of the ways you can define a signal lead to an infinite length signal. You cannot store an infinite signal. It is represented as a function of some kind. Operations on signals are generally lazy, meaning the samples of the signal aren't computed until necessary. To allow actual data to be created from a signal, you have to specify the length, using [`until`](@ref). For example, when using `signal(sin)`, the signal is an infinite length sine wave. That's why, in the example above we use [`until`](@ref) to specify the length, like so: 
+Some of the ways you can define a signal lead to an infinite length signal. You cannot store an infinite signal. It is represented as a function of some kind. Operations on signals are generally lazy, meaning the samples of the signal aren't computed until necessary. To allow actual data to be created from a signal, you have to specify the length, using [`until`](@ref). For example, when using `signal(sin)`, the signal is an infinite length sine wave. That's why, in the example above, we use [`until`](@ref) to specify the length, as follows.
 
 ```julia
 signal(sin,ω=1kHz) |> until(5s)
@@ -62,7 +62,7 @@ You may notice that the above signal has no defined sample rate. Such a signal i
 
 ### Sinking
 
-Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). The resulting value is, by default, itself a signal. This means you can continue to processes it with more operators. The function [`sink`](@ref) is also used to create a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
+Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). When `sink` is simply passed a signal, the resulting value is itself a signal. This means you can continue to processes it with more operators. The function [`sink`](@ref) can also write data to a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
 sound1 |> sink("example.wav")
@@ -76,7 +76,7 @@ warning.
 
 A final concept, which is not as obvious from the examples, is the use of
 automatic signal promotion. When multiple signals are passed to the same
-operator, and they have a different number of channels, or different sample
+operator, and they have a different number of channels or different sample
 rate, the signals are first converted to the highest fidelity format and then
 operated on. This allows for a relatively seamless chain of operations where
 you don't have to worry about the specific format of the signal, and you
@@ -86,7 +86,12 @@ lower fidelity signal format (e.g. using [`tochannels`](@ref) or
 
 ## Signal generation
 
-There are four basic types that can be interpreted as signals: numbers, arrays, functions and files. Internally the function [`signal`](@ref) is called on any object passed to a function that inspects or operates on a signal; you can call `signal` yourself if you want to specify more information. For example, you want to provide the exact sample rate the signal should be interpreted to have.
+There are four basic types that can be interpreted as signals: numbers,
+arrays, functions and files. Internally the function [`signal`](@ref) is
+called on any object passed to a function that inspects or operates on a
+signal; you can call [`signal`](@ref) yourself if you want to specify more
+information. For example, you want to provide the exact sample rate the
+signal should be interpreted to have.
 
 ### Numbers
 
@@ -98,7 +103,7 @@ A number is treated as an infinite length signal, with unknown sample rate.
 
 ### Arrays
 
-A standard array is treated as a finite signal, with unknown sample rate.
+A standard array is treated as a finite signal with unknown sample rate.
 
 ```julia
 rand(10,2) |> sink(samplerate=10Hz) |> duration == 1
@@ -114,10 +119,10 @@ samplerate(x) == 10
 
 ### Functions
 
-A function can be treated as an infinite signal. It should take a single
-argument which is the time. This value is in radians if you specify a
-frequency using `ω` (or `frequency`), otherwise the input is in seconds. See
-[`signal`](@ref)'s documentation for more details.
+A single argument function of time (in seconds) can be treated as an infinite
+signal. It can be also be a function of radians if you specify a frequency
+using `ω` (or `frequency`). See [`signal`](@ref)'s documentation for more
+details.
 
 ```julia
 signal(sin,ω=1kHz) |> duration |> isinf == true
@@ -131,7 +136,7 @@ randn |> duration == isinf
 
 ### Files
 
-A file is interpreted as a `wav` audio file to be loaded into memory. You must
+A file is interpreted as a WAV audio file to be loaded into memory. You must
 include the `WAV` package for this to work.
 
 ```julia
