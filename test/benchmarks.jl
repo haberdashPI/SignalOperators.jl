@@ -21,7 +21,7 @@ y = rand(rng,10^4,2)
 suite["signal"]["sinking"] = @benchmarkable signal(x,1000Hz) |> sink
 suite["baseline"]["sinking"] = @benchmarkable copy(x)
 suite["signal"]["functions"] = @benchmarkable begin
-    signal(sin,ω=10Hz) |> sink(length=10^4*samples,samplerate=1000Hz)
+    signal(sin,ω=10Hz) |> sink(duration=10_000samples,samplerate=1000Hz)
 end
 suite["baseline"]["functions"] = @benchmarkable begin
     sinpi.(range(0,step=1/1000,length=10^4) .* (2*10))
@@ -40,27 +40,27 @@ suite["baseline"]["appending"] = @benchmarkable vcat($x,$y)
 suite["signal"]["mapping"] = @benchmarkable sink(mix($x,$y),samplerate=1000Hz)
 suite["baseline"]["mapping"] = @benchmarkable $x .+ $y
 
-# suite["signal"]["filtering"] = @benchmarkable begin
-#     lowpass($x,20Hz) |> sink(samplerate=1000Hz)
-# end
-# suite["signal"]["filtering"] = @benchmarkable begin
-#     filt(digitalfilter(Lowpass(20,Fs=1000),Butterworth(5)),$x)
-# end
+suite["signal"]["filtering"] = @benchmarkable begin
+    lowpass($x,20Hz) |> sink(samplerate=1000Hz)
+end
+suite["baseline"]["filtering"] = @benchmarkable begin
+    filt(digitalfilter(Lowpass(20,fs=1000),Butterworth(5)),$x)
+end
 
-# paramspath = joinpath(@__DIR__,"params.json")
+paramspath = joinpath(@__DIR__,"params.json")
 
-# if isfile(paramspath)
-#     loadparams!(suite, BenchmarkTools.load(paramspath)[1], :evals)
-# else
-#     tune!(suite)
-#     BenchmarkTools.save(paramspath, params(suite))
-# end
+if isfile(paramspath)
+    loadparams!(suite, BenchmarkTools.load(paramspath)[1], :evals)
+else
+    tune!(suite)
+    BenchmarkTools.save(paramspath, params(suite))
+end
 
 result = run(suite)
 
 for case in keys(result["signal"])
-    m1 = median(result["signal"][case])
-    m2 = median(result["baseline"][case])
+    m1 = minimum(result["signal"][case])
+    m2 = minimum(result["baseline"][case])
     println("")
     println("Ratio to bare julia for $case: ")
     println("----------------------------------------")
