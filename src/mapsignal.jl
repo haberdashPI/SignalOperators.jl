@@ -188,7 +188,7 @@ aftercheckpoint(x::MapSignal,check::SignalOpCheckpoint,len) =
 
 struct OneSample
 end
-one_sample = OneSample()
+const one_sample = OneSample()
 writesink!(::OneSample,i,val) = val
 
 # expand the N == 2 case just to amke debugging
@@ -209,33 +209,28 @@ writesink!(::OneSample,i,val) = val
 trange(::Val{N}) where N = (trange(Val(N-1))...,N)
 trange(::Val{1}) = (1,)
 
-# TODO: type instability arises because indexing into x.padded_signals[i] in
-# the body 5 could lead to either child being returned (from a purely type
-# focused view where the value of i is unknown). We could possibly do a type
-# assertion here, since we know what i is.
+__sample_signals(::Int,::Tuple,::Tuple,::Val{0}) = ()
+function __sample_signals(j::Int,sigs::Tuple,checks::Tuple,::Val{N}) where N
+    (__sample_signals(j,sigs,checks,Val{N-1}())...,
+        sampleat!(one_sample,sigs[N],1,j,checks[N]))
+end
 
 Base.@propagate_inbounds function sampleat!(result,
     x::MapSignal{<:FnBr,N,C},i,j,check) where {N,C}
 
-    inputs = map(trange(Val{N}())) do i
-        sampleat!(one_sample,x.padded_signals[i],1,j,check.children[i])
-    end
-    inputs::
+    inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
     if C ≤ MAX_CHANNEL_STACK
         channels = map(trange(Val{C}())) do ch
-            x.fn(map(i -> inputs[i][ch],trange(Val{N}()))...)
+            x.fn(map(@λ(_[ch]),inputs)...)
         end
         writesink!(result,i,channels)
     else
         map!(check.channels,1:C) do ch
-            x.fn(map(i -> inputs[i][ch],trange(Val{N}()))...)
+            x.fn(map(@λ(_[ch]),inputs)...)
         end
         writesink!(result,i,check.channels)
     end
 end
-Tuple{
-    Union{SignalOperators.BroadcastNum{Float64}, AxisArrays.AxisArray{Float64,1,SubArray{Float64,1,Array{Float64,2},Tuple{Int64,Base.Slice{Base.OneTo{Int64}}},true},Tuple{AxisArrays.Axis{:channel,UnitRange{Int64}}}}},
-    Union{SignalOperators.BroadcastNum{Float64}, AxisArrays.AxisArray{Float64,1,SubArray{Float64,1,Array{Float64,2},Tuple{Int64,Base.Slice{Base.OneTo{Int64}}},true},Tuple{AxisArrays.Axis{:channel,UnitRange{Int64}}}}}}
 
 Base.@propagate_inbounds function sampleat!(result,
     x::MapSignal{<:Any,N},i,j,check) where N

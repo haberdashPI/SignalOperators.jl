@@ -13,10 +13,10 @@ suite["signal"] = BenchmarkGroup()
 suite["baseline"] = BenchmarkGroup()
 
 rng = MersenneTwister(1983)
-x = rand(rng,10^1,2)
-y = rand(rng,10^1,2)
-# x = rand(rng,10^4,2)
-# y = rand(rng,10^4,2)
+# x = rand(rng,10^1,2)
+# y = rand(rng,10^1,2)
+x = rand(rng,10^4,2)
+y = rand(rng,10^4,2)
 
 suite["signal"]["sinking"] = @benchmarkable signal(x,1000Hz) |> sink
 suite["baseline"]["sinking"] = @benchmarkable copy(x)
@@ -37,18 +37,9 @@ suite["baseline"]["padding"] = @benchmarkable vcat($x,zero($x))
 suite["signal"]["appending"] = @benchmarkable sink(append($x,$y),samplerate=1000Hz)
 suite["baseline"]["appending"] = @benchmarkable vcat($x,$y)
 
-# TODO: mapsignal is still allocating during `sink!`: what's happening
-# is that the broadcast operation over `+` is creating a small array;
-# We need to 
-#
-# 1. handle bychannel=true and bychannel=false separately
-# 2. make sure the oepration simplifies down to a loop across
-#    the channels for bychannel=true
-# 3. make sure the input to fn for bychannel=false is a inferrable tuple so
-#    that operations wihtin fn are easy to implement with stack-only operations
-
 suite["signal"]["mapping"] = @benchmarkable sink(mix($x,$y),samplerate=1000Hz)
 suite["baseline"]["mapping"] = @benchmarkable $x .+ $y
+
 # suite["signal"]["filtering"] = @benchmarkable begin
 #     lowpass($x,20Hz) |> sink(samplerate=1000Hz)
 # end
