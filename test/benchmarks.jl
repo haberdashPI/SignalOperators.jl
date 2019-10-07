@@ -62,7 +62,7 @@ for case in keys(result["signal"])
     m1 = median(result["signal"][case])
     m2 = median(result["baseline"][case])
     println("")
-    println("Results for $case: ")
+    println("Ratio to bare julia for $case: ")
     println("----------------------------------------")
     display(ratio(m1,m2))
 end
