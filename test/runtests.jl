@@ -97,8 +97,12 @@ test_files = [test_wav,example_wav,examples_wav]
             sink(signal(sin,ω=5Hz,ϕ=100ms),duration=1s,samplerate=20Hz)
         @test sink(signal(sin,ω=5Hz,ϕ=π),duration=1s,samplerate=20Hz) == 
             sink(signal(sin,ω=5Hz,ϕ=180°),duration=1s,samplerate=20Hz)
+        @test sink(signal(sin,ϕ=1s),duration=1s,samplerate=20Hz) ≈
+            sink(signal(sin,ω=1Hz,ϕ=0),duration=1s,samplerate=20Hz)
+        @test_throws ErrorException sink(signal(sin,ϕ=2π*rad),duration=1s,
+            samplerate=20Hz)
 
-        @test signal(identity,ω=2Hz,10Hz) |> sink(samples=10samples) |> 
+        @test signal(identity,ω=2Hz,10Hz) |> sink(duration=10samples) |> 
             duration == 1.0
     end
 

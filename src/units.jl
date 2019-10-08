@@ -123,6 +123,9 @@ julia> inseconds(441samples, 44100Hz)
 """
 inseconds(x::Unitful.Time, rate=missing) = ustrip(uconvert(s,x))
 inseconds(x::SampleQuant, rate=missing) = insamples(x,rate) / inHz(rate)
+function inseconds(x::Quantity, rate=missing)
+    error("Don't know how to convert $x to seconds.")
+end
 inseconds(x::Number, rate=missing) = x
 function inseconds(::Type{T},x::Number,rate=missing) where T
     n = inseconds(x,rate)
