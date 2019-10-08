@@ -43,7 +43,7 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
 end
 
 @Base.propagate_inbounds sampleat!(result,x::SignalFunction,i,j,check) =
-    writesink!(result,i,x.fn(rem2pi(j/x.samplerate*x.ω + x.ϕ,RoundNearest)))
+    writesink!(result,i,x.fn(2π*((j/x.samplerate*x.ω + x.ϕ) % 1.0)))
 
 @Base.propagate_inbounds sampleat!(result,
     x::SignalFunction{<:Any,Missing},i,j,check) =
@@ -74,7 +74,7 @@ a tuple of values.
 
 The input to `fn` is either a phase value or a time value. If passed a
 frequency (using either the ω or frequency keyword), the input to `fn` will
-be a phase value in radians, ranging from -π to π. If no frequency is
+be a phase value in radians, ranging from 0 to 2π. If no frequency is
 specified the value passed to `fn` is the time in seconds. Specifying phase
 (by the ϕ or phase keyword) will first add that value to the input before
 passing it to `fn`. The phase is assumed to be in units of radians (but you
@@ -85,7 +85,7 @@ function signal(fn::Union{Function,Functor},
     samplerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
-    SignalFunction(fn,astuple(fn(0)),inHz(ω),
+    SignalFunction(fn,astuple(fn(0.0)),inHz(ω),
         inradians(Float64,ϕ,ω)/2π,
         inHz(Float64,samplerate))
 end
