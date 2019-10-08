@@ -45,4 +45,7 @@ Base.:(/)(::InfiniteLength,::Number) = inflen
 Base.:(/)(::InfiniteLength,::Missing) = inflen
 Base.:(/)(::Number,::InfiniteLength) = 0
 Base.:(/)(::Missing,::InfiniteLength) = 0
-
+Base.ceil(::T,::InfiniteLength) where T = inflen
+Base.ceil(::InfiniteLength) = inflen
+Base.floor(::T,::InfiniteLength) where T = inflen
+Base.floor(::InfiniteLength) = inflen
