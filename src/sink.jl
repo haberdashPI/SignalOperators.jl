@@ -5,12 +5,20 @@
 Creates a given type of object (`to`) from a signal. By default it is an
 `AxisArray` with time as the rows and channels as the columns. If a filename
 is specified for `to`, the signal is written to the given file. If given a
-type (e.g. `Array`) the signal is written to a value of that type. The sample rate does
-not need to be specified, it will use either the sample rate of `signal` or a
-default sample rate (which raises a warning). 
+type (e.g. `Array`) the signal is written to a value of that type. 
 
-You can specify a duration or sample rate for the signal when calling sink if it
-has yet to be defined.
+# Sample Rate
+
+The sample rate does not need to be specified, it will use either the sample
+rate of `signal` or a default sample rate (which raises a warning). If
+specified, the given sample rate is passed to [`signal`](@ref) when coercing
+the input to a signal.
+
+# Duration
+
+You can limit the output of the given signal to the specified duration. If
+this duration exceedes the duration of the passed signal an error will be
+thrown.
 
 """
 sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
@@ -26,12 +34,16 @@ function sink(x::T,::Type{A}=AxisArray;
     duration = coalesce(duration,nsamples(x)*samples)
 
     if isinf(duration)
-        error("Cannot store infinite signal. Specify a duration when ",
+        error("Cannot store infinite signal. Specify a finite duration when ",
             "calling `sink`.")
     end
 
-    sink(x,SignalTrait(x),insamples(Int,maybeseconds(duration),
-        SignalOperators.samplerate(x)),A)
+    n = insamples(Int,maybeseconds(duration),SignalOperators.samplerate(x))
+    if n > nsamples(x)
+        error("Requested signal duration is too long for passed signal: $x.")
+    end
+
+    sink(x,SignalTrait(x),n,A)
 end
 
 function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El

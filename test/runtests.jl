@@ -87,7 +87,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test all(o |> sink .== 1)
         @test_throws ErrorException signal(rand(5),10Hz) |> signal(5Hz)
         @test_throws ErrorException signal(randn,10Hz) |> signal(5Hz)
-
+        @test_throws ErrorException signal(rand(5),10Hz) |> sink(duration=10samples)
     end
 
     @testset "Function signals" begin

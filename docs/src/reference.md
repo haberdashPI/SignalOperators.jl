@@ -17,7 +17,7 @@ nchannels
 samplerate
 ```
 
-## Reformatting
+## Signal Reformatting
 
 ```@docs
 tosamplerate
@@ -27,7 +27,7 @@ format
 uniform
 ```
 
-## Signal Manipulation
+## Signal Operators
 ```@docs
 until
 after

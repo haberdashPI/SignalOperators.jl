@@ -74,23 +74,22 @@ same number of channels using [`unify`](@ref) (with `channels=true`).
 
 ## Cross-channel functions
 
-The function is normally broadcast across channels, but if you wish to treat
-each channel separately you can set `bychannel=false`. In this case the
-inputs to `fn` will be objects supporting `getindex` (tuples or arrays) of
-all channel values for a given sample, and `fn` should return a type-stable
-tuple value (for a multi-channle or single-channel result) or a number (for a
+The function `fn` is normally broadcast across channels, but if you wish to
+treat each channel separately you can set `bychannel=false`. In this case the
+inputs to `fn` will be indexable objects (tuples or arrays) of all channel
+values for a given sample, and `fn` should return a type-stable tuple value
+(for a multi-channel or single-channel result) or a number (for a
 single-channel result only). For example, the following would swap the left
 and right channels.
 
 ```julia
 x = rand(10,2)
-swapped = mapsignal(x,bychannel=false) do (left,right)
-    right,left
+swapped = mapsignal(x,bychannel=false) do val
+    val[2],val[1]
 end
 ```
 
 When `bychannel=false` the channels of each signal are not promoted:
-[`unify`](@ref) is called with `channels=false`.
 
 ## Padding
 
@@ -289,7 +288,7 @@ mapstring(::FnBr{<:typeof(+)}) = "mix("
 
     amplify(xs...)
 
-Find the product, on a per-sample basis, for all signals `xs`, using
+Find the product, on a per-sample basis, for all signals `xs` using
 [`mapsignal`](@ref).
 
 """
@@ -301,8 +300,9 @@ mapstring(::FnBr{<:typeof(*)}) = "amplify("
 
     addchannel(xs...)
 
-Concatenate the channels of all signals into one signal with
-`sum(nchannels,xs)` channels, using [`mapsignal`](@ref).
+Concatenate the channels of all signals into one signal, using
+[`mapsignal`](@ref). This will result in a signal with `sum(nchannels,xs)`
+channels.
 
 """
 addchannel(y) = x -> addchannel(x,y)
@@ -315,7 +315,7 @@ mapstring(::typeof(tuplecat)) = "addchannel("
 
     channel(x,n)
 
-Select channel `n` of signal `x`, as a single channel signal, using
+Select channel `n` of signal `x`, as a single-channel signal, using
 [`mapsignal`](@ref).
 
 """

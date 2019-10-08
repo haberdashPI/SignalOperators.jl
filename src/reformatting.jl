@@ -7,7 +7,7 @@ export tosamplerate, tochannels, format, uniform, toeltype
 
 Change the sample rate of `x` to the given sample rate `fs`. The underlying
 implementation depends on whether the signal is defined by a function or by
-actual data (samples)
+actual data (samples).
 
 Functionally defined signals (e.g. `signal(sin)`) are resampled exactly: the
 function is simply called more times or fewer times, so as to generate the
@@ -17,7 +17,8 @@ Data-based signals (`signal(rand(50,2))`) are resampled using filtering (akin
 to `DSP.resample`). In this case you can use the keyword arugment `blocksize`
 to change the analysis window used. See [`filtersignal`](@ref) for more
 details. Setting `blocksize` for a functionally defined signal will succeed,
-but has no effect.
+but different `blocksize` values have no effect on the underlying
+implementation.
 
 """
 tosamplerate(fs;blocksize=default_blocksize) = 
@@ -133,13 +134,13 @@ end
     uniform(xs;channels=false)
 
 Promote the sample rate (and optionally the number of channels) to be the
-highest sample rate (and optionally channel count) of the passed value
-`xs`, an iterable of signals.
+highest sample rate (and optionally highest channel count) of the iterable of signals `xs`.
 
 !!! note
 
-    `uniform` rarely needs to be called directly. It is called implicitly,
-    within the body of [`mapsignal`](@ref) for example.
+    `uniform` rarely needs to be called directly. It is called implicitly on
+    all passed signals, within the body of operators such as
+    [`mapsignal`](@ref).
 
 """
 function uniform(xs;channels=false)

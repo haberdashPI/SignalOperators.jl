@@ -18,15 +18,17 @@ nsamples(x::AppendSignals,::IsSignal) = x.len
 duration(x::AppendSignals) = sum(duration.(x.signals))
 
 """
-    append(x,y,rest...)
+    append(x,y,...)
 
 Append a series of signals, one after the other.
 """
 append(y) = x -> append(x,y)
 """
-    prepend(xs...)
+    prepend(x,y,...)
 
-Prepend the series of signals: `prepend(xs...) == append(reverse(xs)...)`.
+Prepend the series of signals: `prepend(xs...)` is equivalent to
+`append(reverse(xs)...)`.
+
 """
 prepend(x) = y -> append(x,y)
 prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))
@@ -139,7 +141,8 @@ tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
     pad(x,padding)
 
 Create a signal that appends an infinite number of values, `padding`, to `x`.
-The value `padding` can be a number or a function of a type (e.g. `zero`).
+The value `padding` can be a number or it can be a function of a type (e.g.
+`zero`).
 
 """
 pad(p) = x -> pad(x,p)

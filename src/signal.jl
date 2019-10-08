@@ -45,9 +45,9 @@ nosignal(x) = error("Value is not a signal: $x")
 
     duration(x)
 
-Return the duration of the signal in seconds, if known. May
-return `missing` or [`inflen`](@ref). The value `missing` always denotes a finite,
-but unknown length.
+Return the duration of the signal in seconds, if known. May return `missing`
+or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
+length.
 
 """
 duration(x) = nsamples(x) / samplerate(x)
@@ -55,9 +55,9 @@ duration(x) = nsamples(x) / samplerate(x)
 
     nsamples(x)
 
-Returns the number of samples in the signal, if known. May
-return `missing` or [`inflen`](@ref). The value `missing` always denotes a finite,
-but unknown length.
+Returns the number of samples in the signal, if known. May return `missing`
+or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
+length.
 
 """
 nsamples(x) = nsamples(x,SignalTrait(x))
