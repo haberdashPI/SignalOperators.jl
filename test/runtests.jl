@@ -8,6 +8,7 @@ using WAV
 using AxisArrays
 using FixedPointNumbers
 using Unitful
+using ProgressMeter
 
 using DSP
 dB = SignalOperators.Units.dB
@@ -16,6 +17,9 @@ test_wav = "test.wav"
 example_wav = "example.wav"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,examples_wav]
+
+const total_test_groups = 28
+progress = Progress(total_test_groups,desc="Running tests")
 
 @testset "SignalOperators.jl" begin
 
@@ -54,6 +58,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test SignalOperators.inradians(180°) ≈ π
         @test ismissing(SignalOperators.inseconds(2samples))
     end
+    next!(progress)
 
     @testset "Function Currying" begin
         x = signal(1,10Hz)
@@ -71,6 +76,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test isa(channel(1),Function)
         @test isa(filtersignal(x -> x),Function)
     end
+    next!(progress)
 
     @testset "Basic signals" begin
         @test SignalTrait(signal([1,2,3,4],10Hz)) isa IsSignal
@@ -89,6 +95,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException signal(randn,10Hz) |> signal(5Hz)
         @test_throws ErrorException signal(rand(5),10Hz) |> sink(duration=10samples)
     end
+    next!(progress)
 
     @testset "Function signals" begin
         @test sink(signal(sin,ω=5Hz,ϕ=π),duration=1s,samplerate=20Hz) == 
@@ -105,17 +112,20 @@ test_files = [test_wav,example_wav,examples_wav]
         @test signal(identity,ω=2Hz,10Hz) |> sink(duration=10samples) |> 
             duration == 1.0
     end
+    next!(progress)
 
     @testset "Sink to arrays" begin
         tone = signal(sin,44.1kHz,ω=100Hz) |> until(5s) |> sink
         @test tone[1] .< tone[110] # verify bump of sine wave
     end
+    next!(progress)
 
     @testset "Files as signals" begin
         tone = signal(range(0,1,length=4),10Hz) |> sink(test_wav)
         @test SignalTrait(signal(test_wav)) isa IsSignal
         @test isapprox(signal(test_wav), range(0,1,length=4),rtol=1e-6)
     end
+    next!(progress)
 
     @testset "Change channel Count" begin
         tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
@@ -128,6 +138,7 @@ test_files = [test_wav,example_wav,examples_wav]
 
         @test_throws ErrorException tone |> tochannels(2) |> tochannels(3)
     end
+    next!(progress)
 
     @testset "Cutting Operators" begin
         for nch in 1:2
@@ -151,6 +162,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test nsamples(aftered) == 44100*3
         end
     end
+    next!(progress)
 
     @testset "Padding" begin
         for nch in 1:3
@@ -169,6 +181,7 @@ test_files = [test_wav,example_wav,examples_wav]
             all(iszero,result[6:10,:])
         end
     end
+    next!(progress)
         
     @testset "Appending" begin
         for nch in 1:2
@@ -179,6 +192,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test nsamples(sink(tones)) == 1000
         end
     end
+    next!(progress)
 
     @testset "Mixing" begin
         for nch in 1:2
@@ -197,6 +211,7 @@ test_files = [test_wav,example_wav,examples_wav]
         result = mapsignal(reverse,x,bychannel=false) |> sink(samplerate=20Hz)
         @test result == [x[:,2] x[:,1]]
     end 
+    next!(progress)
 
     @testset "Filtering" begin
         for nch in 1:2
@@ -242,6 +257,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test sink(high) == sink(high4)
         end
     end
+    next!(progress)
 
     @testset "Ramps" begin
         for nch in 1:2
@@ -270,6 +286,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test mean(abs,ramped2[7:10,:]) < mean(abs,ramped2[1:6,:])
         end
     end
+    next!(progress)
 
     @testset "Resampling" begin
         for nch in 1:2
@@ -309,6 +326,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test SignalOperators.childsignal(resamp_twice) === toned
         end
     end
+    next!(progress)
 
     @testset "Automatic reformatting" begin
         a = signal(sin,200Hz,ω=10Hz) |> tochannels(2) |> until(5s)
@@ -320,12 +338,14 @@ test_files = [test_wav,example_wav,examples_wav]
         more = mix(a,b,1)
         @test nsamples(more |> sink) == 1000
     end
+    next!(progress)
 
     @testset "Axis Arrays" begin
         x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
         proc = signal(x) |> ramp |> sink
         @test size(proc,1) == size(x,1)
     end
+    next!(progress)
 
 
     @testset "Operating over empty signals" begin
@@ -336,6 +356,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test mapsignal(-,tone) |> nsamples == 0
         end
     end
+    next!(progress)
 
     @testset "normpower" begin
         for nch in 1:2
@@ -347,6 +368,7 @@ test_files = [test_wav,example_wav,examples_wav]
             @test all(sqrt.(mean(sink(resamp).^2,dims=1)) .≈ 1)
         end
     end
+    next!(progress)
 
     @testset "Handling of arrays/numbers" begin
         stereo = signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
@@ -391,6 +413,7 @@ test_files = [test_wav,example_wav,examples_wav]
         # poorly shaped arrays
         @test_throws ErrorException signal(rand(2,2,2))
     end
+    next!(progress)
 
     @testset "Handling of padded mix and amplify" begin
         for nch in 1:2
@@ -423,6 +446,7 @@ test_files = [test_wav,example_wav,examples_wav]
         signal(x,10Hz) |> addchannel(y) |> sink!(z)
         @test all(iszero,z[6:10,3:4])
     end
+    next!(progress)
 
     @testset "Handling of infinite signals" begin
         for nch in 1:2
@@ -447,6 +471,7 @@ test_files = [test_wav,example_wav,examples_wav]
                 sink
         end
     end
+    next!(progress)
 
     @testset "Test that non-signals correctly error" begin
         x = r"nonsignal"
@@ -470,6 +495,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException x |> addchannel(y)
         @test_throws ErrorException x |> fadeto(y)
     end
+    next!(progress)
 
     @testset "Handle of frame units" begin    
         x = signal(rand(100,2),10Hz)
@@ -484,12 +510,14 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> ramp(10samples) |> sink |> nsamples == 100
         @test x |> fadeto(y,10samples) |> sink |> nsamples > 100
     end
+    next!(progress)
 
     function showstring(x)
         io = IOBuffer()
         show(io,MIME("text/plain"),x)
         String(take!(io))
     end
+    next!(progress)
 
     @testset "Handle printing" begin
         x = signal(rand(100,2),10Hz)
@@ -534,6 +562,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test x |> fadeto(y,identity) |> showstring ==
             "rampoff_fn(0.01,identity) (10.0 Hz) |>\n    tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(rampon_fn(0.01,identity) (10.0 Hz) |> tochannels(2) |>\n                       amplify(50×2 Array{Float64,2}: … (10.0 Hz))))"
     end
+    next!(progress)
 
     @testset "Handle fixed point numbers" begin    
         x = signal(rand(Fixed{Int16,15},100,2),10Hz)
@@ -560,6 +589,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws InexactError x |> ramp |> sink |> nsamples
         @test_throws InexactError x |> fadeto(y) |> sink |> nsamples
     end
+    next!(progress)
 
     @testset "Handle unknown sample rates" begin    
         x = rand(100,2)
@@ -592,6 +622,7 @@ test_files = [test_wav,example_wav,examples_wav]
         @test_throws ErrorException x |> ramp |> sink(samplerate=10Hz) 
         @test_throws ErrorException x |> fadeto(y) |> sink(samplerate=10Hz) 
     end
+    next!(progress)
 
     @testset "Flexible sample rate / signal interpretation" begin
         randn |> normpower |> sink(example_wav,duration=2s,samplerate=44.1kHz)
@@ -625,6 +656,7 @@ test_files = [test_wav,example_wav,examples_wav]
 
         @test isfile(examples_wav)
     end
+    next!(progress)
 
     for file in test_files
         isfile(file) && rm(file)

@@ -25,6 +25,7 @@ BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 
 [targets]
-test = ["Test", "WAV", "FixedPointNumbers", "BenchmarkTools"]
+test = ["Test", "WAV", "FixedPointNumbers", "BenchmarkTools", "ProgressMeter"]
