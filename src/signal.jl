@@ -111,11 +111,11 @@ arguments to it.
 
 !!! note
 
-    If you pipe `signal` (e.g. `myobject |> signal(2kHz)`) you must specify
-    the units of the sample rate, if passed. A unitless number is always
-    interpreted as a constant, infinite-length signal (see below).
+    If you pipe `signal` and pass a sample rate, you must specify the units
+    of the sample rate (e.g. `x |> signal(20Hz)`). A unitless number is
+    always interpreted as a constant, infinite-length signal (see below).
 
-The types of objects that can be coerced to signals are as follows.
+The type of objects that can be coerced to signals are as follows.
 """
 signal(;kwds...) = x -> signal(x;kwds...)
 signal(fs::Quantity;kwds...) = x -> signal(x,fs;kwds...)

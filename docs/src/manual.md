@@ -185,7 +185,7 @@ An unusual filter is [`normpower`](@ref): it computes the root mean squared powe
 
 ### Ramping
 
-A ramp allows for smooth transitions from 0 amplitude to the full amplitude of the signal. It is useful for avoid clicks in the onset or offset of a sound. For example, pure-tones are typically ramped when presented.
+A ramp allows for smooth transitions from 0 amplitude to the full amplitude of the signal. It is useful to avoid clicks in the onset or offset of a sound. For example, pure-tones are typically ramped when presented.
 
 ```julia
 signal(sin,ω=2kHz) |> until(5s) |> ramp
@@ -203,11 +203,11 @@ b = signal(sin,ω=1kHz) |> until(3s)
 a_minus_b = mapsignal(-,a,b)
 ```
 
-The function `mapsignal` cannot, itself be piped, due to ambiguity in the arguments, but shortcuts for this function have been provided for addition ([`mix`](@ref)) and multiplication ([`amplify`](@ref)), the two most common operations, and these two shortcuts have piped versions available.
+The function [`mapsignal`](@ref) cannot itself be piped, due to ambiguity in the arguments, but shortcuts for this function have been provided for addition ([`mix`](@ref)) and multiplication ([`amplify`](@ref)), the two most common operations, and these two shortcuts have piped versions available.
 
 ```julia
 a_plus_b = a |> mix(b)
 a_times_b = a |> amplify(b)
 ```
 
-You can also add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of `mapsignal` where the keyword `bychannel` is set to `false` (see `mapsignal`'s documentation for details).
+You can also add or select out channels using [`addchannel`](@ref) and [`channel`](@ref), which are defined in terms of calls to [`mapsignal`](@ref). These use a variant of [`mapsignal`](@ref) where the keyword `bychannel` is set to `false` (see `mapsignal`'s documentation for details).
