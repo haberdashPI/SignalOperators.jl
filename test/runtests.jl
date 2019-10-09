@@ -18,7 +18,7 @@ example_wav = "example.wav"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,examples_wav]
 
-const total_test_groups = 28
+const total_test_groups = 29
 progress = Progress(total_test_groups,desc="Running tests")
 
 @testset "SignalOperators.jl" begin
@@ -621,6 +621,53 @@ progress = Progress(total_test_groups,desc="Running tests")
         # TODO: improve implementation to remove these errors
         @test_throws ErrorException x |> ramp |> sink(samplerate=10Hz) 
         @test_throws ErrorException x |> fadeto(y) |> sink(samplerate=10Hz) 
+    end
+    next!(progress)
+
+    @testset "Stress tests" begin
+        # try out more complicated combinations of various features
+
+        # multiple sample rates
+        x = signal(sin,ω=10Hz,20Hz) |> until(4s) |> sink |> 
+            tosamplerate(30Hz) |> lowpass(10Hz) |> fadeto(signal(sin,ω=5Hz)) |>
+            tosamplerate(20Hz)
+        @test samplerate(x) == 20
+
+        x = signal(sin,ω=10Hz,20Hz) |> until(4s) |> sink |> 
+            tosamplerate(30Hz) |> lowpass(10Hz) |> fadeto(signal(sin,ω=5Hz)) |>
+            tosamplerate(25Hz) |> sink
+        @test samplerate(x) == 25
+
+        # multiple filters
+        x = randn |> until(4s) |> lowpass(5Hz) |> mix(signal(sin,ω=7Hz)) |> 
+            highpass(2Hz) |> sink(samplerate=20Hz)
+        # multiple filters with different block sizes
+        y = randn |> until(4s) |> lowpass(5Hz,blocksize=11) |> 
+            mix(signal(sin,ω=7Hz)) |> 
+            highpass(2Hz,blocksize=9) |> 
+            sink(samplerate=20Hz)
+
+        # TODO: y seems to generate an exception because
+        # of the interaction between `mix` and the use of a blocksize
+        # shorter than the signal in the all to `lowpass`
+
+        @test x ≈ y
+
+        # multiple after and until commands
+        x = signal(sin,ω=5Hz) |> after(2s) |> until(20s) |> after(2s) |>
+            until(15s) |> after(2s) |> after(2s) |> until(5s) |> until(2s) |>
+            sink(samplerate=12Hz)
+        @test duration(x) == 2
+
+        # multiple operators with a mix in the middle
+        x = randn |> until(4s) |> after(50ms) |> lowpass(5Hz) |> 
+            mix(signal(sin,ω=7Hz)) |> 
+            until(3.5s) |> 
+            highpass(2Hz) |> 
+            append(rand(10,2)) |>
+            append(rand(5,2)) |>
+            sink(samplerate=20Hz)
+        @test duration(x) == 4.25
     end
     next!(progress)
 
