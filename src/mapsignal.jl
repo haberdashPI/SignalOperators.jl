@@ -70,7 +70,7 @@ return a single number. This operation is broadcast across all channels of
 the input. It is expected to be a type stable function. 
 
 Normally the signals are first promoted to have the same samle rate and the
-same number of channels using [`unify`](@ref) (with `channels=true`).
+same number of channels using [`uniform`](@ref) (with `channels=true`).
 
 ## Cross-channel functions
 

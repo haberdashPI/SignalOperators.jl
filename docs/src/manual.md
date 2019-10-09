@@ -154,12 +154,31 @@ There are several categories of signal operators: extending, cutting, filtering,
 
 ### Extending
 
-You can extend a signal using [`pad`](@ref) or [`append`](@ref). A padded signal becomes infinite and ends with the specified value, usually `one` or `zero`. You can append two or more signals (or [`prepend`](@ref)) so they occur one after another.
+You can extend a signal using [`pad`](@ref) or [`append`](@ref). A padded signal becomes infinite by appending the signal by a repeated value, usually `one` or `zero`. You can append two or more signals (or [`prepend`](@ref)) so they occur one after another.
 
 ```julia
 pad(x,zero) |> duration |> isinf == true
-append(x,y) |> duration == duration(x) + duration(y)
+append(x,y,z) |> duration == duration(x) + duration(y) + duration(z)
 ```
+
+!!! note
+
+    You cannot append more than one new signal within a pipe. That is,
+    the following will throw an error.
+
+    ```julia
+    # Don't do this!
+    x |> append(y,z)
+    ```
+
+    This is because `append(y,z)` does not return a function to be piped (as
+    `append(y)` does). It returns a signal with `y` followed by `z`. You can instead call this as follows.
+
+    ```julia
+    # This will do what you want!
+    x |> append(y) |> append(z)
+    ```
+
 
 ### Cutting
 
