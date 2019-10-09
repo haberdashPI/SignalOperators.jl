@@ -624,7 +624,7 @@ progress = Progress(total_test_groups,desc="Running tests")
     end
     next!(progress)
 
-    @testset "Flexible sample rate / signal interpretation" begin
+    @testset "README Examples" begin
         randn |> normpower |> sink(example_wav,duration=2s,samplerate=44.1kHz)
 
         sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> 
