@@ -56,7 +56,7 @@ tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;b
 tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
 
-struct AppendCheckpoint{C,S} <: AbstractCheckpoint
+struct AppendCheckpoint{Si,C,S} <: AbstractCheckpoint{Si}
     n::Int
     signal::S
     offset::Int
@@ -90,15 +90,16 @@ function checkpoints(x::AppendSignals,offset,len)
             []
         end
 
-        [AppendCheckpoint(checkindex(c)+index-1,x.signals[sig_index],-index+1,c) 
-         for c in checks]
+        Si,S,C = typeof(x),typeof(x.signals[sig_index]),typeof(c)
+        [AppendCheckpoint{Si,S,C}(checkindex(c)+index-1,
+            x.signals[sig_index],-index+1,c) for c in checks]
     end
 
     result
 end
-beforecheckpoint(x::AppendCheckpoint,check,len) = 
+beforecheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals = 
     beforecheckpoint(x.signal,check.child,len)
-aftercheckpoint(x::AppendCheckpoint,check,len) = 
+aftercheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals = 
     aftercheckpoint(x.signal,check.child,len)
 @Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
     i,j,check)
@@ -164,7 +165,7 @@ struct UsePad
 end
 const use_pad = UsePad()
 
-struct PadCheckpoint{P,C} <: AbstractCheckpoint
+struct PadCheckpoint{S,P,C} <: AbstractCheckpoint{S}
     n::Int
     pad::P
     child::C
@@ -177,17 +178,19 @@ function checkpoints(x::PaddedSignal,offset,len)
     p = nothing
     oldchecks = map(child_checks) do child
         p = checkindex(child) > child_len ? usepad(x) : nothing
-        PadCheckpoint(checkindex(child),p,child)
+        S,P,C = typeof(x), typeof(p), typeof(child)
+        PadCheckpoint{S,P,C}(checkindex(child),p,child)
     end
-    [oldchecks; PadCheckpoint(offset+len+1,p,nothing)]
+    S,P,C = typeof(x), typeof(p), Nothing
+    [oldchecks; PadCheckpoint{S,P,C}(offset+len+1,p,nothing)]
 end
-beforecheckpoint(x::PadCheckpoint,check,len) = 
-    beforecheckpoint(x.child,check.child,len)
-aftercheckpoint(x::PadCheckpoint,check,len) = 
-    aftercheckpoint(x.child,check.child,len)
+beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
+    beforecheckpoint(x.signal,check.child,len)
+aftercheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
+    aftercheckpoint(x.signal,check.child,len)
 
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    i,j,check::PadCheckpoint{<:Nothing})
+    i,j,check::PadCheckpoint{<:Any,<:Nothing})
 
     sampleat!(result,x.signal,i,j,check.child)
 end

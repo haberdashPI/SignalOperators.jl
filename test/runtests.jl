@@ -1,4 +1,4 @@
-using SignalOperators,SignalOperators.Units
+using SignalOperators, SignalOperators.Units
 using SignalOperators: SignalTrait, IsSignal
 
 using LambdaFn
@@ -639,18 +639,29 @@ progress = Progress(total_test_groups,desc="Running tests")
         @test samplerate(x) == 25
 
         # multiple filters
-        x = randn |> until(4s) |> lowpass(5Hz) |> mix(signal(sin,ω=7Hz)) |> 
-            highpass(2Hz) |> sink(samplerate=20Hz)
-        # multiple filters with different block sizes
-        y = randn |> until(4s) |> lowpass(5Hz,blocksize=11) |> 
-            mix(signal(sin,ω=7Hz)) |> 
-            highpass(2Hz,blocksize=9) |> 
-            sink(samplerate=20Hz)
+        x = signal(randn,40Hz) |> 
+            until(2s) |> 
+            lowpass(18Hz) |> 
+            mix(signal(sin,ω=12Hz)) |> 
+            highpass(8Hz,method=Chebyshev1(5,1)) |> 
+            sink
 
-        # TODO: y seems to generate an exception because
-        # of the interaction between `mix` and the use of a blocksize
-        # shorter than the signal in the all to `lowpass`
+        y = signal(randn,40Hz) |> 
+            until(2s) |> 
+            lowpass(18Hz) |> 
+            mix(signal(sin,ω=12Hz)) |> 
+            sink |>
+            highpass(8Hz,method=Chebyshev1(5,1)) |> 
+            sink
 
+        @test x ≈ y
+
+        y = signal(randn,40Hz) |> 
+            until(2s) |> 
+            lowpass(18Hz,blocksize=11) |> 
+            mix(signal(sin,ω=12Hz)) |> 
+            highpass(8Hz,method=Chebyshev1(5,1),blocksize=9) |> 
+            sink
         @test x ≈ y
 
         # multiple after and until commands

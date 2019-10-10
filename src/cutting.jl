@@ -78,22 +78,22 @@ function tosamplerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     CutApply(tosamplerate(childsignal(x),fs;blocksize=blocksize),x.time,K())
 end
 
-struct AfterCheckpoint{C} <: AbstractCheckpoint
+struct AfterCheckpoint{S,C} <: AbstractCheckpoint{S}
     n::Int
     diff::Int
     child::C
 end
 checkindex(c::AfterCheckpoint) = c.n
-function checkpoints(x::AfterApply,offset,len)
+function checkpoints(x::S,offset,len) where S <: AfterCheckpoint
     n = resolvelen(x)
     children = checkpoints(x.signal,offset+n,len)
     map(children) do child
-        AfterCheckpoint(checkindex(child)-n,n,child)
+        AfterCheckpoint{S}(checkindex(child)-n,n,child)
     end
 end
-beforecheckpoint(x::AfterApply,check,len) = 
+beforecheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
     beforecheckpoint(x.signal,check.child,len)
-aftercheckpoint(x::AfterApply,check,len) = 
+aftercheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
     aftercheckpoint(x.signal,check.child,len)
 
 function checkpoints(x::UntilApply,offset,len) 

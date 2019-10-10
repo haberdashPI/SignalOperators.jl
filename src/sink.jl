@@ -85,17 +85,23 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     sink!(result,x,SignalTrait(x),offset)
 end
 
-abstract type AbstractCheckpoint
+abstract type AbstractCheckpoint{S}
 end
-struct EmptyCheckpoint <: AbstractCheckpoint
+struct EmptyCheckpoint{S} <: AbstractCheckpoint{S}
     n::Int
 end
 checkindex(x::EmptyCheckpoint) = x.n
 
-checkpoints(x,offset,len) = 
-    [EmptyCheckpoint(offset+1),EmptyCheckpoint(offset+len+1)]
-beforecheckpoint(x,check,len) = nothing
-aftercheckpoint(x,check,len) = nothing
+checkpoints(x::S,offset,len) where S = 
+    [EmptyCheckpoint{S}(offset+1),EmptyCheckpoint{S}(offset+len+1)]
+beforecheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
+beforecheckpoint(x,check,len) = 
+    error("Internal error: signal $x inconsistent with checkpoint of ",
+          "type $(typeof(check))")
+aftercheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
+aftercheckpoint(x,check,len) = 
+    error("Internal error: signal $x inconsistent with checkpoint of ",
+          "type $(typeof(check))")
 
 # sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
@@ -104,20 +110,25 @@ sink!(result,x,sig::IsSignal,offset::Number) =
     sink!(result,x,sig,checkpoints(x,offset,size(result,1)))
 function sink!(result,x,sig::IsSignal,checks::AbstractArray)
     n = 1-checkindex(checks[1])
+    afters = sizehint!([],length(checks))
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
         beforecheckpoint(x,check,len)
-        sink_helper!(result,n,x,check,len)
-        aftercheckpoint(x,check,len)
+        if len > 0 
+            sink_helper!(result,n,x,check,len)
+            aftercheckpoint(x,check,len)
+            for after in afters; aftercheckpoint(x,after,len); end
+            empty!(afters)
+        else
+            push!(afters,check)
+        end
     end
     result
 end
 
 @noinline function sink_helper!(result,n,x,check,len)
-    if len > 0
-        @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
-            sampleat!(result,x,n+i,i,check)
-        end
+    @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
+        sampleat!(result,x,n+i,i,check)
     end
 end
 

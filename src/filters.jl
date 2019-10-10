@@ -178,7 +178,7 @@ function nsamples(x::FilteredSignal)
     end
 end
 
-struct FilterCheckpoint{St} <: AbstractCheckpoint
+struct FilterCheckpoint{S,St} <: AbstractCheckpoint{S}
     n::Int
     state::St
 end
@@ -189,7 +189,9 @@ outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
 inputlength(x,n) = n
 outputlength(x,n) = n
 function checkpoints(x::FilteredSignal,offset,len,state=FilterState(x))
-    map(@λ(FilterCheckpoint(_,state)),[1:x.blocksize:len; len+1] .+ offset)
+    S,St = typeof(x), typeof(state)
+    map(@λ(FilterCheckpoint{S,St}(_,state)),
+        [1:x.blocksize:len; len+1] .+ offset)
 end
 
 struct NullBuffer
@@ -201,10 +203,12 @@ Base.size(x::NullBuffer,n) = (x.len,x.ch)[n]
 writesink!(x::NullBuffer,i,y) = y
 Base.view(x::NullBuffer,i,j) = x
 
-function beforecheckpoint(x::FilteredSignal,check,len)
+function beforecheckpoint(x::S,check::FilterCheckpoint{S},len) where 
+    {S <: FilteredSignal}
+
     # refill buffer if necessary
     state = check.state
-    if state.lastoutput == state.availableoutput
+    if state.lastoutput == state.availableoutput || state.availableoutput == 0
         # process any samples before offset that have yet to be processed
         if state.lastoffset < checkindex(check)-1
             len = checkindex(check) - state.lastoffset - 1
@@ -215,7 +219,7 @@ function beforecheckpoint(x::FilteredSignal,check,len)
 
         # early samples may have left some output in the bufer,
         # only update the buffer if this is not true
-        if state.lastoutput == state.availableoutput
+        if state.lastoutput == state.availableoutput || state.availableoutput == 0
 
             # write child samples to input buffer
             in_len = min(size(state.input,1),len)
@@ -231,10 +235,17 @@ function beforecheckpoint(x::FilteredSignal,check,len)
             end
 
             state.lastoutput = 0
+        elseif state.lastoutput > state.availableoutput
+            error("Internal error: filter output index exceedes available ",
+                  "output.")
         end
+    elseif state.lastoutput > state.availableoutput
+        error("Internal error: filter output index exceedes available output.")
     end
 end
-function aftercheckpoint(x::FilteredSignal,check,len)
+
+function aftercheckpoint(x::S,check::FilterCheckpoint{S},len) where 
+    {S <: FilteredSignal}
     check.state.lastoutput += len
     check.state.lastoffset += len
 end
@@ -267,7 +278,7 @@ function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 
-struct NormedCheckpoint{V} <: AbstractCheckpoint
+struct NormedCheckpoint{S,V} <: AbstractCheckpoint{S}
     n::Int
     vals::V
 end
@@ -280,7 +291,10 @@ function checkpoints(x::NormedSignal,offset,len)
 
     rms = sqrt.(mean(float.(vals).^2,dims=1))
     vals ./= rms
-    [NormedCheckpoint(offset+1,vals),NormedCheckpoint(offset+len+1,vals)]
+
+    S,V = typeof(x), typeof(vals)
+    [NormedCheckpoint{S,V}(offset+1,vals),
+     NormedCheckpoint{S,V}(offset+len+1,vals)]
 end
 
 @Base.propagate_inbounds function sampleat!(result,x::NormedSignal,

@@ -137,7 +137,7 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct MapSignalCheckpoint{Ch,C} <: AbstractCheckpoint
+struct MapSignalCheckpoint{S,Ch,C} <: AbstractCheckpoint{S}
     leader::Int
     channels::Ch
     children::C
@@ -151,24 +151,27 @@ function checkpoints(x::MapSignal,offset,len)
     child_checks = map(x.padded_signals) do arg
         checkpoints(arg,offset,len)
     end 
-    indices = mapreduce(@λ(checkindex.(_)),vcat,child_checks) |> sort!
+    # generate a list of all indices where there is a checkpoint for
+    # at least one of the children
+    indices = mapreduce(@λ(checkindex.(_)),vcat,child_checks) |> sort! |> 
+        unique!
     
-    # combine children checkpoints in order
+    # combine children checkpoints:
     child_indices = ones(Int,length(x.padded_signals))
     mapreduce(vcat,indices) do index
         mapreduce(vcat,enumerate(x.padded_signals)) do (i,arg)
+            # advance to the largest child checkpoint
+            # for which checkindex <= index
             while checkindex(child_checks[i][child_indices[i]]) < index 
                 child_indices[i] == length(child_checks[i]) && break
                 child_indices[i] += 1
             end
-
-            # enforce the invariant that the leader is the highest (or tied)
-            # index
-            if checkindex(child_checks[i][child_indices[i]]) > index
-                child_indices[i] > 1
+            while checkindex(child_checks[i][child_indices[i]]) > index
+                child_indices[i] == 1 && break
                 child_indices[i] -= 1
             end
 
+            # if checkindex == index create a MapSignalCheckpoint
             if checkindex(child_checks[i][child_indices[i]]) == index
                 children = map(@λ(_[_]),child_checks,child_indices) |> Tuple
 
@@ -179,7 +182,8 @@ function checkpoints(x::MapSignal,offset,len)
                     channels = nothing
                 end
 
-                [MapSignalCheckpoint(i,channels,children)]
+                S,Ch,C = typeof(x), typeof(channels), typeof(children)
+                [MapSignalCheckpoint{S,Ch,C}(i,channels,children)]
             else
                 []
             end
@@ -187,9 +191,9 @@ function checkpoints(x::MapSignal,offset,len)
     end
 end
 beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len) =
-    beforecheckpoint(x,check.children[check.leader],len)
+    beforecheckpoint(x.padded_signals[check.leader],check.children[check.leader],len)
 aftercheckpoint(x::MapSignal,check::MapSignalCheckpoint,len) =
-    aftercheckpoint(x,check.children[check.leader],len)
+    aftercheckpoint(x.padded_signals[check.leader],check.children[check.leader],len)
 
 struct OneSample
 end
