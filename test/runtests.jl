@@ -626,7 +626,7 @@ progress = Progress(total_test_groups,desc="Running tests")
 
     @testset "Stress tests" begin
         # TODO: include tests that pushes on the ability of filters
-        # do drop earlier state properly
+        # to drop earlier state properly
 
         # try out more complicated combinations of various features
 
