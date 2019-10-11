@@ -96,12 +96,10 @@ checkpoints(x::S,offset,len) where S =
     [EmptyCheckpoint{S}(offset+1),EmptyCheckpoint{S}(offset+len+1)]
 beforecheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
 beforecheckpoint(x,check,len) = 
-    error("Internal error: signal $x inconsistent with checkpoint of ",
-          "type $(typeof(check))")
+    error("Internal error: signal inconsistent with checkpoint")
 aftercheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
 aftercheckpoint(x,check,len) = 
-    error("Internal error: signal $x inconsistent with checkpoint of ",
-          "type $(typeof(check))")
+    error("Internal error: signal inconsistent with checkpoint")
 
 # sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
