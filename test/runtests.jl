@@ -185,11 +185,11 @@ progress = Progress(total_test_groups,desc="Running tests")
         
     @testset "Appending" begin
         for nch in 1:2
-            a = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
-            b = signal(sin,100Hz,ω=5Hz) |> tochannels(nch) |> until(5s)
+            a = signal(sin,22Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
+            b = signal(sin,22Hz,ω=5Hz) |> tochannels(nch) |> until(5s)
             tones = a |> append(b)
             @test duration(tones) == 10
-            @test nsamples(sink(tones)) == 1000
+            @test nsamples(sink(tones)) == 220
         end
     end
     next!(progress)
@@ -694,7 +694,7 @@ progress = Progress(total_test_groups,desc="Running tests")
         sound2 = example_wav |> normpower |> amplify(-20dB)
 
         # a 1kHz sawtooth wave 
-        sound3 = signal(ϕ -> 2(ϕ/2π % 1) - 1,ω=1kHz) |> until(2s) |> ramp |> 
+        sound3 = signal(ϕ -> ϕ/π - 1,ω=1kHz) |> until(2s) |> ramp |> 
             normpower |> amplify(-20dB) 
 
         # a 5 Hz amplitude modulated noise
