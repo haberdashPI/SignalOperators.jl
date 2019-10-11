@@ -146,13 +146,7 @@ checkindex(x::MapSignalCheckpoint) = checkindex(x.children[1])
 const MAX_CHANNEL_STACK = 64
 
 function checkpoints(x::MapSignal,offset,len)
-    # generate all children's checkpoints
-    checks = mapreduce(@λ(checkpoints(_,offset,len)),vcat,x.padded_signals)
-
-    # combine children checkpoints into map checkpoints
-    map(dictgroup(checkindex,checks)) do (i,checks)
-        children = Tuple(checks)
-
+    mergechecks(x.padded_signals,offset,len) do (i,children)
         nch = ntuple_N(typeof(x.val))
         if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
             channels = Array{channel_eltype(x)}(undef,nch)

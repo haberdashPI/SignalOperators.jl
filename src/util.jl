@@ -8,3 +8,10 @@ function dictgroup(by,col)
     end
     dict
 end
+
+function mergechecks(body,children,offset,len)
+    checks = mapreduce(@λ(checkpoints(_,offset,len)),vcat,children)
+    map(dictgroup(checkindex,checks)) do (i,c)
+        body(i,Tuple(c))
+    end
+end

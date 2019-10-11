@@ -64,6 +64,10 @@ struct AppendCheckpoint{Si,S,C} <: AbstractCheckpoint{Si}
 end
 checkindex(x::AppendCheckpoint) = x.n
 function checkpoints(x::AppendSignals,offset,len)
+
+    # TODO: think about how to merge child checkpoints with the same
+    # index into one checkpoint
+
     until = offset+len
     indices = 
         collect(enumerate([1;cumsum(collect(nsamples.(x.signals[1:end-1]))).+1]))
