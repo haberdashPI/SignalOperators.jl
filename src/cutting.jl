@@ -97,9 +97,7 @@ beforecheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply =
 aftercheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
     aftercheckpoint(x.signal,check.child,len)
 
-function checkpoints(x::UntilApply,offset,len) 
-    checkpoints(x.signal,offset,len)
-end
+checkpoints(x::UntilApply,offset,len)  = checkpoints(x.signal,offset,len)
 beforecheckpoint(x::UntilApply,check,len) = 
     beforecheckpoint(x.signal,check,len)
 aftercheckpoint(x::UntilApply,check,len) = 
