@@ -84,13 +84,14 @@ struct AfterCheckpoint{S,C} <: AbstractCheckpoint{S}
     child::C
 end
 checkindex(c::AfterCheckpoint) = c.n
-function checkpoints(x::S,offset,len) where S <: AfterCheckpoint
+function checkpoints(x::S,offset,len) where S <: AfterApply
     n = resolvelen(x)
     children = checkpoints(x.signal,offset+n,len)
     map(children) do child
-        AfterCheckpoint{S}(checkindex(child)-n,n,child)
+        AfterCheckpoint{S,typeof(child)}(checkindex(child)-n,n,child)
     end
 end
+
 beforecheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
     beforecheckpoint(x.signal,check.child,len)
 aftercheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
