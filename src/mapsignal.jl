@@ -268,7 +268,7 @@ function PrettyPrinting.tile(x::MapSignal)
                 literal(")")
         tilepipe(signaltile(x.signals[1]),operate)
     else
-        list_layout(signaltile.(x.signals),par=(mapstring(x.fn),")"))
+        list_layout(signaltile.(collect(x.signals)),par=(mapstring(x.fn),")"))
     end
     # TODO: report the padding and bychannel values if a they are non-default
     # values
