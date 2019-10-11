@@ -625,6 +625,9 @@ progress = Progress(total_test_groups,desc="Running tests")
     next!(progress)
 
     @testset "Stress tests" begin
+        # TODO: include tests that pushes on the ability of filters
+        # do drop earlier state properly
+
         # try out more complicated combinations of various features
 
         # multiple sample rates
@@ -638,29 +641,28 @@ progress = Progress(total_test_groups,desc="Running tests")
             tosamplerate(25Hz) |> sink
         @test samplerate(x) == 25
 
+        noise = signal(randn,20Hz) |> until(1s) |> sink
+
         # multiple filters
-        x = signal(randn,40Hz) |> 
-            until(2s) |> 
-            lowpass(18Hz) |> 
+
+        x = noise |>
+            lowpass(9Hz) |> 
             mix(signal(sin,ω=12Hz)) |> 
-            highpass(8Hz,method=Chebyshev1(5,1)) |> 
+            highpass(4Hz,method=Chebyshev1(5,1)) |> 
             sink
 
-        y = signal(randn,40Hz) |> 
-            until(2s) |> 
-            lowpass(18Hz) |> 
+        y = noise |>
+            lowpass(9Hz) |> 
             mix(signal(sin,ω=12Hz)) |> 
             sink |>
-            highpass(8Hz,method=Chebyshev1(5,1)) |> 
+            highpass(4Hz,method=Chebyshev1(5,1)) |> 
             sink
-
         @test x ≈ y
 
-        y = signal(randn,40Hz) |> 
-            until(2s) |> 
-            lowpass(18Hz,blocksize=11) |> 
+        y = noise |>
+            lowpass(9Hz,blocksize=11) |> 
             mix(signal(sin,ω=12Hz)) |> 
-            highpass(8Hz,method=Chebyshev1(5,1),blocksize=9) |> 
+            highpass(4Hz,method=Chebyshev1(5,1),blocksize=9) |> 
             sink
         @test x ≈ y
 

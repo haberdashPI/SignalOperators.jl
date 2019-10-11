@@ -176,13 +176,15 @@ function checkpoints(x::PaddedSignal,offset,len)
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
     
     p = nothing
-    oldchecks = map(child_checks) do child
+    child_checks = map(child_checks) do child
         p = checkindex(child) > child_len ? usepad(x) : nothing
         S,P,C = typeof(x), typeof(p), typeof(child)
         PadCheckpoint{S,P,C}(checkindex(child),p,child)
     end
     S,P,C = typeof(x), typeof(p), Nothing
-    [oldchecks; PadCheckpoint{S,P,C}(offset+len+1,p,nothing)]
+    if checkindex(child_checks[end]) != offset+len+1
+        [child_checks; PadCheckpoint{S,P,C}(offset+len+1,p,nothing)]
+    end
 end
 beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
     beforecheckpoint(x.signal,check.child,len)

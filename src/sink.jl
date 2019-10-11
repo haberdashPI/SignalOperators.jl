@@ -108,18 +108,17 @@ sink!(result,x,sig::IsSignal,offset::Number) =
     sink!(result,x,sig,checkpoints(x,offset,size(result,1)))
 function sink!(result,x,sig::IsSignal,checks::AbstractArray)
     n = 1-checkindex(checks[1])
-    afters = sizehint!([],length(checks))
+
+    indices = map(checkindex,checks)
+    @assert unique!(indices) == indices
+
     for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
+        @assert len > 0
+
         beforecheckpoint(x,check,len)
-        if len > 0 
-            sink_helper!(result,n,x,check,len)
-            aftercheckpoint(x,check,len)
-            for after in afters; aftercheckpoint(x,after,len); end
-            empty!(afters)
-        else
-            push!(afters,check)
-        end
+        sink_helper!(result,n,x,check,len)
+        aftercheckpoint(x,check,len)
     end
     result
 end

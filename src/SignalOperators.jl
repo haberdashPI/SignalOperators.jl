@@ -3,6 +3,8 @@ using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting, FillArrays
 
 using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
 
+include("util.jl")
+
 # signal definition
 include("signal.jl")
 include("inflen.jl")

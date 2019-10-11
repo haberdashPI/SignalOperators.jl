@@ -138,62 +138,44 @@ cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
 struct MapSignalCheckpoint{S,Ch,C} <: AbstractCheckpoint{S}
-    leader::Int
     channels::Ch
     children::C
 end
-checkindex(x::MapSignalCheckpoint) = checkindex(x.children[x.leader])
+checkindex(x::MapSignalCheckpoint) = checkindex(x.children[1])
 
 const MAX_CHANNEL_STACK = 64
 
 function checkpoints(x::MapSignal,offset,len)
     # generate all children's checkpoints
-    child_checks = map(x.padded_signals) do arg
-        checkpoints(arg,offset,len)
-    end 
-    # generate a list of all indices where there is a checkpoint for
-    # at least one of the children
-    indices = mapreduce(@λ(checkindex.(_)),vcat,child_checks) |> sort! |> 
-        unique!
-    
-    # combine children checkpoints:
-    child_indices = ones(Int,length(x.padded_signals))
-    mapreduce(vcat,indices) do index
-        mapreduce(vcat,enumerate(x.padded_signals)) do (i,arg)
-            # advance to the largest child checkpoint
-            # for which checkindex <= index
-            while checkindex(child_checks[i][child_indices[i]]) < index 
-                child_indices[i] == length(child_checks[i]) && break
-                child_indices[i] += 1
-            end
-            while checkindex(child_checks[i][child_indices[i]]) > index
-                child_indices[i] == 1 && break
-                child_indices[i] -= 1
-            end
+    checks = mapreduce(@λ(checkpoints(_,offset,len)),vcat,x.padded_signals)
 
-            # if checkindex == index create a MapSignalCheckpoint
-            if checkindex(child_checks[i][child_indices[i]]) == index
-                children = map(@λ(_[_]),child_checks,child_indices) |> Tuple
+    # combine children checkpoints into map checkpoints
+    map(dictgroup(checkindex,checks)) do (i,checks)
+        children = Tuple(checks)
 
-                nch = ntuple_N(typeof(x.val))
-                if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
-                    channels = Array{channel_eltype(x)}(undef,nch)
-                else
-                    channels = nothing
-                end
-
-                S,Ch,C = typeof(x), typeof(channels), typeof(children)
-                [MapSignalCheckpoint{S,Ch,C}(i,channels,children)]
-            else
-                []
-            end
+        nch = ntuple_N(typeof(x.val))
+        if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
+            channels = Array{channel_eltype(x)}(undef,nch)
+        else
+            channels = nothing
         end
+
+        S,Ch,C = typeof(x), typeof(channels), typeof(children)
+        MapSignalCheckpoint{S,C,C}(i,channels,children)
     end
 end
-beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len) =
-    beforecheckpoint(x.padded_signals[check.leader],check.children[check.leader],len)
-aftercheckpoint(x::MapSignal,check::MapSignalCheckpoint,len) =
-    aftercheckpoint(x.padded_signals[check.leader],check.children[check.leader],len)
+
+function beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
+    for i in eachindex(x.padded_signals)
+        beforecheckpoint(x.padded_signals[i],check.children[i],len)
+    end
+end
+
+function aftercheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
+    for i in eachindex(x.padded_signals)
+        aftercheckpoint(x.padded_signals[i],check.children[i],len)
+    end
+end
 
 struct OneSample
 end
@@ -225,7 +207,8 @@ function __sample_signals(j::Int,sigs::Tuple,checks::Tuple,::Val{N}) where N
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:FnBr,N,C},i,j,check::MapSignalCheckpoint{<:Nothing}) where {N,C}
+    x::S,i,j,check::MapSignalCheckpoint{S,<:Nothing}) where 
+    {N,C,S<:MapSignal{<:FnBr,N,C}}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
 
@@ -236,7 +219,8 @@ Base.@propagate_inbounds function sampleat!(result,
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:FnBr,N,C},i,j,check::MapSignalCheckpoint{<:Array}) where {N,C}
+    x::S,i,j,check::MapSignalCheckpoint{S,<:Array}) where 
+    {N,C,S<:MapSignal{<:FnBr,N,C}}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
 
@@ -247,7 +231,7 @@ Base.@propagate_inbounds function sampleat!(result,
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::MapSignal{<:Any,N},i,j,check) where N
+    x::S,i,j,check::MapSignalCheckpoint{S}) where {N,S<:MapSignal{<:Any,N}}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
     writesink!(result,i,x.fn(inputs...))
