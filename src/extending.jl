@@ -186,8 +186,12 @@ function checkpoints(x::PaddedSignal,offset,len)
 end
 beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
     beforecheckpoint(x.signal,check.child,len)
+beforecheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where 
+    {S <: PaddedSignal} = nothing
 aftercheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
     aftercheckpoint(x.signal,check.child,len)
+aftercheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where 
+    {S <: PaddedSignal} = nothing
 
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
     i,j,check::PadCheckpoint{<:Any,<:Nothing})
