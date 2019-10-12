@@ -628,6 +628,9 @@ progress = Progress(total_test_groups,desc="Running tests")
         # TODO: include tests that pushes on the ability of filters
         # to drop earlier state properly
 
+        # TODO: include ttest that pushes on the branches of the
+        # `checkpoints` body for `AppendSignals`
+
         # try out more complicated combinations of various features
 
         # multiple sample rates
