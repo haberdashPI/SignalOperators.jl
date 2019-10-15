@@ -184,6 +184,8 @@ function checkpoints(x::PaddedSignal,offset,len)
     S,P,C = typeof(x), typeof(p), Nothing
     if checkindex(child_checks[end]) != offset+len+1
         [child_checks; PadCheckpoint{S,P,C}(offset+len+1,p,nothing)]
+    else
+        child_checks
     end
 end
 beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 

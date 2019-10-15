@@ -137,7 +137,8 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct MapSignalCheckpoint{S,Ch,C} <: AbstractCheckpoint{S}
+struct MapSignalCheckpoint{S,I,Ch,C} <: AbstractCheckpoint{S}
+    indices::I
     channels::Ch
     children::C
 end
@@ -146,7 +147,18 @@ checkindex(x::MapSignalCheckpoint) = checkindex(x.children[1])
 const MAX_CHANNEL_STACK = 64
 
 function checkpoints(x::MapSignal,offset,len)
-    mergechecks(x.padded_signals,offset,len) do (i,children)
+    checks = mapreduce(vcat,enumerate(x.padded_signals)) do (index,signal)
+        map(checkpoints(signal,offset,len)) do check
+            (index,check)
+        end
+    end
+
+    grouped = pairs(dictgroup(@λ(checkindex(_[2])),checks))
+    indices = grouped |> keys |> collect |> sort!
+    map(indices) do checki
+        signal_indices = Tuple(map(@λ(_[1]),grouped[checki]))
+        children = Tuple(map(@λ(_[2]),grouped[checki]))
+
         nch = ntuple_N(typeof(x.val))
         if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
             channels = Array{channel_eltype(x)}(undef,nch)
@@ -154,14 +166,15 @@ function checkpoints(x::MapSignal,offset,len)
             channels = nothing
         end
 
-        S,Ch,C = typeof(x), typeof(channels), typeof(children)
-        MapSignalCheckpoint{S,C,C}(i,channels,children)
+        S,I,Ch,C = typeof(x), typeof(signal_indices), typeof(channels), 
+            typeof(children)
+        MapSignalCheckpoint{S,I,Ch,C}(signal_indices,channels,children)
     end
 end
 
 function beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
-    for i in eachindex(x.padded_signals)
-        beforecheckpoint(x.padded_signals[i],check.children[i],len)
+    for (i,index) in enumerate(check.indices)
+        beforecheckpoint(x.padded_signals[index],check.children[i],len)
     end
 end
 

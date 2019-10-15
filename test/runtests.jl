@@ -128,12 +128,12 @@ progress = Progress(total_test_groups,desc="Running tests")
     next!(progress)
 
     @testset "Change channel Count" begin
-        tone = signal(sin,100Hz,ω=10Hz) |> until(5s)
+        tone = signal(sin,22Hz,ω=10Hz) |> until(5s)
         n = tone |> tochannels(2) |> nchannels
         @test n==2
         data = tone |> tochannels(2) |> sink
         @test size(data,2) == 2
-        data2 = signal(data,100Hz) |> tochannels(1) |> sink
+        data2 = signal(data,22Hz) |> tochannels(1) |> sink
         @test size(data2,2) == 1
 
         @test_throws ErrorException tone |> tochannels(2) |> tochannels(3)
@@ -268,8 +268,8 @@ progress = Progress(total_test_groups,desc="Running tests")
             @test mean(abs,ramped) < mean(abs,sink(tone))
             @test mean(ramped) < 1e-4
 
-            x = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
-            y = signal(sin,100Hz,ω=5Hz) |> tochannels(nch) |> until(5s)
+            x = signal(sin,22Hz,ω=10Hz) |> tochannels(nch) |> until(2s)
+            y = signal(sin,22Hz,ω=5Hz) |> tochannels(nch) |> until(2s)
             fading = fadeto(x,y,100ms)
             result = sink(fading)
             @test nsamples(fading) == (5+5-0.1)*100
