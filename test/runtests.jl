@@ -522,6 +522,10 @@ progress = Progress(total_test_groups,desc="Running tests")
     @testset "Handle printing" begin
         x = signal(rand(100,2),10Hz)
         y = signal(rand(50,2),10Hz)
+        @test signal(sin,22Hz,ω=10Hz,ϕ=π/4) |> showstring ==
+            "signal(sin,ω=10,ϕ=0.125π) (22.0 Hz)"
+        @test signal(2dB,10Hz) |> showstring ==
+            "2.0000000000000004 dB (10.0 Hz)"
         @test x |> until(5s) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> until(5 s)"
         @test x |> after(2s) |> showstring ==
