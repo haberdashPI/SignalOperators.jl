@@ -289,7 +289,7 @@ function checkpoints(x::NormedSignal,offset,len)
     vals = sink!(Array{channel_eltype(x)}(undef,siglen,nchannels(x)),
         x.signal,offset=0)
 
-    rms = sqrt.(mean(float.(vals).^2,dims=1))
+    rms = sqrt(mean(float.(vals).^2))
     vals ./= rms
 
     S,V = typeof(x), typeof(vals)
