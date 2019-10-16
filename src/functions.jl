@@ -20,7 +20,7 @@ struct SignalFunction{Fn,Fr,El,T,Fs} <: AbstractSignal{El}
         new{Fn,Fr,El,ntuple_T(El),Fs}(fn,first,ω,ϕ,sr)
     end
 end
-SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,<:Any,T,Fs}}) where {T,Fs} = 
+SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,<:Any,T,Fs}}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
 nsamples(x::SignalFunction) = inflen
@@ -56,7 +56,7 @@ end
     x::SignalFunction{typeof(sin),Missing},i,j,check) =
     writesink!(result,i,sinpi(2*(j/x.samplerate + x.ϕ)))
 
-tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) = 
+tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.samplerate))
 
 abstract type Functor
@@ -69,7 +69,7 @@ end
 
 Functions can define infinite length signals of known or unknown sample rate.
 The function `fn` can either return a number or, for multi-channel signals,
-a tuple of values. 
+a tuple of values.
 
 The input to `fn` is either a phase value or a time value. If a frequency is
 specified (using either the ω or frequency keyword), the input to `fn` will
