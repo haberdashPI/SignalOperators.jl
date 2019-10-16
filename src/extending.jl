@@ -173,7 +173,7 @@ struct PadCheckpoint{S,P,C} <: AbstractCheckpoint{S}
 end
 checkindex(c::PadCheckpoint) = c.n
 function checkpoints(x::PaddedSignal,offset,len)
-    child_len = nsamples(childsignal(x))
+    child_len = nsamples(childsignal(x))-offset
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
 
     p = nothing
