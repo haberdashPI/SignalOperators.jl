@@ -138,26 +138,31 @@ cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
 struct MapSignalCheckpoint{S,I,Ch,C} <: AbstractCheckpoint{S}
+    n::Int
     indices::I
     channels::Ch
     children::C
 end
-checkindex(x::MapSignalCheckpoint) = checkindex(x.children[1])
+checkindex(x::MapSignalCheckpoint) = x.n
 
 const MAX_CHANNEL_STACK = 64
 
 function checkpoints(x::MapSignal,offset,len)
+    # TODO: problme, we need a check point for every signal
+    # for sampleat! not just the ones that have current checkpoints
     checks = mapreduce(vcat,enumerate(x.padded_signals)) do (index,signal)
         map(checkpoints(signal,offset,len)) do check
             (index,check)
         end
     end
-
     grouped = pairs(dictgroup(@λ(checkindex(_[2])),checks))
     indices = grouped |> keys |> collect |> sort!
+    most_recent_checks = sort(grouped[indices[1]],by=@λ(_[1]))
+    @assert length(most_recent_checks) == length(x.padded_signals)
     map(indices) do checki
-        signal_indices = Tuple(map(@λ(_[1]),grouped[checki]))
-        children = Tuple(map(@λ(_[2]),grouped[checki]))
+        signal_indices = map(@λ(_[1]),grouped[checki])
+        # update the most recent checkpoints for each child
+        most_recent_checks[signal_indices] = map(@λ(_[2]),grouped[checki])
 
         nch = ntuple_N(typeof(x.val))
         if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
@@ -166,20 +171,23 @@ function checkpoints(x::MapSignal,offset,len)
             channels = nothing
         end
 
+        signal_indices = Tuple(signal_indices)
+        children = Tuple(most_recent_checks)
+
         S,I,Ch,C = typeof(x), typeof(signal_indices), typeof(channels),
             typeof(children)
-        MapSignalCheckpoint{S,I,Ch,C}(signal_indices,channels,children)
+        MapSignalCheckpoint{S,I,Ch,C}(checki,signal_indices,channels,children)
     end
 end
 
 function beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
-    for (i,index) in enumerate(check.indices)
-        beforecheckpoint(x.padded_signals[index],check.children[i],len)
+    for i in check.indices
+        beforecheckpoint(x.padded_signals[i],check.children[i],len)
     end
 end
 
 function aftercheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
-    for i in eachindex(x.padded_signals)
+    for i in check.indices
         aftercheckpoint(x.padded_signals[i],check.children[i],len)
     end
 end
@@ -188,21 +196,6 @@ struct OneSample
 end
 const one_sample = OneSample()
 writesink!(::OneSample,i,val) = val
-
-# expand the N == 2 case just to amke debugging
-# easier (this is exactly what the generated function
-# would produce)
-
-# Base.@propagate_inbounds function sampleat!(result,
-#     x::MapSignal{<:FnBr,2,2},i,j,check)
-
-#     _1 = sampleat!(one_sample,x.padded_signals[1],1,j,check.children[1])
-#     _2 = sampleat!(one_sample,x.padded_signals[2],1,j,check.children[2])
-
-#     y_1 = x.fn(_1[1],_2[1])
-#     y_2 = x.fn(_1[2],_2[2])
-#     writesink!(result,i,(y_1,y_2))
-# end
 
 trange(::Val{N}) where N = (trange(Val(N-1))...,N)
 trange(::Val{1}) = (1,)

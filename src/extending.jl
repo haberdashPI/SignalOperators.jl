@@ -90,9 +90,9 @@ function checkpoints(x::AppendSignals,offset,len)
             []
         end
 
-        Si,S = typeof(x),typeof(x.signals[sig_index])
+        Si,S = typeof(x),typeof(signal)
         [AppendCheckpoint{Si,S,typeof(c)}(checkindex(c)+index-1,
-            x.signals[sig_index],-index+1,c) for c in checks]
+            signal,-index+1,c) for c in checks]
     end
 
     result
@@ -101,6 +101,7 @@ beforecheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals =
     beforecheckpoint(check.signal,check.child,len)
 aftercheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals =
     aftercheckpoint(check.signal,check.child,len)
+
 @Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
     i,j,check)
 
