@@ -54,6 +54,30 @@ suite["baseline"]["filtering"] = @benchmarkable begin
     filt(digitalfilter(Lowpass(20,fs=1000),Butterworth(5)),$x)
 end
 
+x = rand(2000,2)
+suite["signal"]["overall"] = @benchmarkable begin
+    mix(signal(sin,ω=10Hz),$x) |>
+        tosamplerate(2000Hz) |>
+        until(0.5s) |> after(0.25s) |>
+        append(sin) |> until(1s) |>
+        lowpass(20Hz) |>
+        normpower |> amplify(-10dB) |>
+        sink
+end
+suite["baseline"]["overall"] = @benchmarkable begin
+    y = sin.(2π.*10.0.*range(0,0.5,length=1000))
+    y = hcat(y,y)
+    z = sin.(range(0,0.5,length=1000))
+    app = vcat($x[1:1000,:] .+ y,hcat(z,z))
+    f = filt(digitalfilter(Lowpass(20,fs=2000),Butterworth(5)),app)
+    f ./= 2sqrt(mean(f.^2))
+    f
+end
+result = run(suite)
+signal_speed = minimum(result["signal"])
+baseline_speed = minimum(result["baseline"])
+@test ratio(signal_speed,baseline_speed).time ≤ 70
+
 paramspath = joinpath(@__DIR__,"params.json")
 
 if isfile(paramspath)
