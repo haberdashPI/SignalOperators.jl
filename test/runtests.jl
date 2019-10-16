@@ -631,14 +631,20 @@ progress = Progress(total_test_groups,desc="Running tests")
     end
     next!(progress)
 
+    # try out more complicated combinations of various features
     @testset "Stress tests" begin
-        # TODO: include tests that pushes on the ability of filters
-        # to drop earlier state properly
+        # append, dropping the first signal entirely
+        a = until(sin,2s)
+        b = until(cos,2s)
+        x = append(a,b) |> after(3s)
+        @test sink(x,samplerate=20Hz) == b |> after(1s) |> sink(samplerate=20Hz)
 
-        # TODO: include ttest that pushes on the branches of the
-        # `checkpoints` body for `AppendSignals`
+        noise = signal(randn,20Hz) |> until(1s) |> sink
 
-        # try out more complicated combinations of various features
+        # filtering in combination with `after`
+        x = noise |> lowpass(7Hz) |> until(4s)
+        afterx = noise |> lowpass(7Hz) |> until(4s) |> after(2s)
+        @test sink(x)[2s .. 4s] ≈ sink(afterx)
 
         # multiple sample rates
         x = signal(sin,ω=10Hz,20Hz) |> until(4s) |> sink |>
@@ -651,10 +657,7 @@ progress = Progress(total_test_groups,desc="Running tests")
             tosamplerate(25Hz) |> sink
         @test samplerate(x) == 25
 
-        noise = signal(randn,20Hz) |> until(1s) |> sink
-
         # multiple filters
-
         x = noise |>
             lowpass(9Hz) |>
             mix(signal(sin,ω=12Hz)) |>
