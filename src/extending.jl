@@ -178,7 +178,7 @@ function checkpoints(x::PaddedSignal,offset,len)
 
     p = nothing
     child_checks = map(child_checks) do child
-        p = checkindex(child) > child_len ? usepad(x) : nothing
+        p = checkindex(child) > offset+child_len ? usepad(x) : nothing
         S,P,C = typeof(x), typeof(p), typeof(child)
         PadCheckpoint{S,P,C}(checkindex(child),p,child)
     end
