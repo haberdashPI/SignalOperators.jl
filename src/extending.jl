@@ -37,7 +37,7 @@ function append(xs...)
     if any(isinf ∘ nsamples,xs[1:end-1])
         error("Cannot append to the end of an infinite signal")
     end
-    xs = uniform(xs,channels=true) 
+    xs = uniform(xs,channels=true)
 
     El = promote_type(channel_eltype.(xs)...)
     xs = map(xs) do x
@@ -51,7 +51,7 @@ function append(xs...)
     len = sum(nsamples,xs)
     AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
-tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) = 
+tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
     append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
 tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
@@ -97,9 +97,9 @@ function checkpoints(x::AppendSignals,offset,len)
 
     result
 end
-beforecheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals = 
+beforecheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals =
     beforecheckpoint(check.signal,check.child,len)
-aftercheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals = 
+aftercheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals =
     aftercheckpoint(check.signal,check.child,len)
 @Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
     i,j,check)
@@ -147,7 +147,7 @@ The value `padding` can be a number or it can be a function of a type (e.g.
 
 """
 pad(p) = x -> pad(x,p)
-function pad(x,p) 
+function pad(x,p)
     x = signal(x)
     isinf(nsamples(x)) ? x : PaddedSignal(x,p)
 end
@@ -174,7 +174,7 @@ checkindex(c::PadCheckpoint) = c.n
 function checkpoints(x::PaddedSignal,offset,len)
     child_len = nsamples(childsignal(x))
     child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
-    
+
     p = nothing
     child_checks = map(child_checks) do child
         p = checkindex(child) > child_len ? usepad(x) : nothing
@@ -188,13 +188,13 @@ function checkpoints(x::PaddedSignal,offset,len)
         child_checks
     end
 end
-beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
+beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal =
     beforecheckpoint(x.signal,check.child,len)
-beforecheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where 
+beforecheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where
     {S <: PaddedSignal} = nothing
-aftercheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal = 
+aftercheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal =
     aftercheckpoint(x.signal,check.child,len)
-aftercheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where 
+aftercheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where
     {S <: PaddedSignal} = nothing
 
 @Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,

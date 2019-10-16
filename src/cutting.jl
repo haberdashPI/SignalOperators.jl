@@ -8,7 +8,7 @@ struct CutApply{Si,Tm,K,T} <: WrappedSignal{Si,T}
     time::Tm
 end
 CutApply(signal::T,time,fn) where T = CutApply(signal,SignalTrait(T),time,fn)
-CutApply(signal::Si,::IsSignal{T},time::Tm,kind::K) where {Si,Tm,K,T} = 
+CutApply(signal::Si,::IsSignal{T},time::Tm,kind::K) where {Si,Tm,K,T} =
     CutApply{Si,Tm,K,T}(signal,time)
 
 SignalTrait(::Type{T}) where {Si,T <: CutApply{Si}} =
@@ -26,10 +26,10 @@ function SignalTrait(::Type{<:CutApply{Si,Tm,K}},::IsSignal{T,Fs,L}) where
         error("Unexpected cut apply type $K")
     end
 end
-    
+
 childsignal(x::CutApply) = x.signal
 resolvelen(x::CutApply) = insamples(Int,maybeseconds(x.time),samplerate(x))
-       
+
 const UntilApply{S,T} = CutApply{S,T,Val{:until}}
 const AfterApply{S,T} = CutApply{S,T,Val{:after}}
 
@@ -60,11 +60,11 @@ cutname(x::UntilApply) = "until"
 cutname(x::AfterApply) = "after"
 
 nsamples(x::UntilApply,::IsSignal) = min(nsamples(x.signal),resolvelen(x))
-duration(x::UntilApply) = 
+duration(x::UntilApply) =
     min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),samplerate(x)))
 
 nsamples(x::AfterApply,::IsSignal) = max(0,nsamples(x.signal) - resolvelen(x))
-duration(x::AfterApply) = 
+duration(x::AfterApply) =
     max(0,duration(x.signal) - inseconds(Float64,maybeseconds(x.time),samplerate(x)))
 
 EvalTrait(x::AfterApply) = DataSignal()
@@ -92,15 +92,15 @@ function checkpoints(x::S,offset,len) where S <: AfterApply
     end
 end
 
-beforecheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
+beforecheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply =
     beforecheckpoint(x.signal,check.child,len)
-aftercheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply = 
+aftercheckpoint(x::S,check::AfterCheckpoint{S},len) where S <: AfterApply =
     aftercheckpoint(x.signal,check.child,len)
 
 checkpoints(x::UntilApply,offset,len)  = checkpoints(x.signal,offset,len)
-beforecheckpoint(x::UntilApply,check,len) = 
+beforecheckpoint(x::UntilApply,check,len) =
     beforecheckpoint(x.signal,check,len)
-aftercheckpoint(x::UntilApply,check,len) = 
+aftercheckpoint(x::UntilApply,check,len) =
     aftercheckpoint(x.signal,check,len)
 
 @Base.propagate_inbounds function sampleat!(result,x::AfterApply,i,j,check)

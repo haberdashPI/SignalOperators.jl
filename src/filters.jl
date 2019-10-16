@@ -14,50 +14,50 @@ filterfn(design,method,args...) = FilterFn(design,method,args)
 """
     lowpass(x,low;[order=5],[method=Butterworth(order)],[blocksize])
 
-Apply a lowpass filter to x at the given cutoff frequency (`low`). 
+Apply a lowpass filter to x at the given cutoff frequency (`low`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
-lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
+lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) =
     filtersignal(x, filterfn(Lowpass,method,low), blocksize=blocksize)
 
 """
     highpass(x,high;[order=5],[method=Butterworth(order)],[blocksize])
 
-Apply a highpass filter to x at the given cutoff frequency (`low`). 
+Apply a highpass filter to x at the given cutoff frequency (`low`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
-highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) = 
+highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) =
     filtersignal(x, filterfn(Highpass,method,high),blocksize=blocksize)
 
 """
     bandpass(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
 
-Apply a bandpass filter to x at the given cutoff frequencies (`low` and `high`). 
+Apply a bandpass filter to x at the given cutoff frequencies (`low` and `high`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
 bandpass(x,low,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize) = 
+    blocksize=default_blocksize) =
     filtersignal(x, filterfn(Bandpass,method,low,high),blocksize=blocksize)
 
 """
     bandstop(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
 
-Apply a bandstop filter to x at the given cutoff frequencies (`low` and `high`). 
+Apply a bandstop filter to x at the given cutoff frequencies (`low` and `high`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
 bandstop(x,low,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize) = 
+    blocksize=default_blocksize) =
     filtersignal(x, filterfn(Bandstop,method,low,high),blocksize=blocksize)
 
 """
     filtersignal(x,h;[blocksize])
 
 Apply the given filter `h` (from [`DSP`](https://github.com/JuliaDSP/DSP.jl))
-to signal `x`. 
+to signal `x`.
 
 ## Blocksize
 
@@ -65,11 +65,11 @@ Blocksize determines the size of the buffer used when computing intermediate
 values of the filter. It defaults to 4096. It need not normally be adjusted.
 
 """
-filtersignal(h;blocksize=default_blocksize) = 
+filtersignal(h;blocksize=default_blocksize) =
     x -> filtersignal(x,h;blocksize=blocksize)
-filtersignal(x,fn::Union{FilterFn,Function};kwds...) = 
+filtersignal(x,fn::Union{FilterFn,Function};kwds...) =
     filtersignal(x,SignalTrait(x),fn;kwds...)
-filtersignal(x,h;kwds...) = 
+filtersignal(x,h;kwds...) =
     filtersignal(x,SignalTrait(x),RawFilterFn(h);kwds...)
 function filtersignal(x,::Nothing,args...;kwds...)
     filtersignal(signal(x),args...;kwds...)
@@ -135,7 +135,7 @@ mutable struct FilterState{H,Fs,S,T}
     output::Matrix{T}
     function FilterState(hs::Vector{H},fs::Fs,lastoffset::Int,lastoutput::Int,
         availableoutput::Int,input::Matrix{S},output::Matrix{T}) where {H,Fs,S,T}
-    
+
         new{H,Fs,S,T}(hs,fs,lastoffset,lastoutput,availableoutput,input,output)
     end
 end
@@ -167,11 +167,11 @@ function tosamplerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
     FilteredSignal(tosamplerate(x.signal,fs,blocksize=blocksize),
         x.fn,x.blocksize,fs)
 end
-        
+
 function nsamples(x::FilteredSignal)
     if ismissing(samplerate(x.signal))
         missing
-    elseif samplerate(x) == samplerate(x.signal) 
+    elseif samplerate(x) == samplerate(x.signal)
         nsamples(x.signal)
     else
         ceil(Int,nsamples(x.signal)*samplerate(x)/samplerate(x.signal))
@@ -203,7 +203,7 @@ Base.size(x::NullBuffer,n) = (x.len,x.ch)[n]
 writesink!(x::NullBuffer,i,y) = y
 Base.view(x::NullBuffer,i,j) = x
 
-function beforecheckpoint(x::S,check::FilterCheckpoint{S},len) where 
+function beforecheckpoint(x::S,check::FilterCheckpoint{S},len) where
     {S <: FilteredSignal}
 
     # refill buffer if necessary
@@ -244,7 +244,7 @@ function beforecheckpoint(x::S,check::FilterCheckpoint{S},len) where
     end
 end
 
-function aftercheckpoint(x::S,check::FilterCheckpoint{S},len) where 
+function aftercheckpoint(x::S,check::FilterCheckpoint{S},len) where
     {S <: FilteredSignal}
     check.state.lastoutput += len
     check.state.lastoffset += len
@@ -310,7 +310,7 @@ Return a signal with normalized power. That is, divide all samples by the
 root-mean-squared value of the entire signal.
 
 """
-function normpower(x) 
+function normpower(x)
     x = signal(x)
     NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(signal(x))
 end

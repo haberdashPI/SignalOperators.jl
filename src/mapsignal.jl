@@ -17,7 +17,7 @@ struct MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
 end
 
 function MapSignal(fn::Fn,val::El,len::L,signals::Si,
-    samplerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where 
+    samplerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where
         {Fn,El,L,Si,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
@@ -32,7 +32,7 @@ end
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} = 
+SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
     IsSignal{T,Fs,L}()
 nsamples(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
@@ -45,7 +45,7 @@ function duration(x::MapSignal)
 end
 function tosamplerate(x::MapSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
     if inHz(fs) < x.samplerate
-        # resample input if we are downsampling 
+        # resample input if we are downsampling
         mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
             padding=x.padding,bychannel=x.bychannel,
             blocksize=x.blocksize)
@@ -67,7 +67,7 @@ Apply `fn` across the samples of arguments, producing a signal of the output
 of `fn`. Shorter signals are padded to accommodate the longest finite-length
 signal. The function `fn` should treat each argument as a single number and
 return a single number. This operation is broadcast across all channels of
-the input. It is expected to be a type stable function. 
+the input. It is expected to be a type stable function.
 
 Normally the signals are first promoted to have the same samle rate and the
 same number of channels using [`uniform`](@ref) (with `channels=true`).
@@ -119,7 +119,7 @@ function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     lens = nsamples.(xs) |> collect
     len = all(isinf,lens) ? inflen :
             any(ismissing,lens) ? missing :
-            maximum(filter(!isinf,lens)) 
+            maximum(filter(!isinf,lens))
 
     vals = testvalue.(xs)
     if bychannel
@@ -166,7 +166,7 @@ function checkpoints(x::MapSignal,offset,len)
             channels = nothing
         end
 
-        S,I,Ch,C = typeof(x), typeof(signal_indices), typeof(channels), 
+        S,I,Ch,C = typeof(x), typeof(signal_indices), typeof(channels),
             typeof(children)
         MapSignalCheckpoint{S,I,Ch,C}(signal_indices,channels,children)
     end
@@ -214,7 +214,7 @@ function __sample_signals(j::Int,sigs::Tuple,checks::Tuple,::Val{N}) where N
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::S,i,j,check::MapSignalCheckpoint{S,<:Nothing}) where 
+    x::S,i,j,check::MapSignalCheckpoint{S,<:Nothing}) where
     {N,C,S<:MapSignal{<:FnBr,N,C}}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
@@ -226,7 +226,7 @@ Base.@propagate_inbounds function sampleat!(result,
 end
 
 Base.@propagate_inbounds function sampleat!(result,
-    x::S,i,j,check::MapSignalCheckpoint{S,<:Array}) where 
+    x::S,i,j,check::MapSignalCheckpoint{S,<:Array}) where
     {N,C,S<:MapSignal{<:FnBr,N,C}}
 
     inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
@@ -253,9 +253,9 @@ function PrettyPrinting.tile(x::MapSignal)
     if length(x.signals) == 1
         tilepipe(signaltile(x.signals[1]),literal(string(mapstring(x.fn),")")))
     elseif length(x.signals) == 2
-        operate = 
+        operate =
             literal(mapstring(x.fn)) * signaltile(x.signals[2]) * literal(")") |
-            literal(mapstring(x.fn)) / indent(4) * signaltile(x.signals[2]) / 
+            literal(mapstring(x.fn)) / indent(4) * signaltile(x.signals[2]) /
                 literal(")")
         tilepipe(signaltile(x.signals[1]),operate)
     else
