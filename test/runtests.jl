@@ -272,7 +272,7 @@ progress = Progress(total_test_groups,desc="Running tests")
             y = signal(sin,22Hz,ω=5Hz) |> tochannels(nch) |> until(2s)
             fading = fadeto(x,y,100ms)
             result = sink(fading)
-            @test nsamples(fading) == (5+5-0.1)*100
+            @test nsamples(fading) == ceil(Int,(2+2-0.1)*22)
             @test nsamples(result) == nsamples(fading)
 
             ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> tochannels(nch) |>
