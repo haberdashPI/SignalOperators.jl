@@ -129,8 +129,8 @@ progress = Progress(total_test_groups,desc="Running tests")
 
     @testset "Change channel Count" begin
         tone = signal(sin,22Hz,ω=10Hz) |> until(5s)
-        n = tone |> tochannels(2) |> nchannels
-        @test n==2
+        @test (tone |> tochannels(2) |> nchannels) == 2
+        @test (tone |> tochannels(1) |> nchannels) == 1
         data = tone |> tochannels(2) |> sink
         @test size(data,2) == 2
         data2 = signal(data,22Hz) |> tochannels(1) |> sink
