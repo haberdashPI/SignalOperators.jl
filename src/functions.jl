@@ -27,16 +27,15 @@ nsamples(x::SignalFunction) = inflen
 samplerate(x::SignalFunction) = x.samplerate
 EvalTrait(x::SignalFunction) = ComputedSignal()
 
-function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction) 
+function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
     if ismissing(x.ω) && iszero(x.ϕ)
         write(io,string(x.fn))
         show_fs(io,x)
     else
         write(io,"signal(")
         write(io,string(x.fn))
-        write(io,",")
-        !ismissing(x.ω) && write(io,"ω=",string(x.ω))
-        !iszero(x.ϕ) && write(io,"ϕ=",string(x.ϕ))
+        !ismissing(x.ω) && write(io,",ω=",string(x.ω))
+        !iszero(x.ϕ) && write(io,",ϕ=",string(x.ϕ),"π")
         write(io,")")
         show_fs(io,x)
     end
