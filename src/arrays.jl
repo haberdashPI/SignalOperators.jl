@@ -8,7 +8,7 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 ## Arrays
 
 Arrays can be treated as signals. The first dimension is time, the second
-channels. 
+channels.
 
 [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
 axis labeled `time` and one or zero additional axes, can be treated as a
@@ -61,7 +61,7 @@ end
 nsamples(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
 nsamples(x::AbstractVecOrMat) = size(x,1)
 
-function nchannels(x::AxisArray) 
+function nchannels(x::AxisArray)
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
 end
@@ -98,7 +98,7 @@ function signalshow(io,x::AbstractArray)
         MIME("text/plain"),x)
     show_fs(io,x)
 end
-function signalshow(io,x::AxisArray) 
+function signalshow(io,x::AxisArray)
     signalshow(io,x.data)
     show_fs(io,x)
 end
