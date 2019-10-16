@@ -190,6 +190,9 @@ progress = Progress(total_test_groups,desc="Running tests")
             tones = a |> append(b)
             @test duration(tones) == 10
             @test nsamples(sink(tones)) == 220
+
+            @test_throws ErrorException append(sin,1:10)
+            @test SignalTrait(append(1:10,sin)) isa IsSignal
         end
     end
     next!(progress)
