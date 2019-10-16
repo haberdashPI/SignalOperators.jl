@@ -5,7 +5,7 @@
 Creates a given type of object (`to`) from a signal. By default it is an
 `AxisArray` with time as the rows and channels as the columns. If a filename
 is specified for `to`, the signal is written to the given file. If given a
-type (e.g. `Array`) the signal is written to a value of that type. 
+type (e.g. `Array`) the signal is written to a value of that type.
 
 # Sample Rate
 
@@ -66,10 +66,10 @@ Write `size(array,1)` samples of signal `x` to `array`, starting from the sample
 now, using `samplerate` (it will default to 44.1kHz).
 
 """
-sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) = 
+sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) =
     x -> sink!(result,x;kwds...)
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
-    samplerate=SignalOperators.samplerate(x),offset=0) 
+    samplerate=SignalOperators.samplerate(x),offset=0)
 
     if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
         @warn("No sample rate was specified, defaulting to 44.1 kHz.")
@@ -92,19 +92,19 @@ struct EmptyCheckpoint{S} <: AbstractCheckpoint{S}
 end
 checkindex(x::EmptyCheckpoint) = x.n
 
-checkpoints(x::S,offset,len) where S = 
+checkpoints(x::S,offset,len) where S =
     [EmptyCheckpoint{S}(offset+1),EmptyCheckpoint{S}(offset+len+1)]
 beforecheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
-beforecheckpoint(x,check,len) = 
+beforecheckpoint(x,check,len) =
     error("Internal error: signal inconsistent with checkpoint")
 aftercheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
-aftercheckpoint(x,check,len) = 
+aftercheckpoint(x,check,len) =
     error("Internal error: signal inconsistent with checkpoint")
 
 # sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
 fold(x) = zip(x,Iterators.drop(x,1))
-sink!(result,x,sig::IsSignal,offset::Number) = 
+sink!(result,x,sig::IsSignal,offset::Number) =
     sink!(result,x,sig,checkpoints(x,offset,size(result,1)))
 function sink!(result,x,sig::IsSignal,checks::AbstractArray)
     n = 1-checkindex(checks[1])
