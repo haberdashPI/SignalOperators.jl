@@ -22,14 +22,14 @@ sample rate.
 
 """
 signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
-signal(val::Unitful.Gain,::Nothing,fs) = 
+signal(val::Unitful.Gain,::Nothing,fs) =
     NumberSignal(uconvertrp(NoUnits,val),inHz(Float64,fs),dB=true)
 
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 
 nchannels(x::NumberSignal,::IsSignal) = 1
 nsamples(x::NumberSignal,::IsSignal) = inflen
-samplerate(x::NumberSignal,::IsSignal) = x.samplerate 
+samplerate(x::NumberSignal,::IsSignal) = x.samplerate
 
 tosamplerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)
