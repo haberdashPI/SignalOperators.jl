@@ -4,19 +4,19 @@ SignalOperators is composed of a set of functions for generating, inspecting and
 
 ## Key concepts
 
-There are several important concepts employed across the public interface. Let's step through one of the examples from the homepage (and README.md), which demonstrates most of these concepts. 
+There are several important concepts employed across the public interface. Let's step through one of the examples from the homepage (and README.md), which demonstrates most of these concepts.
 
 ```julia
 sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 ```
 
-This example creates a 1 kHz pure-tone (sine wave) that lasts 5 seconds. Its amplitude is 20 dB lower than a signal with unit 1 power. 
+This example creates a 1 kHz pure-tone (sine wave) that lasts 5 seconds. Its amplitude is 20 dB lower than a signal with unit 1 power.
 
 There are a few things going on here: piping, the use of units, infinite length signals, and unspecified sample rates.
 
 ### Piping
 
-Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument to a function, you can pipe it using `|>`. For example, the two statements below have the same meaning. 
+Almost all of the functions implemented in SignalOperators can be piped. This means that instead of passing the first argument to a function, you can pipe it using `|>`. For example, the two statements below have the same meaning.
 
 ```julia
 sound1 = signal(sin,ω=1kHz) |> until(5s)
@@ -27,14 +27,14 @@ The use of piping makes it easier to read the sequence of operations that are pe
 
 ### Units
 
-In any place where a function needs a time or a frequency, it can be specified in appropriate units. There are many places where units can be passed. They all have a default assumed unit, if a plain number, without units, is passed. The default units are seconds, Hertz, and radians as appropriate for the given argument.
+In any place where a function needs a time or a frequency, it can be specified in appropriate units. There are many places where units can be passed. They all have a default assumed unit, if a plain number without units is passed. The default units are seconds, Hertz, and radians as appropriate for the given argument.
 
 ```julia
 sound1 = signal(sin,ω=1kHz)
 sound1 = signal(sin,ω=1000)
 ```
 
-Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of the default units have been re-exported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package and allows you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported (e.g. you would have to call `SignalOperators.Units: Msamples` before using `20Msamples`). 
+Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of the default units have been re-exported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package. They allow you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported (e.g. you would have to call `SignalOperators.Units: Msamples` before using `20Msamples`).
 
 !!! note
 
@@ -44,7 +44,7 @@ Note that the output of functions to inspect a signal (e.g. `duration`, `sampler
 
 #### Decibels
 
-You can pass an amplification value as a unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. For example, `amplify(x,2)` will make `x` twice as loud. 
+You can pass an amplification value as a unitless or a unitful value in `dB`; a unitless value is not assumed to be in decibels. Instead, it's assumed to be the actual ratio by which you wish to multiply the signal. For example, `amplify(x,2)` will make `x` twice as loud.
 
 ### Infinite lengths
 
@@ -54,11 +54,11 @@ Some of the ways you can define a signal lead to an infinite length signal. You 
 signal(sin,ω=1kHz) |> until(5s)
 ```
 
-Infinite lengths are represented as the value [`inflen`](@ref). This has overloaded definitions of various operators to play nicely with ordering, arithmetic etc... 
+Infinite lengths are represented as the value [`inflen`](@ref). This has overloaded definitions of various operators to play nicely with ordering, arithmetic etc...
 
 ### Unspecified sample rates
 
-You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref), you can specify it then. 
+You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref), you can specify it then.
 
 ### Sinking
 
@@ -90,12 +90,12 @@ There are four basic types that can be interpreted as signals: numbers,
 arrays, functions and files. Internally the function [`signal`](@ref) is
 called on any object passed to a function that inspects or operates on a
 signal; you can call [`signal`](@ref) yourself if you want to specify more
-information. For example, you want to provide the exact sample rate the
+information. For example, you may want to provide the exact sample rate the
 signal should be interpreted to have.
 
 ### Numbers
 
-A number is treated as an infinite length signal, with unknown sample rate. 
+A number is treated as an infinite length signal, with unknown sample rate.
 
 ```julia
 1 |> until(1s) |> sink(samplerate=10Hz) == ones(10)
@@ -109,7 +109,7 @@ A standard array is treated as a finite signal with unknown sample rate.
 rand(10,2) |> sink(samplerate=10Hz) |> duration == 1
 ```
 
-An `AxisArray` is treated as a finite signal with a known sample rate (and is the default output of [`sink`](@ref)) 
+An `AxisArray` is treated as a finite signal with a known sample rate (and is the default output of [`sink`](@ref))
 
 ```julia
 using AxisArrays
@@ -128,7 +128,7 @@ details.
 signal(sin,ω=1kHz) |> duration |> isinf == true
 ```
 
-A small exception to this is `randn`. It can be used directly as a signal with unknown sample rate. 
+A small exception to this is `randn`. It can be used directly as a signal with unknown sample rate.
 
 ```julia
 randn |> duration == isinf
@@ -190,7 +190,7 @@ append(until(x,2s),after(x,2s)) |> nsamples == nsamples(x)
 
 ### Filtering
 
-You can filter signals, removing undesired frequencies using [`lowpass`](@ref), [`highpass`](@ref), [`bandpass`](@ref), [`bandstop`](@ref) and [`filtersignal`](@ref). The latter allows the use of any arbitrary filter defined using `DSP`. 
+You can filter signals, removing undesired frequencies using [`lowpass`](@ref), [`highpass`](@ref), [`bandpass`](@ref), [`bandstop`](@ref) and [`filtersignal`](@ref). The latter allows the use of any arbitrary filter defined using `DSP`.
 
 ```julia
 signal(randn) |> lowpass(20Hz)
@@ -198,19 +198,19 @@ signal(randn) |> lowpass(20Hz)
 
 !!! warning
 
-    If you write `using DSP` you will have to also write `dB = SignalOperators.Units.dB` if you want to make use of the proper meaning of `dB` for `SignalOperators`: `DSP` also defines a value for `dB`.
+    If you write `using DSP` you will have to also write `dB = SignalOperators.Units.dB` if you want to make use of the proper meaning of `dB` for `SignalOperators`: `DSP` also defines `dB`.
 
 An unusual filter is [`normpower`](@ref): it computes the root mean squared power of the signal and then normalizes each sample by that value.
 
 ### Ramping
 
-A ramp allows for smooth transitions from 0 amplitude to the full amplitude of the signal. It is useful to avoid clicks in the onset or offset of a sound. For example, pure-tones are typically ramped when presented.
+A ramp allows for smooth transitions between 0 amplitude and the full amplitude of the signal. It is useful to avoid clicks in the onset or offset of a sound. For example, pure-tones are typically ramped when presented.
 
 ```julia
 signal(sin,ω=2kHz) |> until(5s) |> ramp
 ```
 
-You can ramp only the start of a signal ([`rampon`](@ref)), or the end of it ([`rampoff`](@ref)) and you can use ramps to create a smooth transition between two signals ([`fadeto`](@ref)). 
+You can ramp only the start of a signal ([`rampon`](@ref)), or the end of it ([`rampoff`](@ref)) and you can use ramps to create a smooth transition between two signals ([`fadeto`](@ref)).
 
 ### Mapping
 

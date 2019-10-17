@@ -146,6 +146,9 @@ Create a signal that appends an infinite number of values, `padding`, to `x`.
 The value `padding` can be a number or it can be a function of a type (e.g.
 `zero`).
 
+If the signal is already infinitely long (e.g. a previoulsy padded signal),
+`pad` has no effect.
+
 """
 pad(p) = x -> pad(x,p)
 function pad(x,p)
