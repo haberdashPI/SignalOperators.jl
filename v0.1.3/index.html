@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · SignalOperators.jl</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link href="assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>SignalOperators.jl</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li class="current"><a class="toctext" href>Home</a><ul class="internal"><li><a class="toctext" href="#Acknowledgements-1">Acknowledgements</a></li></ul></li><li><a class="toctext" href="manual/">Manual</a></li><li><a class="toctext" href="reference/">Reference</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href>Home</a></li></ul><a class="edit-page" href="https://github.com/haberdashPI/SignalOperators.jl/blob/master/docs/src/index.md#L"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Home</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="SignalOperators.jl-1" href="#SignalOperators.jl-1">SignalOperators.jl</a></h1><p>SignalOperators is a <a href="https://julialang.org/">Julia</a> package that aims to provide a clean interface for generating and manipulating signals: typically sounds, but any signal regularly sampled in time can be manipulated.</p><p>You can install it in Julia by starting the Pkg prompt (hit <code>]</code>), and using the <code>add</code> command.</p><pre><code class="language-julia">(1.2) pkg&gt; add SignalOperators</code></pre><p>As a preview of functionality, here are some example sound generation routines. You can find more detailed information in the manual and reference.</p><pre><code class="language-julia">using SignalOperators
+using SignalOperators.Units # allows the use of dB, Hz, s etc... as unitful values
+
+# a pure tone 20 dB below a power 1 signal, with on and off ramps (for
+# a smooth onset/offset)
+sound1 = signal(sin,ω=1kHz) |&gt; until(5s) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB)
+
+# a sound defined by a file, matching the overall power to that of sound1
+sound2 = &quot;example.wav&quot; |&gt; normpower |&gt; amplify(-20dB)
+
+# a 1kHz sawtooth wave
+sound3 = signal(ϕ -&gt; ϕ-π,ω=1kHz) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB)
+
+# a 5 Hz amplitude modulated noise
+sound4 = randn |&gt;
+    amplify(signal(ϕ -&gt; 0.5sin(ϕ) + 0.5,ω=5Hz)) |&gt;
+    until(5s) |&gt; normpower |&gt; amplify(-20dB)
+
+# a 1kHz tone surrounded by a notch noise
+SNR = 5dB
+x = signal(sin,ω=1kHz) |&gt; until(1s) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB + SNR)
+y = signal(randn) |&gt; until(1s) |&gt; bandstop(0.5kHz,2kHz) |&gt; normpower |&gt;
+  amplify(-20dB)
+scene = mix(x,y)
+
+# write all of the signals to a single file, at 44.1 kHz
+append(sound1,sound2,sound3,sound4,scene) |&gt; tosamplerate(44.1kHz) |&gt; sink(&quot;examples.wav&quot;)
+</code></pre><h2><a class="nav-anchor" id="Acknowledgements-1" href="#Acknowledgements-1">Acknowledgements</a></h2><p>Many thanks to @ssfrr for some great discussions during this <a href="https://github.com/JuliaAudio/SampledSignals.jl/pull/44">PR</a>, and related issues on the <a href="https://github.com/JuliaAudio/SampledSignals.jl">SampledSignals</a> package. Those interactions definitely influenced my final design here.</p><footer><hr/><a class="next" href="manual/"><span class="direction">Next</span><span class="title">Manual</span></a></footer></article></body></html>
