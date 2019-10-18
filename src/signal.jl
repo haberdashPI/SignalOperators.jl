@@ -29,7 +29,7 @@ end
 # nchannels(x) (may return nothing)
 # nsamples(x)
 # samplerate(x)
-# sampleat! 
+# sampleat!
 # MAYBE checkpoints, beforecheckpoint and aftercheckpoint
 
 # not everything that's a signal belongs to this package, (hence the use of
@@ -67,7 +67,7 @@ nsamples(x,s::Nothing) = nosignal(x)
 
     samplerate(x)
 
-Returns the sample rate of the signal (in Hertz). May return `missing` if the 
+Returns the sample rate of the signal (in Hertz). May return `missing` if the
 sample rate is unknown.
 
 """
