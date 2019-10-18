@@ -21,11 +21,11 @@ function signal(x::AbstractArray{<:Any,N},::IsSignal,
 
     if N == 1
         ismissing(fs) && return x
-        times = range(0s,length=size(x,1),step=s/inHz(fs))
+        times = range(0s,length=size(x,1),step=float(s/inHz(fs)))
         AxisArray(x,Axis{:time}(times))
     elseif N == 2
         ismissing(fs) && return x
-        times = range(0s,length=size(x,1),step=s/inHz(fs))
+        times = range(0s,length=size(x,1),step=float(s/inHz(fs)))
         channels = 1:size(x,2)
         AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
     else
