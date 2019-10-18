@@ -306,6 +306,9 @@ progress = Progress(total_test_groups,desc="Running tests")
             @test samplerate(resamp) == 40
             @test nsamples(resamp) == 2nsamples(tone)
 
+            x = rand(10,nch) |> tosamplerate(2kHz) |> sink
+            @test samplerate(x) == 2000
+
             toned = tone |> sink
             resamp = tosamplerate(toned,40Hz)
             @test samplerate(resamp) == 40
