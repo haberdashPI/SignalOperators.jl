@@ -137,10 +137,10 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct MapSignalCheckpoint{S,I,Ch,C} <: AbstractCheckpoint{S}
+struct MapSignalCheckpoint{S,Ch,I,C} <: AbstractCheckpoint{S}
     n::Int
-    indices::I
     channels::Ch
+    indices::I
     children::C
 end
 checkindex(x::MapSignalCheckpoint) = x.n
@@ -158,7 +158,7 @@ function checkpoints(x::MapSignal,offset,len)
     grouped = pairs(dictgroup(@λ(checkindex(_[2])),checks))
     indices = grouped |> keys |> collect |> sort!
     most_recent_checks = sort(grouped[indices[1]],by=@λ(_[1]))
-    @assert length(most_recent_checks) == length(x.padded_signals)
+    # @assert length(most_recent_checks) == length(x.padded_signals)
     map(indices) do checki
         signal_indices = map(@λ(_[1]),grouped[checki])
         # update the most recent checkpoints for each child
@@ -176,7 +176,7 @@ function checkpoints(x::MapSignal,offset,len)
 
         S,I,Ch,C = typeof(x), typeof(signal_indices), typeof(channels),
             typeof(children)
-        MapSignalCheckpoint{S,I,Ch,C}(checki,signal_indices,channels,children)
+        MapSignalCheckpoint{S,Ch,I,C}(checki,channels,signal_indices,children)
     end
 end
 
