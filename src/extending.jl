@@ -77,15 +77,23 @@ function checkpoints(x::AppendSignals,offset,len)
             []
         elseif index-offset > 0
             local_len = min(len-written,nsamples(signal))
-            written += local_len
-            droplast_unless(checkpoints(signal,0,local_len),
-                sig_index == length(x.signals))
+            if local_len > 0
+                written += local_len
+                droplast_unless(checkpoints(signal,0,local_len),
+                    sig_index == length(x.signals))
+            else
+                []
+            end
         elseif index + nsamples(signal) - offset > 0
             sigoffset = -(index-offset)+1
             local_len = min(nsamples(signal)-sigoffset+1,len-written)
-            written += local_len
-            droplast_unless(checkpoints(signal,sigoffset,local_len),
-                sig_index == length(x.signals))
+            if local_len > 0
+                written += local_len
+                droplast_unless(checkpoints(signal,sigoffset,local_len),
+                    sig_index == length(x.signals))
+            else
+                []
+            end
         else
             []
         end
