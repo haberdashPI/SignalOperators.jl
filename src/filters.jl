@@ -11,6 +11,14 @@ end
     digitalfilter(fn.design(inHz.(fn.args)...,fs=inHz(fs)),fn.method)
 filterfn(design,method,args...) = FilterFn(design,method,args)
 
+function nyquist_check(x,hz)
+    if !ismissing(samplerate(x)) && inHz(hz) ≥ 0.5samplerate(x)
+        error("The frequency $(hz) cannot be represented at a sampling rate ",
+              "of $(samplerate(x)) Hz. Increase the sampling rate or lower ",
+              "the frequency.")
+    end
+end
+
 """
     lowpass(x,low;[order=5],[method=Butterworth(order)],[blocksize])
 
@@ -18,8 +26,12 @@ Apply a lowpass filter to x at the given cutoff frequency (`low`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
-lowpass(x,low;order=5,method=Butterworth(order),blocksize=default_blocksize) =
+function lowpass(x,low;order=5,method=Butterworth(order),
+    blocksize=default_blocksize)
+
+    nyquist_check(x,low)
     filtersignal(x, filterfn(Lowpass,method,low), blocksize=blocksize)
+end
 
 """
     highpass(x,high;[order=5],[method=Butterworth(order)],[blocksize])
@@ -28,8 +40,12 @@ Apply a highpass filter to x at the given cutoff frequency (`low`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 highpass(high;kwds...) = x->highpass(x,high;kwds...)
-highpass(x,high;order=5,method=Butterworth(order),blocksize=default_blocksize) =
+function highpass(x,high;order=5,method=Butterworth(order),
+    blocksize=default_blocksize)
+
+    nyquist_check(x,high)
     filtersignal(x, filterfn(Highpass,method,high),blocksize=blocksize)
+end
 
 """
     bandpass(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
@@ -38,9 +54,13 @@ Apply a bandpass filter to x at the given cutoff frequencies (`low` and `high`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
-bandpass(x,low,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize) =
+function bandpass(x,low,high;order=5,method=Butterworth(order),
+    blocksize=default_blocksize)
+
+    nyquist_check(x,low)
+    nyquist_check(x,high)
     filtersignal(x, filterfn(Bandpass,method,low,high),blocksize=blocksize)
+end
 
 """
     bandstop(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
@@ -49,9 +69,13 @@ Apply a bandstop filter to x at the given cutoff frequencies (`low` and `high`).
 See [`filtersignal`](@ref) for details on `blocksize`.
 """
 bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
-bandstop(x,low,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize) =
+function bandstop(x,low,high;order=5,method=Butterworth(order),
+    blocksize=default_blocksize)
+
+    nyquist_check(x,low)
+    nyquist_check(x,high)
     filtersignal(x, filterfn(Bandstop,method,low,high),blocksize=blocksize)
+end
 
 """
     filtersignal(x,h;[blocksize])

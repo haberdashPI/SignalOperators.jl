@@ -273,6 +273,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
             bands1 = cmplx |> bandstop(20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
             bands2 = cmplx |> bandstop(2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
 
+            @test_throws ErrorException highpass(a,75Hz)
+            @test_throws ErrorException lowpass(a,75Hz)
+            @test_throws ErrorException bandpass(a,75Hz,80Hz)
+            @test_throws ErrorException bandstop(a,75Hz,80Hz)
+
             @test nsamples(high) == 500
             @test nsamples(low) == 500
             @test nsamples(highlow) == 500
