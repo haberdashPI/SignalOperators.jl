@@ -22,8 +22,8 @@ sample rate.
 
 """
 signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
-signal(val::Unitful.Gain,::Nothing,fs) =
-    NumberSignal(uconvertrp(NoUnits,val),inHz(Float64,fs),dB=true)
+signal(val::Unitful.Gain{<:Any,<:Any,T},::Nothing,fs) where T =
+    NumberSignal(float(T)(uconvertrp(NoUnits,val)),inHz(Float64,fs),dB=true)
 
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 

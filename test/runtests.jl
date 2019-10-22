@@ -614,13 +614,13 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test x |> append(y) |> until(13s) |> sink |> eltype == Float32
         @test x |> pad(zero) |> until(15s) |> sink |> eltype == Float32
         @test x |> lowpass(3Hz) |> sink |> eltype == Float32
-        @test x |> normpower |> amplify(-10dB) |> sink |> eltype == Float32
+        @test x |> normpower |> amplify(-10f0*dB) |> sink |> eltype == Float32
         @test x |> mix(y) |> sink(samplerate=10Hz) |> eltype == Float32
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> eltype == Float32
         @test x |> channel(1) |> sink(samplerate=10Hz) |> eltype == Float32
 
-        @test_throws x |> ramp |> sink |> eltype == Float32
-        @test_throws x |> fadeto(y) |> sink |> eltype == Float32
+        @test x |> ramp |> sink |> eltype == Float32
+        @test x |> fadeto(y) |> sink |> eltype == Float32
     end
     next!(progress)
 
