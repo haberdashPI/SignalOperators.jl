@@ -30,6 +30,10 @@ include("ramps.jl")
 #     include("SampledSignals.jl")
 # end
 
+@require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0" begin
+    include("DimensionalData.jl")
+end
+
 # handle reading/writing to files
 # using WAV
 # include("WAV.jl")
