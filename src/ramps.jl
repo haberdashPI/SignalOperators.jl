@@ -5,15 +5,16 @@ sinramp(x) = sinpi(0.5x)
 
 function rampon_fn(x,len,fun)
     time = inseconds(Float64,len,samplerate(x))
-    RampOnFn(fun,time)
+    RampOnFn{float(channel_eltype(x)),typeof(fun)}(fun,time)
 end
-struct RampOnFn{Fn,T} <: Functor
+struct RampOnFn{El,Fn} <: Functor
     ramp::Fn
-    time::T
+    time::Float64
 end
-(fn::RampOnFn)(t) =
-    t ≤ fn.time ? fn.ramp(t/fn.time) : 1.0
-Base.string(x::RampOnFn{<:typeof(sinramp)}) = string("rampon_fn(",x.time,")")
+(fn::RampOnFn{El})(t) where El =
+    t ≤ fn.time ? El(fn.ramp(t/fn.time)) : one(El)
+Base.string(x::RampOnFn{<:Any,<:typeof(sinramp)}) =
+    string("rampon_fn(",x.time,")")
 Base.string(x::RampOnFn) = string("rampon_fn(",x.time,",",x.ramp,")")
 
 """
@@ -46,12 +47,12 @@ function rampoff_fn(x,len,fun)
               "Define the samplerate or signal length earlier in the ",
               "processing chain.")
     end
-    RampOffFn(fun,ramp_start,time)
+    RampOffFn{float(channel_eltype(x)),typeof(fun)}(fun,ramp_start,time)
 end
-struct RampOffFn{Fn,S,T} <: Functor
+struct RampOffFn{El,Fn} <: Functor
     ramp::Fn
-    ramp_start::S
-    time::T
+    ramp_start::Float64
+    time::Float64
 end
 (fn::RampOffFn{El})(t) where El =
     t < fn.ramp_start ? one(El) : El(fn.ramp(1.0 - (t-fn.ramp_start)/fn.time))

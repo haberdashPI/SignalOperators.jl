@@ -599,6 +599,31 @@ progress = Progress(total_test_groups,desc="Running tests...")
     end
     next!(progress)
 
+    @testset "Handle lower bitrate" begin
+        x = signal(rand(Float32,100,2),10Hz)
+        y = signal(rand(Float32,50,2),10Hz)
+        @test x |> samplerate == 10
+        @test x |> sink |> eltype == Float32
+        @test x |> duration == 10
+        @test x |> until(5s) |> sink |> eltype == Float32
+        @test x |> after(2s) |> sink |> eltype == Float32
+        @test x |> nsamples == 100
+        @test x |> nchannels == 2
+        @test x |> append(y) |> sink |> eltype == Float32
+        @test x |> append(y) |> after(2s) |> sink |> eltype == Float32
+        @test x |> append(y) |> until(13s) |> sink |> eltype == Float32
+        @test x |> pad(zero) |> until(15s) |> sink |> eltype == Float32
+        @test x |> lowpass(3Hz) |> sink |> eltype == Float32
+        @test x |> normpower |> amplify(-10dB) |> sink |> eltype == Float32
+        @test x |> mix(y) |> sink(samplerate=10Hz) |> eltype == Float32
+        @test x |> addchannel(y) |> sink(samplerate=10Hz) |> eltype == Float32
+        @test x |> channel(1) |> sink(samplerate=10Hz) |> eltype == Float32
+
+        @test_throws x |> ramp |> sink |> eltype == Float32
+        @test_throws x |> fadeto(y) |> sink |> eltype == Float32
+    end
+    next!(progress)
+
     @testset "Handle fixed point numbers" begin
         x = signal(rand(Fixed{Int16,15},100,2),10Hz)
         y = signal(rand(Fixed{Int16,15},50,2),10Hz)
@@ -621,8 +646,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
 
-        @test_throws InexactError x |> ramp |> sink |> nsamples
-        @test_throws InexactError x |> fadeto(y) |> sink |> nsamples
+        @test x |> ramp |> sink |> nsamples == 100
+        @test x |> fadeto(y) |> sink |> nsamples == 150
     end
     next!(progress)
 

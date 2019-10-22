@@ -37,6 +37,10 @@ function __init__()
     @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
         include("WAV.jl")
     end
+
+    @require FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93" begin
+        include("FixedPointNumbers.jl")
+    end
 end
 
 end # module
