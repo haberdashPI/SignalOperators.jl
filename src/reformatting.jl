@@ -47,9 +47,19 @@ end
 filterstring(fn::ResamplerFn) =
     string("tosamplerate(",inHz(fn.fs)*Hz,")")
 
+function maybe_rationalize(r)
+    x = rationalize(r)
+    # only use rational number if it is a small integer ratio
+    if max(numerator(x),denominator(x)) ≤ 16
+        x
+    else
+        r
+    end
+end
+
 function __tosamplerate__(x,s::IsSignal{T},fs,blocksize) where T
     # copied and modified from DSP's `resample`
-    ratio = rationalize(fs/samplerate(x))
+    ratio = maybe_rationalize(fs/samplerate(x))
     init_fs = samplerate(x)
     if ratio == 1
         x
