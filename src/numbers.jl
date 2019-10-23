@@ -27,9 +27,9 @@ signal(val::Unitful.Gain,::Nothing,fs) =
 
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 
-nchannels(x::NumberSignal,::IsSignal) = 1
-nsamples(x::NumberSignal,::IsSignal) = inflen
-samplerate(x::NumberSignal,::IsSignal) = x.samplerate
+nchannels(x::NumberSignal) = 1
+nsamples(x::NumberSignal) = inflen
+samplerate(x::NumberSignal) = x.samplerate
 
 tosamplerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)

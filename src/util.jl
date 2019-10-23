@@ -8,3 +8,8 @@ function dictgroup(by,col)
     end
     dict
 end
+
+struct ResamplerFn{T,Fs}
+    ratio::T
+    fs::Fs
+end

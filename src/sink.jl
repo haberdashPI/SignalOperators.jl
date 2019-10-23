@@ -91,41 +91,39 @@ struct EmptyCheckpoint{S} <: AbstractCheckpoint{S}
     n::Int
 end
 checkindex(x::EmptyCheckpoint) = x.n
+child(x::Number) = x
+checkindex(x::Number) = x+1
 
-checkpoints(x::S,offset,len) where S =
-    [EmptyCheckpoint{S}(offset+1),EmptyCheckpoint{S}(offset+len+1)]
-beforecheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
-beforecheckpoint(x,check,len) =
+atcheckpoint(x,offset::Number,stopat) =
+    offset ≥ stopat ? nothing : EmptyCheckpoint{typeof(x)}(1+offset)
+atcheckpoint(x::S,check::AbstractCheckpoint{S},stopat) where S =
+    checkindex(check) == stopat+1 ? nothing : EmptyCheckpoint{S}(stopat+1)
+atcheckpoint(x,check) =
     error("Internal error: signal inconsistent with checkpoint")
-aftercheckpoint(x::S,check::AbstractCheckpoint{S},len) where S = nothing
-aftercheckpoint(x,check,len) =
-    error("Internal error: signal inconsistent with checkpoint")
-
-# sampleat!(result,x,sig,i,j,check) = sampleat!(result,x,sig,i,j)
 
 fold(x) = zip(x,Iterators.drop(x,1))
 sink!(result,x,sig::IsSignal,offset::Number) =
-    sink!(result,x,sig,checkpoints(x,offset,size(result,1)))
-function sink!(result,x,sig::IsSignal,checks::AbstractArray)
-    n = 1-checkindex(checks[1])
+    sink!(result,x,sig,offset,atcheckpoint(x,offset,size(result,1)+offset))
+function sink!(result,x,sig::IsSignal,offset,check)
+    written = 0
+    while !isnothing(check) && written < size(result,1)
+        next = atcheckpoint(x,check,offset+size(result,1))
+        isnothing(next) && break
 
-    indices = map(checkindex,checks)
-    @assert unique!(indices) == indices
-
-    for (check,next) in fold(checks)
         len = checkindex(next) - checkindex(check)
         @assert len > 0
 
-        beforecheckpoint(x,check,len)
-        sink_helper!(result,n,x,check,len)
-        aftercheckpoint(x,check,len)
+        sink_helper!(result,offset,x,check,len)
+        written += len
+        check = next
     end
+    @assert written == size(result,1)
     result
 end
 
-@noinline function sink_helper!(result,n,x,check,len)
+@noinline function sink_helper!(result,offset,x,check,len)
     @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
-        sampleat!(result,x,n+i,i,check)
+        sampleat!(result,x,i-offset,i,check)
     end
 end
 

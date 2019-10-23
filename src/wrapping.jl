@@ -4,14 +4,15 @@ abstract type WrappedSignal{C,T} <: AbstractSignal{T}
 end
 
 """
-    childsignal(x)
+    child(x)
 
 Retrieve the signal wrapped by x of type `WrappedSignal`
 """
-function childsignal
+function child
 end
 SignalTrait(::Type{<:WrappedSignal{C}}) where C = SignalTrait(C)
-EvalTrait(x::WrappedSignal) = EvalTrait(childsignal(x))
-nchannels(x::WrappedSignal,::IsSignal) = nchannels(childsignal(x))
-samplerate(x::WrappedSignal,::IsSignal) = samplerate(childsignal(x))
-duration(x::WrappedSignal) = duration(childsignal(x))
+EvalTrait(x::WrappedSignal) = EvalTrait(child(x))
+nchannels(x::WrappedSignal) = nchannels(child(x))
+samplerate(x::WrappedSignal) = samplerate(child(x))
+nsamples(x::WrappedSignal) = nsamples(child(x))
+duration(x::WrappedSignal) = duration(child(x))

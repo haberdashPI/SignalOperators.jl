@@ -13,8 +13,8 @@ function SignalTrait(x::Type{<:AppendSignals{Si,Rst,T,L}},
         ::IsSignal{T,Fs}) where {Si,Rst,T,L,Fs}
     IsSignal{T,Fs,L}()
 end
-childsignal(x::AppendSignals) = x.signals[1]
-nsamples(x::AppendSignals,::IsSignal) = x.len
+child(x::AppendSignals) = x.signals[1]
+nsamples(x::AppendSignals) = x.len
 duration(x::AppendSignals) = sum(duration.(x.signals))
 
 """
@@ -57,63 +57,58 @@ tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
 
 struct AppendCheckpoint{Si,S,C} <: AbstractCheckpoint{Si}
-    n::Int
     signal::S
     offset::Int
     child::C
+    k::Int
 end
-checkindex(x::AppendCheckpoint) = x.n
-function checkpoints(x::AppendSignals,offset,len)
-    until = offset+len
-    ns = nsamples.(x.signals[1:end-1])
-    indices = collect(enumerate([1;cumsum(collect(ns)).+1]))
+checkindex(x::AppendCheckpoint) = checkindex(x.child)+x.offset
+child(x::AppendCheckpoint) = x.child
 
-    written = 0
-    droplast_unless(x,cond) = cond ? x : x[1:end-1]
-    # NOTE: zip is for compatibility with 1.0 (mapreudce only supports multiple
-    # iterators in Julia 1.1+)
-    result = mapreduce(vcat,zip(x.signals,indices)) do (signal,(sig_index,index))
-        checks = if index-offset > len
-            []
-        elseif index-offset > 0
-            local_len = min(len-written,nsamples(signal))
-            if local_len > 0
-                written += local_len
-                droplast_unless(checkpoints(signal,0,local_len),
-                    sig_index == length(x.signals))
+atcheckpoint(x::AppendSignals,offset::Number,stopat) =
+    append_checkpoint(x,nothing,offset+1,stopat,1,0)
+
+atcheckpoint(x::S,check::AppendCheckpoint{S},stopat) where S <: AppendSignals =
+    append_checkpoint(x,check,checkindex(check),stopat,check.k,
+        check.offset)
+
+function append_checkpoint(x,check,startat,stopat,start_k,offset)
+    childcheck = nothing
+    childsig = x.signals[1]
+    k = start_k
+    K = length(x.signals)
+    keepme(k,sig,check) =
+        !isnothing(check) && (k == K || checkindex(check) ≤ nsamples(sig))
+    while isnothing(childcheck) && k ≤ length(x.signals)
+        childsig = x.signals[k]
+        child_range = (1:nsamples(childsig)) .+ offset
+        if !isempty((startat:stopat) ∩ child_range)
+            child_stopat = min(stopat - offset,nsamples(childsig))
+            if isnothing(check) || k != start_k
+                child_offset = max(0,startat - offset - 1)
+                childcheck = atcheckpoint(childsig,child_offset,child_stopat)
+                keepme(k,childsig,childcheck) || (childcheck = nothing)
             else
-                []
+                childcheck = atcheckpoint(childsig,child(check),child_stopat)
+                keepme(k,childsig,childcheck) || (childcheck = nothing)
             end
-        elseif index + nsamples(signal) - offset > 0
-            sigoffset = -(index-offset)+1
-            local_len = min(nsamples(signal)-sigoffset+1,len-written)
-            if local_len > 0
-                written += local_len
-                droplast_unless(checkpoints(signal,sigoffset,local_len),
-                    sig_index == length(x.signals))
-            else
-                []
-            end
-        else
-            []
         end
-
-        Si,S = typeof(x),typeof(signal)
-        [AppendCheckpoint{Si,S,typeof(c)}(checkindex(c)+index-1,
-            signal,-index+1,c) for c in checks]
+        if isnothing(childcheck)
+            offset += nsamples(childsig)
+            k += 1
+        end
     end
 
-    result
+    if !isnothing(childcheck)
+        Si,S = typeof(x),typeof(childsig)
+        AppendCheckpoint{Si,S,typeof(childcheck)}(childsig,offset,childcheck,k)
+    end
 end
-beforecheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals =
-    beforecheckpoint(check.signal,check.child,len)
-aftercheckpoint(x::S,check::AppendCheckpoint{S},len) where S <: AppendSignals =
-    aftercheckpoint(check.signal,check.child,len)
 
 @Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
     i,j,check)
 
-    sampleat!(result,check.signal,i,j+check.offset,check.child)
+    sampleat!(result,check.signal,i,j-check.offset,check.child)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::AppendSignals) = pprint(io,x)
@@ -171,59 +166,52 @@ usepad(x::PaddedSignal,s::IsSignal{T},p::Number) where T =
 usepad(x::PaddedSignal,s::IsSignal{T},fn::Function) where T =
     Fill(fn(T),nchannels(x.signal))
 
-childsignal(x::PaddedSignal) = x.signal
+child(x::PaddedSignal) = x.signal
 
 struct UsePad
 end
 const use_pad = UsePad()
 
 struct PadCheckpoint{S,P,C} <: AbstractCheckpoint{S}
-    n::Int
     pad::P
-    child::C
+    child_or_index::C
 end
-checkindex(c::PadCheckpoint) = c.n
-function checkpoints(x::PaddedSignal,offset,len)
-    child_len = nsamples(childsignal(x))-offset
-    if child_len > 0
-        child_checks = checkpoints(childsignal(x),offset, min(child_len,len))
+child(x::PadCheckpoint{<:Any,Nothing}) = x.child_or_index
+child(x::PadCheckpoint) = nothing
+checkindex(c::PadCheckpoint{<:Any,Nothing}) = checkindex(c.child_or_index)
+checkindex(c::PadCheckpoint) = c.child_or_index
 
-        p = nothing
-        child_checks = map(child_checks) do child
-            p = checkindex(child) > offset+child_len ? usepad(x) : nothing
-            S,P,C = typeof(x), typeof(p), typeof(child)
-            PadCheckpoint{S,P,C}(checkindex(child),p,child)
-        end
-        S,P,C = typeof(x), typeof(p), Nothing
-        if checkindex(child_checks[end]) != offset+len+1
-            [child_checks; PadCheckpoint{S,P,C}(offset+len+1,p,nothing)]
-        else
-            child_checks
-        end
+atcheckpoint(x::PaddedSignal,offset::Number,stopat) =
+    pad_atcheckpoint(x,offset,stopat)
+atcheckpoint(x::S,offset::AbstractCheckpoint{S},stopat) where
+    S <: PaddedSignal = pad_atcheckpoint(x,offset,stopat)
+function pad_atcheckpoint(x::PaddedSignal,check,stopat)
+    childcheck = isnothing(child(check)) ? nothing :
+        atcheckpoint(child(x),child(check),min(stopat,nsamples(child(x))))
+    if !isnothing(childcheck) && checkindex(childcheck) < nsamples(child(x))
+        S,C = typeof(x), typeof(childcheck)
+        PadCheckpoint{S,Nothing,C}(nothing,childcheck)
     else
+
         p = usepad(x)
-        S,P,C = typeof(x), typeof(p), Nothing
-        [PadCheckpoint{S,P,C}(offset+1,p,nothing);
-         PadCheckpoint{S,P,C}(offset+len+1,p,nothing)]
+        index = if !isnothing(childcheck)
+            checkindex(childcheck)
+        else
+            check isa Number ? check+1 : stopat+1
+        end
+        S,P,C = typeof(x), typeof(p), typeof(index)
+        PadCheckpoint{S,P,C}(p,index)
     end
 end
-beforecheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal =
-    beforecheckpoint(x.signal,check.child,len)
-beforecheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where
-    {S <: PaddedSignal} = nothing
-aftercheckpoint(x::S,check::PadCheckpoint{S},len) where S <: PaddedSignal =
-    aftercheckpoint(x.signal,check.child,len)
-aftercheckpoint(x::S,check::PadCheckpoint{S,<:Any,Nothing},len) where
-    {S <: PaddedSignal} = nothing
 
-@Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    i,j,check::PadCheckpoint{<:Any,<:Nothing})
+@Base.propagate_inbounds function sampleat!(result,x::S,
+    i,j,check::PadCheckpoint{S,<:Nothing}) where S <: PaddedSignal
 
-    sampleat!(result,x.signal,i,j,check.child)
+    sampleat!(result,x.signal,i,j,child(check))
 end
 
-@Base.propagate_inbounds function sampleat!(result,x::PaddedSignal,
-    i,j,check::PadCheckpoint)
+@Base.propagate_inbounds function sampleat!(result,x::S,
+    i,j,check::PadCheckpoint{S}) where S <: PaddedSignal
 
     writesink!(result,i,check.pad)
 end

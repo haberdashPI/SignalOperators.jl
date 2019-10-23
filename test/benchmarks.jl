@@ -20,6 +20,8 @@ rng = MersenneTwister(1983)
 x = rand(rng,10^4,2)
 y = rand(rng,10^4,2)
 
+signal(x,1000Hz) |> tosamplerate(500Hz) |> sink
+
 suite["signal"]["sinking"] = @benchmarkable signal(x,1000Hz) |> sink
 suite["baseline"]["sinking"] = @benchmarkable copy(x)
 suite["signal"]["functions"] = @benchmarkable begin
@@ -55,6 +57,7 @@ end
 suite["baseline"]["filtering"] = @benchmarkable begin
     filt(digitalfilter(Lowpass(20,fs=1000),Butterworth(5)),$x)
 end
+
 
 # TODO: there still seems to be some per O(N) growth
 # in the # of allocs... is that just the call to `filter`?

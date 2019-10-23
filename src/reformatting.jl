@@ -21,9 +21,9 @@ but different `blocksize` values have no effect on the underlying
 implementation.
 
 """
-tosamplerate(fs;blocksize=default_blocksize) = 
+tosamplerate(fs;blocksize=default_blocksize) =
     x -> tosamplerate(x,fs;blocksize=blocksize)
-tosamplerate(x,fs;blocksize=default_blocksize) = 
+tosamplerate(x,fs;blocksize=default_blocksize) =
     ismissing(fs) && ismissing(samplerate(x)) ? x :
         coalesce(inHz(fs) == samplerate(x),false) ? x :
         tosamplerate(x,SignalTrait(x),EvalTrait(x),inHz(fs);blocksize=blocksize)
@@ -32,14 +32,10 @@ tosamplerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
 tosamplerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
 tosamplerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
 
-function tosamplerate(x,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) 
+function tosamplerate(x,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize)
     __tosamplerate__(x,s,fs,blocksize)
 end
 
-struct ResamplerFn{T,Fs}
-    ratio::T
-    fs::Fs
-end
 function (fn::ResamplerFn)(fs)
     h = resample_filter(fn.ratio)
     self = FIRFilter(h, fn.ratio)
@@ -48,7 +44,7 @@ function (fn::ResamplerFn)(fs)
 
     self
 end
-filterstring(fn::ResamplerFn) = 
+filterstring(fn::ResamplerFn) =
     string("tosamplerate(",inHz(fn.fs)*Hz,")")
 
 function __tosamplerate__(x,s::IsSignal{T},fs,blocksize) where T
@@ -85,7 +81,7 @@ end
 (fn::As1Channel)(x) = sum(x)
 mapstring(fn::As1Channel) = string("tochannels(1")
 
-function tochannels(x,::IsSignal,ch) 
+function tochannels(x,::IsSignal,ch)
     if ch == nchannels(x)
         x
     elseif ch == 1

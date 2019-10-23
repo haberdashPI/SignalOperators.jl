@@ -20,8 +20,8 @@ example_wav = "example.wav"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,examples_wav]
 
-const total_test_groups = 28
-progress = Progress(total_test_groups,desc="Running tests")
+const total_test_groups = 29
+progress = Progress(total_test_groups,desc="Running tests...")
 
 @testset "SignalOperators.jl" begin
 
@@ -87,8 +87,8 @@ progress = Progress(total_test_groups,desc="Running tests")
         @test SignalTrait(signal(sin,10Hz)) isa IsSignal
         @test SignalTrait(signal(randn,10Hz)) isa IsSignal
         @test_throws ErrorException signal(x -> [1,2],5Hz)
-        noise = signal(randn,44.1kHz) |> until(5s)
-        @test isapprox(noise |> sink |> mean,0,atol=1e-2)
+        noise = signal(randn,50Hz) |> until(5s)
+        @test isapprox(noise |> sink |> mean,0,atol=0.3)
         z = signal(0,10Hz) |> until(5s)
         @test all(z |> sink .== 0)
         o = signal(1,10Hz) |> until(5s)
@@ -168,15 +168,15 @@ progress = Progress(total_test_groups,desc="Running tests")
 
     @testset "Padding" begin
         for nch in 1:3
-            tone = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s) |>
+            tone = signal(sin,22Hz,ω=10Hz) |> tochannels(nch) |> until(5s) |>
                 pad(zero) |> until(7s) |> sink
-            @test mean(abs.(tone[1:500,:])) > 0
-            @test mean(abs.(tone[501:700,:])) == 0
+            @test mean(abs.(tone[1:22*5,:])) > 0
+            @test mean(abs.(tone[22*5:22*7,:])) == 0
 
-            tone = signal(sin,100Hz,ω=10Hz) |> until(5s) |> pad(0) |>
+            tone = signal(sin,22Hz,ω=10Hz) |> until(5s) |> pad(0) |>
                 until(7s) |> sink
-            @test mean(abs.(tone[1:500,:])) > 0
-            @test mean(abs.(tone[501:700,:])) == 0
+            @test mean(abs.(tone[1:22*5,:])) > 0
+            @test mean(abs.(tone[22*5:22*7,:])) == 0
 
             @test rand(10,nch) |> signal(10Hz) |> pad(zero) |> after(15samples) |>
                 until(10samples) |> sink == zeros(10,nch)
@@ -210,11 +210,11 @@ progress = Progress(total_test_groups,desc="Running tests")
 
     @testset "Mixing" begin
         for nch in 1:2
-            a = signal(sin,100Hz,ω=10Hz) |> tochannels(2) |> until(5s)
-            b = signal(sin,100Hz,ω=5Hz) |> tochannels(2) |> until(5s)
+            a = signal(sin,30Hz,ω=10Hz) |> tochannels(2) |> until(2s)
+            b = signal(sin,30Hz,ω=5Hz) |> tochannels(2) |> until(2s)
             complex = mix(a,b)
-            @test duration(complex) == 5
-            @test nsamples(sink(complex)) == 500
+            @test duration(complex) == 2
+            @test nsamples(sink(complex)) == 60
         end
 
         x = rand(20,SignalOperators.MAX_CHANNEL_STACK+1)
@@ -224,6 +224,39 @@ progress = Progress(total_test_groups,desc="Running tests")
         x = rand(20,2)
         result = mapsignal(reverse,x,bychannel=false) |> sink(samplerate=20Hz)
         @test result == [x[:,2] x[:,1]]
+    end
+    next!(progress)
+
+    @testset "Handling of padded mix and amplify" begin
+        for nch in 1:2
+            fs = 3Hz
+            a = signal(2,fs) |> tochannels(nch) |> until(2s) |> append(signal(3,fs)) |> until(4s)
+            b = signal(3,fs) |> tochannels(nch) |> until(3s)
+
+            result = mix(a,b) |> sink
+            for ch in 1:nch
+                @test all(result[:,ch] .== [
+                    fill(2,3*2) .+ fill(3,3*2);
+                    fill(3,3*1) .+ fill(3,3*1);
+                    fill(3,3*1)
+                ])
+            end
+
+            result = amplify(a,b) |> sink
+            for ch in 1:nch
+                @test all(result[:,ch] .== [
+                    fill(2,3*2) .* fill(3,3*2);
+                    fill(3,3*1) .* fill(3,3*1);
+                    fill(3,3*1)
+                ])
+            end
+        end
+
+        x = rand(10,2)
+        y = rand(5,2)
+        z = ones(10,4)
+        signal(x,10Hz) |> addchannel(y) |> sink!(z)
+        @test all(iszero,z[6:10,3:4])
     end
     next!(progress)
 
@@ -288,6 +321,8 @@ progress = Progress(total_test_groups,desc="Running tests")
             result = sink(fading)
             @test nsamples(fading) == ceil(Int,(2+2-0.1)*22)
             @test nsamples(result) == nsamples(fading)
+            @test result[1:35,:] == sink(x)[1:35,:]
+            @test result[48:end,:] == sink(y)[6:end,:]
 
             ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> tochannels(nch) |>
                 until(100ms) |> ramp(identity) |> sink
@@ -319,10 +354,16 @@ progress = Progress(total_test_groups,desc="Running tests")
             resampled = resamp |> sink
             @test nsamples(resampled) == 2nsamples(tone)
 
+            # test multi-block resampling
+            resamp = tosamplerate(toned,40Hz,blocksize=64)
+            resampled2 = sink(resamp)
+            @test nsamples(resampled) == 2nsamples(tone)
+            @test resampled ≈ resampled2
+
             # verify that the state of the filter is proplery reset
             # (so it should produce same output a second time)
-            resampled2 = resamp |> sink
-            @test resampled ≈ resampled2
+            resampled3 = resamp |> sink
+            @test resampled2 ≈ resampled3
 
             padded = tone |> pad(one) |> until(7s)
             resamp = tosamplerate(padded,40Hz)
@@ -331,16 +372,16 @@ progress = Progress(total_test_groups,desc="Running tests")
 
             @test tosamplerate(tone,20Hz) === tone
 
-            a = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
-            b = signal(sin,100Hz,ω=5Hz) |> tochannels(nch) |> until(5s)
+            a = signal(sin,48Hz,ω=10Hz) |> tochannels(nch) |> until(3s)
+            b = signal(sin,48Hz,ω=5Hz) |> tochannels(nch) |> until(3s)
             cmplx = mix(a,b)
             high = cmplx |> highpass(8Hz,method=Chebyshev1(5,1))
-            resamp_high = tosamplerate(high,50Hz)
-            @test resamp_high |> sink |> size == (250,nch)
+            resamp_high = tosamplerate(high,24Hz)
+            @test resamp_high |> sink |> size == (72,nch)
 
             resamp_twice = tosamplerate(toned,15Hz) |> tosamplerate(50Hz)
             @test resamp_twice isa SignalOperators.FilteredSignal
-            @test SignalOperators.childsignal(resamp_twice) === toned
+            @test SignalOperators.child(resamp_twice) === toned
         end
     end
     next!(progress)
@@ -432,39 +473,6 @@ progress = Progress(total_test_groups,desc="Running tests")
     end
     next!(progress)
 
-    @testset "Handling of padded mix and amplify" begin
-        for nch in 1:2
-            fs = 3Hz
-            a = signal(2,fs) |> tochannels(nch) |> until(2s) |> append(signal(3,fs)) |> until(4s)
-            b = signal(3,fs) |> tochannels(nch) |> until(3s)
-
-            result = mix(a,b) |> sink
-            for ch in 1:nch
-                @test all(result[:,ch] .== [
-                    fill(2,3*2) .+ fill(3,3*2);
-                    fill(3,3*1) .+ fill(3,3*1);
-                    fill(3,3*1)
-                ])
-            end
-
-            result = amplify(a,b) |> sink
-            for ch in 1:nch
-                @test all(result[:,ch] .== [
-                    fill(2,3*2) .* fill(3,3*2);
-                    fill(3,3*1) .* fill(3,3*1);
-                    fill(3,3*1)
-                ])
-            end
-        end
-
-        x = rand(10,2)
-        y = rand(5,2)
-        z = ones(10,4)
-        signal(x,10Hz) |> addchannel(y) |> sink!(z)
-        @test all(iszero,z[6:10,3:4])
-    end
-    next!(progress)
-
     @testset "Handling of infinite signals" begin
         for nch in 1:2
             tone = signal(sin,200Hz,ω=10Hz) |> tochannels(nch) |>
@@ -483,6 +491,8 @@ progress = Progress(total_test_groups,desc="Running tests")
             @test nsamples(tone) == 5
             @test size(sink(tone)) == (5,nch)
             @test sink(tone)[1] > 0.9
+
+            @test_throws ErrorException signal(sin,200Hz) |> normpower |> sink(duration=1s)
 
             @test_throws ErrorException signal(sin,200Hz) |> tochannels(nch) |>
                 sink
@@ -711,7 +721,7 @@ progress = Progress(total_test_groups,desc="Running tests")
     next!(progress)
 
     @testset "README Examples" begin
-        randn |> normpower |> sink(example_wav,duration=2s,samplerate=44.1kHz)
+        randn |> until(2s) |> normpower |> sink(example_wav,samplerate=44.1kHz)
 
         sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |>
             amplify(-20dB)

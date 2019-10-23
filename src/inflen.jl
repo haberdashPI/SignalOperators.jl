@@ -7,8 +7,8 @@ end
 
     inflen
 
-Represents an infinite length. Proper overloads are defined to handle 
-arithmetic and ordering for the infinite value. 
+Represents an infinite length. Proper overloads are defined to handle
+arithmetic and ordering for the infinite value.
 
 ## Missing values
 
@@ -17,7 +17,7 @@ to be unknown, but of finite length. For example: `inflen * missing == inflen`.
 
 """
 const inflen = InfiniteLength()
-Base.show(io::IO,::MIME"text/plain",::InfiniteLength) = 
+Base.show(io::IO,::MIME"text/plain",::InfiniteLength) =
     write(io,"inflen")
 
 Base.isinf(::InfiniteLength) = true
@@ -49,3 +49,19 @@ Base.ceil(::T,::InfiniteLength) where T = inflen
 Base.ceil(::InfiniteLength) = inflen
 Base.floor(::T,::InfiniteLength) where T = inflen
 Base.floor(::InfiniteLength) = inflen
+
+struct LowerBoundedRange{T}
+    val::T
+end
+(::Base.Colon)(start::Number,::InfiniteLength) = LowerBoundedRange(start)
+Base.Broadcast.broadcasted(::typeof(+),lower::LowerBoundedRange,x::Number) =
+    LowerBoundedRange(lower.val + x)
+function Base.intersect(x::UnitRange,y::LowerBoundedRange)
+    if last(x) < y.val
+        1:0
+    elseif first(x) < y.val
+        y.val:last(x)
+    else
+        x
+    end
+end

@@ -137,59 +137,77 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct MapSignalCheckpoint{S,Ch,I,C} <: AbstractCheckpoint{S}
+struct MapSignalCheckpoint{S,Ch,I,C,N} <: AbstractCheckpoint{S}
     n::Int
     channels::Ch
     indices::I
     children::C
+    next_children::N
 end
 checkindex(x::MapSignalCheckpoint) = x.n
 
 const MAX_CHANNEL_STACK = 64
 
-function checkpoints(x::MapSignal,offset,len)
-    # TODO: problme, we need a check point for every signal
-    # for sampleat! not just the ones that have current checkpoints
-    checks = mapreduce(vcat,enumerate(x.padded_signals)) do (index,signal)
-        map(checkpoints(signal,offset,len)) do check
-            (index,check)
-        end
+function atcheckpoint(x::MapSignal,offset::Number,stopat)
+    children = map(x.padded_signals) do padded
+        atcheckpoint(padded,offset,stopat)
+    end |> Tuple
+    if any(isnothing,children)
+        return nothing
     end
-    grouped = pairs(dictgroup(@λ(checkindex(_[2])),checks))
-    indices = grouped |> keys |> collect |> sort!
-    most_recent_checks = sort(grouped[indices[1]],by=@λ(_[1]))
-    # @assert length(most_recent_checks) == length(x.padded_signals)
-    map(indices) do checki
-        signal_indices = map(@λ(_[1]),grouped[checki])
-        # update the most recent checkpoints for each child
-        most_recent_checks[signal_indices] = map(@λ(_[2]),grouped[checki])
 
-        nch = ntuple_N(typeof(x.val))
-        if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
-            channels = Array{channel_eltype(x)}(undef,nch)
+    nch = ntuple_N(typeof(x.val))
+    if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
+        channels = Array{channel_eltype(x)}(undef,nch)
+    else
+        channels = nothing
+    end
+
+    indices = Tuple(1:length(children))
+    S,I,Ch,C = typeof(x), typeof(indices), typeof(channels),
+        typeof(children)
+    MapSignalCheckpoint{S,Ch,I,C,C}(offset+1,channels,indices,children,children)
+end
+
+function atcheckpoint(x::S,check::MapSignalCheckpoint{S},stopat) where
+    S <: MapSignal
+
+    next_index = typemax(Int)
+    next_children = map(enumerate(x.padded_signals),check.next_children) do (i,padded), child_check
+        if i in check.indices
+            next = atcheckpoint(padded,child_check,stopat)
+            if !isnothing(next)
+                next_index = min(next_index,checkindex(next))
+                next
+            end
         else
-            channels = nothing
+            next_index = min(next_index,checkindex(child_check))
+            child_check
         end
+    end |> Tuple
 
-        signal_indices = Tuple(signal_indices)
-        children = Tuple(most_recent_checks)
+    indices = filter(1:length(next_children)) do i
+        isnothing(next_children[i]) ||
+            checkindex(next_children[i]) == next_index
+    end |> Tuple
 
-        S,I,Ch,C = typeof(x), typeof(signal_indices), typeof(channels),
-            typeof(children)
-        MapSignalCheckpoint{S,Ch,I,C}(checki,channels,signal_indices,children)
+    if any(i -> isnothing(next_children[i]),indices)
+        return nothing
     end
-end
 
-function beforecheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
-    for i in check.indices
-        beforecheckpoint(x.padded_signals[i],check.children[i],len)
-    end
-end
+    children = map(enumerate(check.children)) do (i,child)
+        if i in indices
+            next_children[i]
+        else
+            child
+        end
+    end |> Tuple
 
-function aftercheckpoint(x::MapSignal,check::MapSignalCheckpoint,len)
-    for i in check.indices
-        aftercheckpoint(x.padded_signals[i],check.children[i],len)
-    end
+    channels = check.channels
+    I,Ch,C,N = typeof(indices), typeof(channels),
+        typeof(children), typeof(next_children)
+    MapSignalCheckpoint{S,Ch,I,C,N}(next_index,channels,indices,children,
+        next_children)
 end
 
 struct OneSample
