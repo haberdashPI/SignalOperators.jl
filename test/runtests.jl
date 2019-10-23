@@ -178,6 +178,9 @@ progress = Progress(total_test_groups,desc="Running tests")
             @test mean(abs.(tone[1:500,:])) > 0
             @test mean(abs.(tone[501:700,:])) == 0
 
+            @test rand(10,nch) |> signal(10Hz) |> pad(zero) |> after(15samples) |>
+                until(10samples) |> sink == zeros(10,nch)
+
             x = 5ones(5,nch)
             result = pad(x,zero) |> until(10samples) |> sink(samplerate=10Hz)
             all(iszero,result[6:10,:])
