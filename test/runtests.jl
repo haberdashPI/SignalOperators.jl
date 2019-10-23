@@ -20,7 +20,7 @@ example_wav = "example.wav"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,examples_wav]
 
-const total_test_groups = 29
+const total_test_groups = 28
 progress = Progress(total_test_groups,desc="Running tests")
 
 @testset "SignalOperators.jl" begin
@@ -534,7 +534,6 @@ progress = Progress(total_test_groups,desc="Running tests")
         show(io,MIME("text/plain"),x)
         String(take!(io))
     end
-    next!(progress)
 
     @testset "Handle printing" begin
         x = signal(rand(100,2),10Hz)

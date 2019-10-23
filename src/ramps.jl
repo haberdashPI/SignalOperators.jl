@@ -21,7 +21,7 @@ Base.string(x::RampOnFn) = string("rampon_fn(",x.time,",",x.ramp,")")
     rampon(x,[len=10ms],[fn=x -> sinpi(0.5x)])
 
 Ramp the onset of a signal, smoothly transitioning from 0 to full amplitude
-over the course of `len` seconds. 
+over the course of `len` seconds.
 
 The function determines the shape of the ramp and should be non-decreasing
 with a range of [0,1] over the domain [0,1]. It should map over the entire
@@ -53,9 +53,9 @@ struct RampOffFn{Fn,S,T} <: Functor
     ramp_start::S
     time::T
 end
-(fn::RampOffFn)(t) =
-    t < fn.ramp_start ? 1.0 : fn.ramp(1.0 - (t-fn.ramp_start)/fn.time)
-Base.string(x::RampOffFn{<:typeof(sinramp)}) = string("rampoff_fn(",x.time,")")
+(fn::RampOffFn{El})(t) where El =
+    t < fn.ramp_start ? one(El) : El(fn.ramp(1.0 - (t-fn.ramp_start)/fn.time))
+Base.string(x::RampOffFn{<:Any,<:typeof(sinramp)}) = string("rampoff_fn(",x.time,")")
 Base.string(x::RampOffFn) = string("rampoff_fn(",x.time,",",x.ramp,")")
 
 """
@@ -112,7 +112,7 @@ Append x to y, with a smooth transition lasting `len` seconds fading from
 
 This fade is accomplished with a [`rampoff`](@ref) of `x` and a
 [`rampon`](@ref) for `y`. `fn` should be non-decreasing with a range of [0,1]
-over the domain [0,1]. It should map over the entire range: that is 
+over the domain [0,1]. It should map over the entire range: that is
 `fn(0) == 0` and `fn(1) == 1`.
 
 Both `len` and `fn` are optional arguments: either one or both can be
