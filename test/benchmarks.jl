@@ -1,5 +1,3 @@
-
-
 using BenchmarkTools
 using SignalOperators
 using SignalOperators.Units
@@ -56,6 +54,22 @@ suite["signal"]["filtering"] = @benchmarkable begin
 end
 suite["baseline"]["filtering"] = @benchmarkable begin
     filt(digitalfilter(Lowpass(20,fs=1000),Butterworth(5)),$x)
+end
+
+suite["signal"]["resampling"]  = @benchmarkable begin
+    signal($x,1000Hz) |> tosamplerate(500Hz) |> sink
+end
+suite["baseline"]["resampling"]  = @benchmarkable begin
+    Filters.resample($(x[:,1]),1//2)
+    Filters.resample($(x[:,2]),1//2)
+end
+
+suite["signal"]["resampling-irrational"]  = @benchmarkable begin
+    signal($x,1000Hz) |> tosamplerate(π*1000Hz) |> sink
+end
+suite["baseline"]["resampling-irrational"]  = @benchmarkable begin
+    Filters.resample($(x[:,1]),Float64(π))
+    Filters.resample($(x[:,2]),Float64(π))
 end
 
 
