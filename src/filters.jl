@@ -251,13 +251,17 @@ function atcheckpoint(x::S,check::AbstractCheckpoint{S},stopat) where
     end
 end
 
+const filter_cache = Dict()
 function prepare_state!(x,state,index)
     if state.last_output_offset+1 ≤ index
         # drop any samples that we do not wish to generate output for
-        if state.last_output_offset+1 < index
-            recurse_len = index - (state.last_output_offset + 1)
-            sink!(NullBuffer(recurse_len,nchannels(x)),x,SignalTrait(x),
-                  0,atcheckpoint(x,0,recurse_len,state))
+        state = get!(state_cache,) do
+            if state.last_output_offset+1 < index
+                recurse_len = index - (state.last_output_offset + 1)
+                sink!(NullBuffer(recurse_len,nchannels(x)),x,SignalTrait(x),
+                    0,atcheckpoint(x,0,recurse_len,state))
+            end
+            state
         end
         @assert state.last_output_offset+1 ≥ index
 
