@@ -24,14 +24,6 @@ function tilepipe(child,operate)
     single | breaking
 end
 
-# signals must implement
-# SignalTrait(x) for x as a value or a type
-# nchannels(x) (may return nothing)
-# nsamples(x)
-# samplerate(x)
-# sampleat!
-# MAYBE checkpoints, beforecheckpoint and aftercheckpoint
-
 # not everything that's a signal belongs to this package, (hence the use of
 # trait-based dispatch), but everything that is in this package is a child of
 # `AbstractSignal`. This allows for easy dispatch to convert such signals to
