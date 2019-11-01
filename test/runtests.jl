@@ -184,6 +184,23 @@ progress = Progress(total_test_groups,desc="Running tests...")
             x = 5ones(5,nch)
             result = pad(x,zero) |> until(10samples) |> sink(samplerate=10Hz)
             all(iszero,result[6:10,:])
+
+            x = rand(10,nch) |> signal(10Hz)
+            result = pad(x,cycle) |> until(30samples) |> sink
+            @test result == vcat(x,x,x)
+            result = pad(x,mirror) |> until(30samples) |> sink
+            @test result == vcat(x,reverse(x,dims=1),x)
+            result = pad(x,lastsample) |> until(15samples) |> sink
+            @test all(result[11:end,:] .== result[10:10,:])
+
+            x = signal(sin,10Hz) |> tochannels(nch) |> until(1s)
+            @test_throws ErrorException pad(x,cycle) |> sink
+            @test_throws ErrorException pad(x,mirror) |> sink
+            result = pad(x,lastsample) |> until(15samples) |> sink
+            @test all(result[11:end,:] .== result[10:10,:])
+            padv = rand(nch)
+            result = pad(x,padv) |> until(15samples) |> sink
+            @test all(result[11:end,:] .== padv')
         end
     end
     next!(progress)

@@ -15,6 +15,7 @@ duration
 nsamples
 nchannels
 samplerate
+channel_eltype
 ```
 
 ## Signal Reformatting
@@ -34,6 +35,10 @@ after
 append
 prepend
 pad
+mirror
+cycle
+lastsample
+SignalOperators.valuefunction
 filtersignal
 lowpass
 highpass

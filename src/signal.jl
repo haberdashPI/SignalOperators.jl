@@ -1,4 +1,4 @@
-export duration, nsamples, samplerate, nchannels, signal, sink, sink!
+export duration, nsamples, samplerate, nchannels, signal, sink, sink!, channel_eltype
 using AxisArrays
 using FileIO
 
@@ -30,6 +30,9 @@ end
 # another object type (e.g. Array or AxisArray)
 abstract type AbstractSignal{T}
 end
+
+indexable(x::AbstractArray) = true
+indexable(x) = false
 
 nosignal(x) = error("Value is not a signal: $x")
 
