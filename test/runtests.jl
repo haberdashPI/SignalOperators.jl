@@ -614,13 +614,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
             "5×2 Array{Float64,2}: … |> filtersignal(")
 
         @test x |> ramp |> showstring ==
-            "rampoff_fn(0.01) (10.0 Hz) |>\n    tochannels(2) |> amplify(rampon_fn(0.01) (10.0 Hz) |> tochannels(2) |>\n                                 amplify(100×2 Array{Float64,2}: … (10.0 Hz)))"
+            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    amplify(rampon_fn(10 ms)) |> amplify(rampoff_fn(10 ms))"
         @test x |> ramp(identity) |> showstring ==
-            "rampoff_fn(0.01,identity) (10.0 Hz) |> tochannels(2) |>\n    amplify(rampon_fn(0.01,identity) (10.0 Hz) |>\n                tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)))"
+            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    amplify(rampon_fn(10 ms,identity)) |> amplify(rampoff_fn(10 ms,identity))"
         @test x |> fadeto(y) |> showstring ==
-            "rampoff_fn(0.01) (10.0 Hz) |>\n    tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(rampon_fn(0.01) (10.0 Hz) |> tochannels(2) |>\n                       amplify(50×2 Array{Float64,2}: … (10.0 Hz))))"
-        @test x |> fadeto(y,identity) |> showstring ==
-            "rampoff_fn(0.01,identity) (10.0 Hz) |>\n    tochannels(2) |> amplify(100×2 Array{Float64,2}: … (10.0 Hz)) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |> tochannels(2) |>\n            append(rampon_fn(0.01,identity) (10.0 Hz) |> tochannels(2) |>\n                       amplify(50×2 Array{Float64,2}: … (10.0 Hz))))"
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> amplify(rampoff_fn(10 ms)) |>\n    mix(0.0 (10.0 Hz) |> until(100 samples) |>\n            tochannels(2) |> append(50×2 Array{Float64,2}: … (10.0 Hz) |>\n                                        amplify(rampon_fn(10 ms))))"
     end
     next!(progress)
 
@@ -643,8 +641,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test x |> mix(y) |> sink(samplerate=10Hz) |> eltype == Float32
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> eltype == Float32
         @test x |> channel(1) |> sink(samplerate=10Hz) |> eltype == Float32
-
         @test x |> ramp |> sink |> eltype == Float32
+
         @test x |> fadeto(y) |> sink |> eltype == Float32
     end
     next!(progress)
@@ -670,7 +668,6 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
-
         @test x |> ramp |> sink |> nsamples == 100
         @test x |> fadeto(y) |> sink |> nsamples == 150
     end
@@ -702,9 +699,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test x |> mix(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> addchannel(y) |> sink(samplerate=10Hz) |> nsamples == 100
         @test x |> channel(1) |> sink(samplerate=10Hz) |> nsamples == 100
+        @test x |> ramp |> sink(samplerate=10Hz) |> nsamples == 100
 
-        # TODO: improve implementation to remove these errors
-        @test_throws ErrorException x |> ramp |> sink(samplerate=10Hz)
         @test_throws ErrorException x |> fadeto(y) |> sink(samplerate=10Hz)
     end
     next!(progress)

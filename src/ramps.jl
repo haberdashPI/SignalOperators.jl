@@ -3,19 +3,123 @@ export rampon, rampoff, ramp, fadeto, sinramp
 
 sinramp(x) = sinpi(0.5x)
 
-function rampon_fn(x,len,fun)
-    time = inseconds(Float64,len,samplerate(x))
-    RampOnFn{float(channel_eltype(x)),typeof(fun)}(fun,time)
+struct RampSignal{D,S,Tm,Fn,T} <: WrappedSignal{S,T}
+    signal::S
+    time::Tm
+    fn::Fn
 end
-struct RampOnFn{El,Fn} <: Functor
-    ramp::Fn
-    time::Float64
+function RampSignal(D,signal::S,time::Tm,fn::Fn) where {S,Tm,Fn}
+
+    T = channel_eltype(signal)
+    RampSignal{D,S,Tm,Fn,float(T)}(signal,time,fn)
 end
-(fn::RampOnFn{El})(t) where El =
-    t ≤ fn.time ? El(fn.ramp(t/fn.time)) : one(El)
-Base.string(x::RampOnFn{<:Any,<:typeof(sinramp)}) =
-    string("rampon_fn(",x.time,")")
-Base.string(x::RampOnFn) = string("rampon_fn(",x.time,",",x.ramp,")")
+
+SignalTrait(::Type{T}) where {S,T <: RampSignal{<:Any,S}} =
+    SignalTrait(T,SignalTrait(S))
+function SignalTrait(::Type{<:RampSignal{D,S,Tm,Fn,T}},::IsSignal{<:Any,Fs,L}) where
+    {D,S,Tm,Fn,T,Fs,L}
+
+    IsSignal{T,Fs,L}()
+end
+
+child(x::RampSignal) = x.signal
+resolvelen(x::RampSignal) = max(1,insamples(Int,maybeseconds(x.time),samplerate(x)))
+
+function tosamplerate(
+    x::RampSignal{D},
+    s::IsSignal{<:Any,<:Number},
+    c::ComputedSignal,fs;blocksize) where D
+
+    RampSignal(D,tosamplerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+end
+function tosamplerate(
+    x::RampSignal{D},
+    s::IsSignal{<:Any,Missing},
+    __ignore__,fs; blocksize) where D
+
+    RampSignal(D,tosamplerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+end
+
+struct RampCheckpoint{S,R} <: AbstractCheckpoint{S}
+    time::Int
+    n::Int
+end
+checkindex(x::RampCheckpoint) = x.n
+function RampCheckpoint(x::RampSignal,len::Int,index::Int,ramp::Bool)
+    RampCheckpoint{typeof(x),ramp}(len,index)
+end
+
+function atcheckpoint(x::RampSignal{:on},offset::Number,stopat::Int)
+    ramplen =  resolvelen(x)
+    RampCheckpoint(x,ramplen,offset+1,offset ≤ ramplen)
+end
+function atcheckpoint(x::S,check::RampCheckpoint{S},stopat::Int) where
+    S <: RampSignal{:on}
+    ramplen = resolvelen(x)
+    if checkindex(check) ≤ resolvelen(x)
+        RampCheckpoint(x,ramplen,min(ramplen+1,stopat+1),false)
+    else
+        RampCheckpoint(x,ramplen,stopat+1,false)
+    end
+end
+
+function atcheckpoint(x::RampSignal{:off},offset::Number,stopat::Int)
+    startramp = nsamples(x) - resolvelen(x)
+    RampCheckpoint(x,startramp,offset+1,nsamples(x) ≤ startramp)
+end
+
+function atcheckpoint(x::S,check::RampCheckpoint{S},stopat::Int) where
+    S <: RampSignal{:off}
+
+    startramp = nsamples(x) - resolvelen(x)
+    if checkindex(check) ≥ startramp
+        RampCheckpoint(x,startramp,stopat+1,true)
+    else
+        RampCheckpoint(x,startramp,min(startramp,stopat+1),true)
+    end
+end
+
+
+@Base.propagate_inbounds function sampleat!(result,x::S,
+    i,j,check::RampCheckpoint{S,false}) where S <: RampSignal
+    writesink!(result,i,Fill(one(channel_eltype(x)),nchannels(x)))
+end
+@Base.propagate_inbounds function sampleat!(result,x::S,
+    i,j,check::RampCheckpoint{S,true}) where S <: RampSignal{:off}
+
+    startramp = check.time
+    rampval = nsamples(x) > startramp ?
+        rampval = x.fn(1-(i - startramp)/(nsamples(x) - startramp)) :
+        rampval = x.fn(1)
+    writesink!(result,i,Fill(rampval,nchannels(x)))
+end
+@Base.propagate_inbounds function sampleat!(result,x::S,
+    i,j,check::RampCheckpoint{S,true}) where S <: RampSignal{:on}
+
+    ramplen = check.time
+    rampval = x.fn((j-1) / ramplen)
+    writesink!(result,i,Fill(rampval,nchannels(x)))
+end
+
+function Base.show(io::IO, ::MIME"text/plain",x::RampSignal{D}) where D
+    if x.fn isa typeof(sinramp)
+        if D == :on
+            write(io,"rampon_fn(",string(x.time),")")
+        elseif D == :off
+            write(io,"rampoff_fn(",string(x.time),")")
+        else
+            error("Reached unexpected code")
+        end
+    else
+        if D == :on
+            write(io,"rampon_fn(",string(x.time),",",string(x.fn),")")
+        elseif D == :off
+            write(io,"rampoff_fn(",string(x.time),",",string(x.fn),")")
+        else
+            error("Reached unexpected code")
+        end
+    end
+end
 
 """
 
@@ -36,28 +140,8 @@ rampon(fun::Function) = rampon(10ms,fun)
 rampon(len::Number=10ms,fun::Function=sinramp) = x -> rampon(x,len,fun)
 function rampon(x,len::Number=10ms,fun::Function=sinramp)
     x = signal(x)
-    signal(rampon_fn(x,len,fun),samplerate(x)) |> amplify(x)
+    x |> amplify(RampSignal(:on,x,len,fun))
 end
-
-function rampoff_fn(x,len,fun)
-    time = inseconds(Float64,len,samplerate(x))
-    ramp_start = duration(x) - time
-    if ismissing(ramp_start)
-        error("Uknown signal duration: cannot determine rampoff parameters. ",
-              "Define the samplerate or signal length earlier in the ",
-              "processing chain.")
-    end
-    RampOffFn{float(channel_eltype(x)),typeof(fun)}(fun,ramp_start,time)
-end
-struct RampOffFn{El,Fn} <: Functor
-    ramp::Fn
-    ramp_start::Float64
-    time::Float64
-end
-(fn::RampOffFn{El})(t) where El =
-    t < fn.ramp_start ? one(El) : El(fn.ramp(1.0 - (t-fn.ramp_start)/fn.time))
-Base.string(x::RampOffFn{<:Any,<:typeof(sinramp)}) = string("rampoff_fn(",x.time,")")
-Base.string(x::RampOffFn) = string("rampoff_fn(",x.time,",",x.ramp,")")
 
 """
 
@@ -78,7 +162,7 @@ rampoff(fun::Function) = rampoff(10ms,fun)
 rampoff(len::Number=10ms,fun::Function=sinramp) = x -> rampoff(x,len,fun)
 function rampoff(x,len::Number=10ms,fun::Function=sinramp)
     x = signal(x)
-    signal(rampoff_fn(x,len,fun),samplerate(x)) |> amplify(x)
+    x |> amplify(RampSignal(:off,x,len,fun))
 end
 
 """
@@ -125,6 +209,9 @@ fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
 function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
     x,y = uniform((x,y))
     x = signal(x)
+    if ismissing(samplerate(x))
+        error("Unknown sample rate is not supported by `fadeto`.")
+    end
     n = insamples(Int,maybeseconds(len),samplerate(x))
     silence = signal(zero(channel_eltype(y))) |> until((nsamples(x) - n)*samples)
     x |> rampoff(len,fun) |> mix(
