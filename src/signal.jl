@@ -131,7 +131,7 @@ function signal(x,::IsSignal,fs)
     if ismissing(samplerate(x))
         tosamplerate(x,fs)
     elseif !isconsistent(fs,samplerate(x))
-        error("Signal expected to have sample rate of $fs Hz.")
+        error("Signal expected to have sample rate of $(inHz(fs)) Hz.")
     else
         x
     end

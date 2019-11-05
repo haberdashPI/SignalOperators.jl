@@ -34,7 +34,7 @@ function signal(x::AbstractArray{<:Any,N},::IsSignal,
 end
 function signal(x::AxisArray,::IsSignal,fs::Union{Missing,Number}=missing)
     if !isconsistent(fs,samplerate(x))
-        error("Signal expected to have sample rate of $fs Hz.")
+        error("Signal expected to have sample rate of $(inHz(fs)) Hz.")
     else
         x
     end
