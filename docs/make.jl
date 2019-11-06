@@ -6,6 +6,7 @@ makedocs(;
     pages=[
         "Home" => "index.md",
         "Manual" => "manual.md",
+        "Custom Signals" => "custom.md"
         "Reference" => "reference.md"
     ],
     repo="https://github.com/haberdashPI/SignalOperators.jl/blob/{commit}{path}#L{line}",

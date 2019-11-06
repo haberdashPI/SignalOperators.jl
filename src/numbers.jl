@@ -34,8 +34,9 @@ samplerate(x::NumberSignal) = x.samplerate
 tosamplerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)
 
-@Base.propagate_inbounds function sampleat!(result,x::NumberSignal,
-    i::Number,j::Number,check)
-
-    writesink!(result,i,x.val)
+struct NumberBlock
+    len::Int
 end
+nextblock(x::NumberSignal,len,skip,block::NumberBlock=NumberBlock(0)) = NumberBlock(len)
+nsamples(block::NumberBlock) = block.len
+sample(x,block::NumberBlock,i) = x.val

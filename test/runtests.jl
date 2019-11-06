@@ -136,6 +136,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         data = tone |> tochannels(2) |> sink
         @test size(data,2) == 2
         data2 = signal(data,22Hz) |> tochannels(1) |> sink
+        @test all(data2 .== sum(data,dims=2))
         @test size(data2,2) == 1
 
         @test_throws ErrorException tone |> tochannels(2) |> tochannels(3)
@@ -156,6 +157,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
             cutarray = signal(x,6Hz) |> until(1s) |> until(0.5s)
             cutarray2 = signal(x,6Hz) |> until(0.5s)
             @test sink(cutarray) == sink(cutarray2)
+
+            @test_throws ErrorException signal(1:10,5Hz) |> after(3s) |> sink
 
             x = rand(12,nch) |> signal(6Hz)
             @test append(until(x,1s),after(x,1s)) |> nsamples == 12
@@ -212,11 +215,17 @@ progress = Progress(total_test_groups,desc="Running tests...")
             tones = a |> append(b)
             @test duration(tones) == 10
             @test nsamples(sink(tones)) == 220
+            @test all(sink(tones) .== vcat(sink(a),sink(b)))
+
+            fs = 3
+            a = signal(2,fs) |> tochannels(nch) |> until(2s) |>
+                append(signal(3,fs)) |> until(4s)
+            @test nsamples(sink(a)) == 4*fs
 
             x = append(
                     rand(10,nch) |> after(0.5s),
                     signal(sin) |> tochannels(nch) |> until(0.5s)) |>
-                tosamplerate(2kHz) |> sink
+                tosamplerate(20Hz) |> sink
             @test duration(x) ≈ 0.5
 
             @test_throws ErrorException append(sin,1:10)
@@ -247,7 +256,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
     @testset "Handling of padded mix and amplify" begin
         for nch in 1:2
             fs = 3Hz
-            a = signal(2,fs) |> tochannels(nch) |> until(2s) |> append(signal(3,fs)) |> until(4s)
+            a = signal(2,fs) |> tochannels(nch) |> until(2s) |>
+                append(signal(3,fs)) |> until(4s)
             b = signal(3,fs) |> tochannels(nch) |> until(3s)
 
             result = mix(a,b) |> sink
@@ -315,7 +325,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test sink(high2) ≈ sink(high)
 
             # proper state of cut filtered signal (with blocks)
-            high3 = cmplx |> highpass(8Hz,method=Chebyshev1(5,1),blocksize=64) |>
+            high3 = cmplx |>
+                highpass(8Hz,method=Chebyshev1(5,1),blocksize=64) |>
                 after(1s)
             @test sink(high3) ≈ sink(high)[1s .. 5s]
 
@@ -332,19 +343,20 @@ progress = Progress(total_test_groups,desc="Running tests...")
         for nch in 1:2
             tone = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
             ramped = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s) |>
-                ramp(100ms) |> sink
-            @test mean(abs,ramped[1:5]) < mean(abs,ramped[6:10])
+                ramp(500ms) |> sink
+            @test mean(@λ(_^2),ramped[0s .. 500ms]) < mean(@λ(_^2),ramped[500ms .. 1s])
+            @test mean(@λ(_^2),ramped[4.5s .. 5s]) < mean(@λ(_^2),ramped[4s .. 4.5s])
             @test mean(abs,ramped) < mean(abs,sink(tone))
             @test mean(ramped) < 1e-4
 
             x = signal(sin,22Hz,ω=10Hz) |> tochannels(nch) |> until(2s)
             y = signal(sin,22Hz,ω=5Hz) |> tochannels(nch) |> until(2s)
-            fading = fadeto(x,y,100ms)
+            fading = fadeto(x,y,500ms)
             result = sink(fading)
-            @test nsamples(fading) == ceil(Int,(2+2-0.1)*22)
+            @test nsamples(fading) == ceil(Int,(2+2-0.5)*22)
             @test nsamples(result) == nsamples(fading)
-            @test result[1:35,:] == sink(x)[1:35,:]
-            @test result[48:end,:] == sink(y)[6:end,:]
+            @test result[1:33,:] == sink(x)[1:33,:]
+            @test result[44:end,:] == sink(y)[11:end,:]
 
             ramped2 = signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> tochannels(nch) |>
                 until(100ms) |> ramp(identity) |> sink
@@ -366,16 +378,13 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test samplerate(resamp) == 40
             @test nsamples(resamp) == 2nsamples(tone)
 
-            downsamp = tosamplerate(tone,10Hz)
-            @test samplerate(downsamp) == 10
-            @test nsamples(downsamp) == 0.5nsamples(tone)
+            downsamp = tosamplerate(tone,15Hz)
+            @test samplerate(downsamp) == 15
+            @test nsamples(downsamp) == 0.75nsamples(tone)
             @test sink(downsamp) |> nsamples == nsamples(downsamp)
-
 
             x = rand(10,nch) |> tosamplerate(2kHz) |> sink
             @test samplerate(x) == 2000
-
-
 
             toned = tone |> sink
             resamp = tosamplerate(toned,40Hz)
@@ -532,15 +541,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
     @testset "Test that non-signals correctly error" begin
         x = r"nonsignal"
-        @test_throws ErrorException x |> samplerate
+        @test_throws MethodError x |> samplerate
         @test_throws ErrorException x |> sink(samplerate=10Hz)
-        @test_throws ErrorException x |> duration
+        @test_throws MethodError x |> duration
         @test_throws ErrorException x |> until(5s)
         @test_throws ErrorException x |> after(2s)
-        @test_throws ErrorException x |> nsamples
-        @test_throws ErrorException x |> nchannels
+        @test_throws MethodError x |> nsamples
+        @test_throws MethodError x |> nchannels
         @test_throws ErrorException x |> pad(zero)
-        @test_throws ErrorException x |> lowpass(3Hz)
+        @test_throws MethodError x |> lowpass(3Hz)
         @test_throws ErrorException x |> normpower
         @test_throws ErrorException x |> channel(1)
         @test_throws ErrorException x |> ramp
@@ -713,7 +722,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = append(a,b) |> after(3s)
         @test sink(x,samplerate=20Hz) == b |> after(1s) |> sink(samplerate=20Hz)
 
-        noise = signal(randn,20Hz) |> until(1s) |> sink
+        noise = signal(randn,20Hz) |> until(6s) |> sink
 
         # filtering in combination with `after`
         x = noise |> lowpass(7Hz) |> until(4s)
@@ -758,6 +767,12 @@ progress = Progress(total_test_groups,desc="Running tests...")
             until(15s) |> after(2s) |> after(2s) |> until(5s) |> until(2s) |>
             sink(samplerate=12Hz)
         @test duration(x) == 2
+
+        # different offset appending summation
+        x = append(1 |> until(1s),2 |> until(2s))
+        y = append(3 |> until(2s),4 |> until(1s))
+        result = mix(x,y) |> sink(samplerate=10Hz)
+        @test all(result .== [fill(4,10);fill(5,10);fill(6,10)])
 
         # multiple operators with a mix in the middle
         x = randn |> until(4s) |> after(50ms) |> lowpass(5Hz) |>

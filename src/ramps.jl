@@ -40,65 +40,84 @@ function tosamplerate(
     RampSignal(D,tosamplerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
 
-struct RampCheckpoint{S,R} <: AbstractCheckpoint{S}
-    time::Int
-    n::Int
+struct RampBlock{Fn,T}
+    ramp::Fn
+    marker::Int
+    stop::Int
+    offset::Int
+    len::Int
 end
-checkindex(x::RampCheckpoint) = x.n
-function RampCheckpoint(x::RampSignal,len::Int,index::Int,ramp::Bool)
-    RampCheckpoint{typeof(x),ramp}(len,index)
+RampBlock(x,fn,marker,stop,offset,len) =
+    RampBlock{typeof(fn),float(channel_eltype(x))}(fn,marker,stop,offset,len)
+nsamples(x::RampBlock) = x.len
+
+sample(x::RampSignal{:on},block::RampBlock{Nothing,T},i) where T =
+    Fill(one(T),nchannels(x))
+sample(x::RampSignal{:off},block::RampBlock{Nothing,T},i) where T =
+    Fill(one(T),nchannels(x))
+function sample(x::RampSignal{:on},block::RampBlock,i)
+    ramplen = block.marker
+    rampval = block.ramp((i-1) / ramplen)
+    Fill(rampval,nchannels(x))
+end
+function sample(x::RampSignal{:off},block::RampBlock,i)
+    startramp = block.marker - block.offset
+    stop = block.stop - block.offset
+    rampval = block.stop > startramp ?
+        rampval = block.ramp(1-(i - startramp)/(stop - startramp)) :
+        rampval = block.ramp(1)
+    Fill(rampval,nchannels(x))
 end
 
-function atcheckpoint(x::RampSignal{:on},offset::Number,stopat::Int)
-    ramplen =  resolvelen(x)
-    RampCheckpoint(x,ramplen,offset+1,offset ≤ ramplen)
-end
-function atcheckpoint(x::S,check::RampCheckpoint{S},stopat::Int) where
-    S <: RampSignal{:on}
+function nextblock(x::RampSignal{:on},maxlen,skip)
     ramplen = resolvelen(x)
-    if checkindex(check) ≤ resolvelen(x)
-        RampCheckpoint(x,ramplen,min(ramplen+1,stopat+1),false)
+    RampBlock(x,x.fn,ramplen,nsamples(x),0,min(ramplen,maxlen))
+end
+function nextblock(x::RampSignal{:off},maxlen,skip)
+    rampstart = nsamples(x) - resolvelen(x)
+    RampBlock(x,nothing,rampstart,nsamples(x),0,min(rampstart,maxlen))
+end
+
+function nextblock(x::RampSignal{:on},maxlen,skip,block::RampBlock)
+    offset = block.offset + block.len
+    len = min(nsamples(x) - offset,maxlen,block.marker - block.offset)
+    if len == 0
+        nothing
+    elseif offset < block.marker
+        RampBlock(x,x.fn,block.marker,block.stop,offset,len)
     else
-        RampCheckpoint(x,ramplen,stopat+1,false)
+        @assert offset == block.marker
+        RampBlock(x,nothing,block.marker,block.stop,offset,len)
     end
 end
 
-function atcheckpoint(x::RampSignal{:off},offset::Number,stopat::Int)
-    startramp = nsamples(x) - resolvelen(x)
-    RampCheckpoint(x,startramp,offset+1,nsamples(x) ≤ startramp)
-end
-
-function atcheckpoint(x::S,check::RampCheckpoint{S},stopat::Int) where
-    S <: RampSignal{:off}
-
-    startramp = nsamples(x) - resolvelen(x)
-    if checkindex(check) ≥ startramp
-        RampCheckpoint(x,startramp,stopat+1,true)
-    else
-        RampCheckpoint(x,startramp,min(startramp,stopat+1),true)
+function nextblock(x::RampSignal{:on},maxlen,skip,block::RampBlock{Nothing})
+    offset = block.offset + block.len
+    len = min(nsamples(x) - offset,maxlen,block.stop - block.offset)
+    if len > 0
+        RampBlock(x,nothing,block.marker,block.stop,offset,len)
     end
 end
 
-
-@Base.propagate_inbounds function sampleat!(result,x::S,
-    i,j,check::RampCheckpoint{S,false}) where S <: RampSignal
-    writesink!(result,i,Fill(one(channel_eltype(x)),nchannels(x)))
+function nextblock(x::RampSignal{:off},maxlen,skip,block::RampBlock{Nothing})
+    offset = block.offset + block.len
+    len = min(nsamples(x) - offset,maxlen,block.marker - block.offset)
+    if len == 0
+        nothing
+    elseif offset < block.marker
+        RampBlock(x,nothing,block.marker,block.stop,offset,len)
+    else
+        @assert offset == block.marker
+        RampBlock(x,x.fn,block.marker,block.stop,offset,len)
+    end
 end
-@Base.propagate_inbounds function sampleat!(result,x::S,
-    i,j,check::RampCheckpoint{S,true}) where S <: RampSignal{:off}
 
-    startramp = check.time
-    rampval = nsamples(x) > startramp ?
-        rampval = x.fn(1-(i - startramp)/(nsamples(x) - startramp)) :
-        rampval = x.fn(1)
-    writesink!(result,i,Fill(rampval,nchannels(x)))
-end
-@Base.propagate_inbounds function sampleat!(result,x::S,
-    i,j,check::RampCheckpoint{S,true}) where S <: RampSignal{:on}
-
-    ramplen = check.time
-    rampval = x.fn((j-1) / ramplen)
-    writesink!(result,i,Fill(rampval,nchannels(x)))
+function nextblock(x::RampSignal{:off},maxlen,skip,block::RampBlock)
+    offset = block.offset + block.len
+    len = min(nsamples(x) - offset,maxlen,block.stop - block.offset)
+    if len > 0
+        RampBlock(x,x.fn,block.marker,block.stop,offset,len)
+    end
 end
 
 function Base.show(io::IO, ::MIME"text/plain",x::RampSignal{D}) where D

@@ -137,122 +137,87 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
-struct MapSignalCheckpoint{S,Ch,I,C,N} <: AbstractCheckpoint{S}
-    n::Int
-    channels::Ch
-    indices::I
-    children::C
-    next_children::N
-end
-checkindex(x::MapSignalCheckpoint) = x.n
 
 const MAX_CHANNEL_STACK = 64
 
-function atcheckpoint(x::MapSignal,offset::Number,stopat)
-    children = map(x.padded_signals) do padded
-        atcheckpoint(padded,offset,stopat)
-    end |> Tuple
-    if any(isnothing,children)
-        return nothing
-    end
+struct MapSignalBlock{Ch,C,O}
+    len::Int
+    offset::Int
+    channels::Ch
+    blocks::C
+    offsets::O
+end
+nsamples(x::MapSignalBlock) = x.len
 
+function prepare_channels(x::MapSignal)
     nch = ntuple_N(typeof(x.val))
-    if nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)
-        channels = Array{channel_eltype(x)}(undef,nch)
-    else
-        channels = nothing
+    (nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)) ?
+        Array{channel_eltype(x)}(undef,nch) :
+        nothing
+end
+
+struct EmptyChildBlock
+end
+const emptychild = EmptyChildBlock()
+nsamples(::EmptyChildBlock) = 0
+nextblock(x,maxlen,skip,::EmptyChildBlock) = nextblock(x,maxlen,skip)
+
+initblock(x::MapSignal{<:Any,N}) where N =
+    MapSignalBlock(0,0,prepare_channels(x),[emptychild for _ in 1:N],
+        Tuple(zeros(N)))
+function nextblock(x::MapSignal{Fn,N,CN},maxlen,skip,
+    block::MapSignalBlock=initblock(x)) where {Fn,N,CN}
+
+    maxlen = min(maxlen,nsamples(x) - (block.offset + block.len))
+    (maxlen == 0) && return nothing
+
+    offsets = map(block.offsets, block.blocks) do offset, childblock
+        offset += nsamples(block)
+        offset == nsamples(childblock) ? 0 : offset
     end
 
-    indices = Tuple(1:length(children))
-    S,I,Ch,C = typeof(x), typeof(indices), typeof(channels),
-        typeof(children)
-    MapSignalCheckpoint{S,Ch,I,C,C}(offset+1,channels,indices,children,children)
-end
-
-function atcheckpoint(x::S,check::MapSignalCheckpoint{S},stopat) where
-    S <: MapSignal
-
-    next_index = typemax(Int)
-    next_children = map(enumerate(x.padded_signals),check.next_children) do (i,padded), child_check
-        if i in check.indices
-            next = atcheckpoint(padded,child_check,stopat)
-            if !isnothing(next)
-                next_index = min(next_index,checkindex(next))
-                next
-            end
+    blocks = map(x.padded_signals,block.blocks,offsets) do sig, childblock, offset
+        if offset == 0
+            nextblock(sig,maxlen,skip,childblock)
         else
-            next_index = min(next_index,checkindex(child_check))
-            child_check
+            childblock
         end
-    end |> Tuple
-
-    indices = filter(1:length(next_children)) do i
-        isnothing(next_children[i]) ||
-            checkindex(next_children[i]) == next_index
-    end |> Tuple
-
-    if any(i -> isnothing(next_children[i]),indices)
-        return nothing
     end
 
-    children = map(enumerate(check.children)) do (i,child)
-        if i in indices
-            next_children[i]
-        else
-            child
-        end
-    end |> Tuple
-
-    channels = check.channels
-    I,Ch,C,N = typeof(indices), typeof(channels),
-        typeof(children), typeof(next_children)
-    MapSignalCheckpoint{S,Ch,I,C,N}(next_index,channels,indices,children,
-        next_children)
+    # find the smallest child block length, and use that as the length for the
+    # parent block length
+    len = min(maxlen,minimum(nsamples.(blocks) .- offsets))
+    Ch, C, O = typeof(block.channels), typeof(blocks), typeof(offsets)
+    MapSignalBlock{Ch,C,O}(len,block.offset + block.len,block.channels,blocks,
+        offsets)
 end
-
-struct OneSample
-end
-const one_sample = OneSample()
-writesink!(::OneSample,i,val) = val
 
 trange(::Val{N}) where N = (trange(Val(N-1))...,N)
 trange(::Val{1}) = (1,)
 
-__sample_signals(::Int,::Tuple,::Tuple,::Val{0}) = ()
-function __sample_signals(j::Int,sigs::Tuple,checks::Tuple,::Val{N}) where N
-    (__sample_signals(j,sigs,checks,Val{N-1}())...,
-        sampleat!(one_sample,sigs[N],1,j,checks[N]))
+@Base.propagate_inbounds function sample(x::MapSignal{<:FnBr,N,CN},
+    block::MapSignalBlock{<:Nothing},
+    i::Int) where {N,CN}
+
+    inputs = sample.(x.padded_signals,block.blocks,i .+ block.offsets)
+    map(ch -> x.fn(map(@λ(_[ch]),inputs)...),trange(Val{CN}()))
 end
 
-Base.@propagate_inbounds function sampleat!(result,
-    x::S,i,j,check::MapSignalCheckpoint{S,<:Nothing}) where
-    {N,C,S<:MapSignal{<:FnBr,N,C}}
+@Base.propagate_inbounds function sample(
+    x::MapSignal{<:FnBr,N,CN},
+    block::MapSignalBlock{<:Array},
+    i::Int) where {N,CN}
 
-    inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
-
-    channels = map(trange(Val{C}())) do ch
-        x.fn(map(@λ(_[ch]),inputs)...)
-    end
-    writesink!(result,i,channels)
+    inputs = sample.(x.padded_signals,block.blocks,i .+ block.offsets)
+    map!(ch -> x.fn(map(@λ(_[ch]),inputs)...),block.channels,1:CN)
 end
 
-Base.@propagate_inbounds function sampleat!(result,
-    x::S,i,j,check::MapSignalCheckpoint{S,<:Array}) where
-    {N,C,S<:MapSignal{<:FnBr,N,C}}
+@Base.propagate_inbounds function sample(
+    x::MapSignal{<:Any,N,CN},
+    block::MapSignalBlock{<:Nothing},
+    i::Int) where {N,CN}
 
-    inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
-
-    map!(check.channels,1:C) do ch
-        x.fn(map(@λ(_[ch]),inputs)...)
-    end
-    writesink!(result,i,check.channels)
-end
-
-Base.@propagate_inbounds function sampleat!(result,
-    x::S,i,j,check::MapSignalCheckpoint{S}) where {N,S<:MapSignal{<:Any,N}}
-
-    inputs = __sample_signals(j,x.padded_signals,check.children,Val{N}())
-    writesink!(result,i,x.fn(inputs...))
+    x.fn(sample.(x.padded_signals,block.blocks,i .+ block.offsets)...)
 end
 
 default_pad(x) = zero

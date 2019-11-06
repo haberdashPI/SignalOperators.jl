@@ -149,42 +149,6 @@ filterstring(::Type{<:Bandpass}) = "bandpass"
 filterstring(::Type{<:Bandstop}) = "bandstop"
 filterstring(x) = string(x)
 
-mutable struct FilterState{H,Fs,S,T}
-    hs::Vector{H}
-    samplerate::Fs
-    last_input_offset::Int
-    first_output_offset::Int
-    last_output_offset::Int
-    lastoutput::Int
-
-    input::Matrix{S}
-    output::Matrix{T}
-    function FilterState(hs::Vector{H},fs::Fs,last_input_offset::Int,
-        first_output_offset::Int,last_output_offset::Int,lastoutput::Int,
-        input::Matrix{S},
-        output::Matrix{T}) where {H,Fs,S,T}
-
-        new{H,Fs,S,T}(hs,fs,last_input_offset,first_output_offset,
-            last_output_offset,lastoutput,input,output)
-    end
-end
-init_length(x::FilteredSignal) = x.blocksize
-init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn}) =
-    trunc(Int,x.blocksize / x.fn.ratio)
-function FilterState(x::FilteredSignal)
-    hs = [resolve_filter(x.fn(samplerate(x))) for _ in 1:nchannels(x.signal)]
-    len = init_length(x)
-    input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
-    output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
-    last_input_offset = 0
-    first_output_offset = 0
-    last_output_offset = 0
-    lastoutput = 0
-
-    FilterState(hs,float(samplerate(x)),last_input_offset,first_output_offset,
-        last_output_offset,lastoutput,input,output)
-end
-
 function tosamplerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
 blocksize)
     # is this a non-resampling filter?
@@ -211,85 +175,83 @@ function nsamples(x::FilteredSignal)
     end
 end
 
-struct FilterCheckpoint{S,St} <: AbstractCheckpoint{S}
-    n::Int
-    state::St
-end
-checkindex(c::FilterCheckpoint) = c.n
-
-struct NullBuffer
+struct FilterBlock{H,S,T,C}
     len::Int
-    ch::Int
+    last_output_index::Int
+    available_output::Int
+
+    last_input_offset::Int
+    last_output_offset::Int
+
+    hs::Vector{H}
+    input::Matrix{S}
+    output::Matrix{T}
+
+    child::C
 end
-Base.size(x::NullBuffer) = (x.len,x.ch)
-Base.size(x::NullBuffer,n) = (x.len,x.ch)[n]
-writesink!(x::NullBuffer,i,y) = y
-Base.view(x::NullBuffer,i,j) = x
+child(x::FilterBlock) = x.child
+init_length(x::FilteredSignal) = min(nsamples(x),x.blocksize)
+init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn}) =
+    trunc(Int,min(nsamples(x),x.blocksize) / x.fn.ratio)
+
+struct UndefChild
+end
+const undef_child = UndefChild()
+function FilterBlock(x::FilteredSignal)
+    hs = [resolve_filter(x.fn(samplerate(x))) for _ in 1:nchannels(x.signal)]
+    len = init_length(x)
+    input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
+    output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
+
+    FilterBlock(0,0,0, 0,0, hs,input,output,undef_child)
+end
+nsamples(x::FilterBlock) = x.len
+@Base.propagate_inbounds sample(::FilteredSignal,x::FilterBlock,i) =
+    view(x.output,i+x.last_output_index,:)
 
 inputlength(x,n) = n
 outputlength(x,n) = n
 inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
 outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
 
-function atcheckpoint(x::FilteredSignal,offset::Number,stopat,state=FilterState(x))
-    S,St  = typeof(x), typeof(state)
-    FilterCheckpoint{S,St}(max(state.last_output_offset+1,offset+1),state)
-end
+function nextblock(x::FilteredSignal,maxlen,skip,
+    block::FilterBlock=FilterBlock(x))
 
-function atcheckpoint(x::S,check::AbstractCheckpoint{S},stopat) where
-    S <: FilteredSignal
+    last_output_index = block.last_output_index + block.len
+    if nsamples(x) == last_output_index
+        return nothing
+    end
 
-    state = prepare_state!(x,check.state,checkindex(check))
-    # if there's output to produce, create a new checkpoint
-    if min(state.last_output_offset,stopat) > checkindex(check)
-        St  = typeof(state)
-        FilterCheckpoint{S,St}(min(state.last_output_offset+1,stopat+1),state)
+    # check for leftover samples in the output buffer
+    if last_output_index < block.available_output
+        len = min(maxlen, block.available_output - last_output_index)
 
-    # otherwise, indicate that there is no more data
+        FilterBlock(len, last_output_index, block.available_output,
+            block.last_input_offset, block.last_output_offset, block.hs,
+            block.input, block.output, block.child)
+    # otherwise, generate more filtered output
     else
-        nothing
-    end
-end
+        @assert !isnothing(child(block))
 
-function prepare_state!(x,state,index)
-    if state.last_output_offset+1 ≤ index
-        # drop any samples that we do not wish to generate output for
-        if state.last_output_offset+1 < index
-            recurse_len = index - (state.last_output_offset + 1)
-            sink!(NullBuffer(recurse_len,nchannels(x)),x,SignalTrait(x),
-                  0,atcheckpoint(x,0,recurse_len,state))
+        psig = pad(x.signal,zero)
+        childblock = !isa(child(block), UndefChild) ?
+            nextblock(psig,size(block.input,1),false,child(block)) :
+            nextblock(psig,size(block.input,1),false)
+        childblock = sink!(block.input,psig,SignalTrait(psig),childblock)
+        last_input_offset = block.last_input_offset + size(block.input,1)
+
+        # filter the input into the output buffer
+        out_len = outputlength(block.hs[1],size(block.input,1))
+        for ch in 1:size(block.output,2)
+            filt!(view(block.output,1:out_len,ch),block.hs[ch],
+                    view(block.input,:,ch))
         end
-        @assert state.last_output_offset+1 ≥ index
+        last_output_offset = block.last_output_offset + out_len
 
-        if state.last_output_offset+1 == index
-            state.first_output_offset = state.last_output_offset
-            # write child samples to input buffer
-            # @show x.blocksize
-            # @show nsamples(x)-state.last_input_offset
-
-            psig = pad(x.signal,zero)
-            sink!(state.input,psig,SignalTrait(psig),
-                state.last_input_offset)
-            state.last_input_offset += size(state.input,1)
-
-            # filter the input to the output buffer
-            out_len = outputlength(state.hs[1],size(state.input,1))
-            for ch in 1:size(state.output,2)
-                filt!(view(state.output,1:out_len,ch),state.hs[ch],
-                        view(state.input,:,ch))
-            end
-            state.last_output_offset += out_len
-        end
+        FilterBlock(min(maxlen,out_len), 0,
+            out_len, last_input_offset, last_output_offset, block.hs,
+            block.input, block.output, childblock)
     end
-    @assert state.last_output_offset ≥ index ||
-        state.last_output_offset == nsamples(x)
-
-    state
-end
-
-@Base.propagate_inbounds function sampleat!(result,x::FilteredSignal,i,j,check)
-    index = j-check.state.first_output_offset
-    writesink!(result,i,view(check.state.output,index,:))
 end
 
 # TODO: create an online version of normpower?
@@ -315,38 +277,33 @@ function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
 end
 
-struct NormedCheckpoint{S,V} <: AbstractCheckpoint{S}
-    n::Int
-    vals::V
+struct NormedBlock{A}
+    offset::Int
+    len::Int
+    vals::A
 end
-checkindex(x::NormedCheckpoint) = x.n
+nsamples(x::NormedBlock) = x.len
+@Base.propagate_inbounds sample(::NormedSignal,x::NormedBlock,i) =
+    view(x.vals,i,:)
 
-function atcheckpoint(x::NormedSignal,offset::Number,stopat)
+function initblock(x::NormedSignal)
     if isinf(nsamples(x))
         error("Cannot normalize an infinite-length signal. Please ",
               "use `until` to take a prefix of the signal")
     end
-    vals = sink!(Array{channel_eltype(x)}(undef,nsamples(x),nchannels(x)),
-        x.signal,offset=0)
+    vals = Array{channel_eltype(x)}(undef,nsamples(x),nchannels(x))
+    sink!(vals, x.signal)
 
     rms = sqrt(mean(x -> float(x)^2,vals))
     vals ./= rms
 
     S,V = typeof(x), typeof(vals)
-    NormedCheckpoint{typeof(x),typeof(vals)}(offset+1,vals)
+    NormedBlock(0,0,vals)
 end
 
-function atcheckpoint(x::S,check::AbstractCheckpoint{S},stopat) where
-    S <: NormedSignal
-
-    checkindex(check) == stopat ? nothing :
-        NormedCheckpoint{typeof(x),typeof(check.vals)}(stopat+1,check.vals)
-end
-
-@Base.propagate_inbounds function sampleat!(result,x::NormedSignal,
-    i,j,check::NormedCheckpoint)
-
-    writesink!(result,i,view(check.vals,j,:))
+function nextblock(x::NormedSignal,maxlen,skip,block::NormedBlock=initblock(x))
+    len = min(maxlen,nsamples(x) - block.offset)
+    NormedBlock(block.offset + block.len, len, block.vals)
 end
 
 """

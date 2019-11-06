@@ -78,39 +78,55 @@ function tosamplerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     CutApply(tosamplerate(child(x),fs;blocksize=blocksize),x.time,K())
 end
 
-struct AfterCheckpoint{S,C} <: AbstractCheckpoint{S}
-    diff::Int
+struct CutBlock{C}
+    n::Int
     child::C
 end
-checkindex(c::AfterCheckpoint) = checkindex(c.child)-c.diff
-# No long offset, use 'stopat' index
-function atcheckpoint(x::AfterApply,offset::Number,stopat::Int)
-    n = resolvelen(x)
-    childcheck = atcheckpoint(child(x),offset+n,stopat+n)
-    if !isnothing(childcheck)
-        AfterCheckpoint{typeof(x),typeof(childcheck)}(n,childcheck)
+child(x::CutBlock) = x.child
+
+function nextblock(x::AfterApply,maxlen,skip)
+    len = resolvelen(x)
+    childblock = nextblock(child(x),len,true)
+    skipped = nsamples(childblock)
+    while !isnothing(childblock) && skipped < len
+        childblock = nextblock(child(x),min(maxlen,len - skipped),true,
+            childblock)
+        isnothing(childblock) && break
+        skipped += nsamples(childblock)
+    end
+    if skipped < len
+        io = IOBuffer()
+        signalshow(io,child(x))
+        sig_string = String(take!(io))
+
+        error("Signal is too short to skip $(maybeseconds(x.time)): ",
+            sig_string)
+    end
+    @assert skipped == len
+    nextblock(x,maxlen,skip,CutBlock(0,childblock))
+end
+function nextblock(x::AfterApply,maxlen,skip,block::CutBlock)
+    childblock = nextblock(child(x),maxlen,skip,child(block))
+    if !isnothing(childblock)
+        CutBlock(0,childblock)
+    end
+end
+nextblock(x::AfterApply,maxlen,skip,block::CutBlock{Nothing}) = nothing
+
+initblock(x::UntilApply) = CutBlock(resolvelen(x),nothing)
+function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
+    nextlen = block.n - nsamples(block)
+    if nextlen > 0
+        childblock = !isnothing(child(block)) ?
+            nextblock(child(x),min(nextlen,len),skip,child(block)) :
+            nextblock(child(x),min(nextlen,len),skip)
+        if !isnothing(childblock)
+            CutBlock(nextlen,childblock)
+        end
     end
 end
 
-function atcheckpoint(x::S,check::AfterCheckpoint{S},stopat::Int) where
-    S <: AfterApply
-
-    n = resolvelen(x)
-    childcheck = atcheckpoint(child(x),check.child,stopat+n)
-    if !isnothing(childcheck)
-        AfterCheckpoint{S,typeof(childcheck)}(n,childcheck)
-    end
-end
-
-
-atcheckpoint(x::UntilApply,offset::Number,stopat) =
-    atcheckpoint(child(x),offset,stopat)
-atcheckpoint(x::UntilApply,offset::AbstractCheckpoint,stopat) =
-    atcheckpoint(child(x),offset,stopat)
-@Base.propagate_inbounds function sampleat!(result,x::AfterApply,i,j,check)
-    sampleat!(result,x.signal,i,j+check.diff,check.child)
-end
-
-@Base.propagate_inbounds function sampleat!(result,x::UntilApply,i,j,check)
-    sampleat!(result,x.signal,i,j,check)
-end
+nsamples(x::CutBlock) = nsamples(child(x))
+nsamples(x::CutBlock{Nothing}) = 0
+@Base.propagate_inbounds sample(x::CutApply,block::CutBlock,i) =
+    sample(child(x),child(block),i)

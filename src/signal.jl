@@ -4,10 +4,32 @@ using FileIO
 
 # Signals have a sample rate and some iterator element type
 # T, which is an NTuple{N,<:Number}.
+"""
+    SignalOperators.IsSignal{T,Fs,L}
+
+Represents the format of a signal type with three type parameters:
+
+    * `T` - The [`channel_eltype`](@ref) of the signal.
+    * `Fs` - The type of the samplerate. It should be either `Float64` or
+      `Missing`.
+    * `L` - The type of the length of the signal. It should be either
+    `InfiniteLength`, `Missing` or `Int`.
+
+"""
 struct IsSignal{T,Fs,L}
 end
+
+"""
+
+    SiganlOperators.SignalTrait(::Type{T}) where T
+
+Returns either `nothing` if the type T should not be considered a signal (the
+default) or [`IsSignal`](@ref) to indicate the signal format for this signal.
+
+"""
 SignalTrait(x::T) where T = SignalTrait(T)
 SignalTrait(::Type{T}) where T = nothing
+
 IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 
 function show_fs(io,x)
@@ -34,6 +56,7 @@ end
 indexable(x::AbstractArray) = true
 indexable(x) = false
 
+nosignal(::Nothing) = error("Value is not a signal: nothing")
 nosignal(x) = error("Value is not a signal: $x")
 
 """
@@ -43,6 +66,13 @@ nosignal(x) = error("Value is not a signal: $x")
 Return the duration of the signal in seconds, if known. May return `missing`
 or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
 length.
+
+!!! note
+
+    If your are implementing a [custom signal](@ref), you need not normally
+    define `duration` as it will be computed from `nsamples` and `samplerate`.
+    However, if one or both of these is `missing` and you want `duartion` to
+    return a non-missing value, you can define custom method of `duration`.
 
 """
 duration(x) = nsamples(x) / samplerate(x)
@@ -55,8 +85,8 @@ or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
 length.
 
 """
-nsamples(x) = nsamples(x,SignalTrait(x))
-nsamples(x,s::Nothing) = nosignal(x)
+function nsamples
+end
 
 """
 
@@ -66,8 +96,8 @@ Returns the sample rate of the signal (in Hertz). May return `missing` if the
 sample rate is unknown.
 
 """
-samplerate(x) = samplerate(x,SignalTrait(x))
-samplerate(x,::Nothing) = nosignal(x)
+function samplerate
+end
 
 """
 
@@ -76,8 +106,8 @@ samplerate(x,::Nothing) = nosignal(x)
 Returns the number of channels in the signal.
 
 """
-nchannels(x) = nchannels(x,SignalTrait(x))
-nchannels(x,::Nothing) = nosignal(x)
+function nchannels
+end
 
 """
 
@@ -109,6 +139,13 @@ arguments to it.
     If you pipe `signal` and pass a sample rate, you must specify the units
     of the sample rate (e.g. `x |> signal(20Hz)`). A unitless number is
     always interpreted as a constant, infinite-length signal (see below).
+
+!!! note
+
+    If you are implementing `signal` for a [custom signal](@ref
+    custom_signals), you will need to suppor the second argument of `signal`
+    by specifying `fs::Union{Number,Missing}=missing`, or equivalent, as your
+    second argument.
 
 The type of objects that can be coerced to signals are as follows.
 """
@@ -144,5 +181,21 @@ struct DataSignal
 end
 struct ComputedSignal
 end
+"""
+    SiganlOperators.EvalTrait(x)
+
+Indicated whether the signal is a `SignalOperators.DataSignal` or
+`SignalOperators.ComputedSignal`. Data signals represent samples concretely
+as a set of samples. Examples include arrays and numbers. Data signals
+generally return themselves, or some wrapper type when `sink` is called on
+them. Computed signals are any signal that invovles some intermediate
+computation, in which samples must be computued on the fly. Calls to `sink`
+on a computed signal results in some new, data signal. Most samples returned
+by a signal operator are computed signals.
+
+Computed signals have the extra responsibility of implementing
+[`tosamplerate`](@ref)
+
+"""
 EvalTrait(x) = DataSignal()
 EvalTrait(x::AbstractSignal) = ComputedSignal()

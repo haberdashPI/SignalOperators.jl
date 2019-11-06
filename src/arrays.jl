@@ -77,16 +77,24 @@ const AxTimeD1 = Union{
     WithAxes{<:Tuple{Axis{:time}}},
     WithAxes{<:Tuple{Axis{:time},<:Any}}}
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
-@Base.propagate_inbounds function sampleat!(result,x::AxTimeD1,
-    i::Number,j::Number,check)
+const AxTime = Union{AxTimeD1,AxTimeD2}
 
-    writesink!(result,i,view(x,j,:))
-end
-@Base.propagate_inbounds function sampleat!(result,x::AxTimeD2,
-    i::Number,j::Number,check)
+nsamples(block::AbstractArray) = size(block,1)
+@Base.propagate_inbounds sample(x,block::AbstractArray,i) = view(block,i,:)
 
-    writesink!(result,i,view(x,:,j))
+function nextblock(x::AxTime,maxlen,skip,block = _view(x,1:0))
+    offset = _nextoffset(x,block)
+    if offset < nsamples(x)
+        len = min(maxlen,nsamples(x)-offset)
+        _view(x,offset .+ (1:len))
+    end
 end
+_nextoffset(x::SubArray) = last(x.indices[1])
+_nextoffset(x::AbstractArray) = _nextoffset(parent(x))
+_nextoffset(x::AxTimeD1,block) = _nextoffset(block)
+_nextoffset(x::AxTimeD2,block) = _nextoffset(block)
+_view(x::AxTimeD1,indices) = view(x,indices,:)
+_view(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 
 function signaltile(x)
     io = IOBuffer()

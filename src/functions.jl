@@ -41,20 +41,23 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
     end
 end
 
-@Base.propagate_inbounds sampleat!(result,x::SignalFunction,i,j,check) =
-    writesink!(result,i,x.fn(2π*((j/x.samplerate*x.ω + x.ϕ) % 1.0)))
+struct FunctionBlock
+    offset::Int
+    len::Int
+end
+nextblock(x::SignalFunction,maxlen,skip) = FunctionBlock(0,maxlen)
+nextblock(x::SignalFunction,maxlen,skip,block::FunctionBlock) =
+    FunctionBlock(block.offset + block.len,maxlen)
+nsamples(block::FunctionBlock) = block.len
 
-@Base.propagate_inbounds sampleat!(result,
-    x::SignalFunction{<:Any,Missing},i,j,check) =
-    writesink!(result,i,x.fn(j/x.samplerate + x.ϕ))
-
-@Base.propagate_inbounds sampleat!(result,
-    x::SignalFunction{typeof(sin)},i,j,check) =
-    writesink!(result,i,sinpi(2*(j/x.samplerate*x.ω + x.ϕ)))
-
-@Base.propagate_inbounds sampleat!(result,
-    x::SignalFunction{typeof(sin),Missing},i,j,check) =
-    writesink!(result,i,sinpi(2*(j/x.samplerate + x.ϕ)))
+sample(x,block::FunctionBlock,i) =
+    x.fn(2π*(((i+block.offset)/x.samplerate*x.ω + x.ϕ) % 1.0))
+sample(x::SignalFunction{<:Any,Missing},block::FunctionBlock,i) =
+    x.fn((i+block.offset)/x.samplerate + x.ϕ)
+sample(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
+    sinpi(2*((i+block.offset)/x.samplerate*x.ω + x.ϕ))
+sample(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
+    sinpi(2*((i+block.offset)/x.samplerate + x.ϕ))
 
 tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.samplerate))
@@ -106,8 +109,6 @@ generator; `rng` defaults to `Random.GLOBAL_RNG`.
 """
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
-@Base.propagate_inbounds function sampleat!(result,
-    x::SignalFunction{<:RandFn,Missing},i,j,check)
 
-    writesink!(result,i,randn(x.fn.rng))
-end
+sample(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =
+    randn(x.fn.rng)

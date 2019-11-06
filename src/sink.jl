@@ -59,17 +59,17 @@ end
 sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
 
 """
-    sink!(array,x;[samplerate],[offset])
+    sink!(array,x;[samplerate])
 
-Write `size(array,1)` samples of signal `x` to `array`, starting from the sample after
-`offset`. If no sample rate has been specified for `x` you can specify it
-now, using `samplerate` (it will default to 44.1kHz).
+Write `size(array,1)` samples of signal `x` to `array`. If no sample rate has
+been specified for `x` you can specify it now, using `samplerate` (it will
+default to 44.1kHz).
 
 """
 sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) =
     x -> sink!(result,x;kwds...)
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
-    samplerate=SignalOperators.samplerate(x),offset=0)
+    samplerate=SignalOperators.samplerate(x))
 
     if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
         @warn("No sample rate was specified, defaulting to 44.1 kHz.")
@@ -77,53 +77,76 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     end
     x = signal(x,samplerate)
 
-    if nsamples(x)-offset < size(result,1)
+    if nsamples(x) < size(result,1)
         error("Signal is too short to fill buffer of length $(size(result,1)).")
     end
     x = tochannels(x,size(result,2))
 
-    sink!(result,x,SignalTrait(x),offset)
-end
-
-abstract type AbstractCheckpoint{S}
-end
-struct EmptyCheckpoint{S} <: AbstractCheckpoint{S}
-    n::Int
-end
-checkindex(x::EmptyCheckpoint) = x.n
-child(x::Number) = x
-checkindex(x::Number) = x+1
-
-atcheckpoint(x,offset::Number,stopat) =
-    offset ≥ stopat ? nothing : EmptyCheckpoint{typeof(x)}(1+offset)
-atcheckpoint(x::S,check::AbstractCheckpoint{S},stopat) where S =
-    checkindex(check) == stopat+1 ? nothing : EmptyCheckpoint{S}(stopat+1)
-atcheckpoint(x,check) =
-    error("Internal error: signal inconsistent with checkpoint")
-
-fold(x) = zip(x,Iterators.drop(x,1))
-sink!(result,x,sig::IsSignal,offset::Number) =
-    sink!(result,x,sig,offset,atcheckpoint(x,offset,size(result,1)+offset))
-function sink!(result,x,sig::IsSignal,offset,check)
-    written = 0
-    while !isnothing(check) && written < size(result,1)
-        next = atcheckpoint(x,check,offset+size(result,1))
-        isnothing(next) && break
-
-        len = checkindex(next) - checkindex(check)
-        @assert len > 0
-
-        sink_helper!(result,offset,x,check,len)
-        written += len
-        check = next
-    end
-    @assert written == size(result,1)
+    sink!(result,x,SignalTrait(x))
     result
 end
 
-@noinline function sink_helper!(result,offset,x,check,len)
-    @inbounds @simd for i in checkindex(check):(checkindex(check)+len-1)
-        sampleat!(result,x,i-offset,i,check)
+"""
+
+    SignalOperators.nextblock(x,maxlength,skip,[block])
+
+Retrieve the next block of samples for signal `x`. The final, fourth argument
+is optional. If it is left out, nextblock returns the first block of the
+signal. The resulting block must has no more than `maxlength` samples, but
+may have fewer samples than that; it should not have zero samples unless
+`maxlength == 0`. If `skip == true`, it is guaranted that [`sample`](@ref)
+will never be called on the returned block. The value of `skip` is `true`, for
+example, when skipping blocks during a call to [`after`](@ref)).
+
+"""
+function nextblock
+end
+
+"""
+
+    SignalOperators.sample(x,block,i)
+
+Retrieves the sample at index `i` of the given block of signal `x`. A sample
+is one or more channels of `chnanle_eltypep(x)` values. The return value
+should be an indexable object (e.g. a number, tuple or array) of these
+channel values. This method should be implemented by blocks of [custom
+signals](@ref custom_signals).
+
+"""
+function sample
+end
+
+"""
+## Signal Blocks
+
+The return value of `nsamples` for a block (see [custom signals](@ref
+custom_signals) must be a non-missing, finite value.
+"""
+function nsamples
+end
+
+fold(x) = zip(x,Iterators.drop(x,1))
+sink!(result,x,sig::IsSignal) =
+    sink!(result,x,sig,nextblock(x,size(result,1),false))
+function sink!(result,x,::IsSignal,block)
+    written = 0
+    while !isnothing(block) && written < size(result,1)
+        @assert nsamples(block) > 0
+        sink_helper!(result,written,x,block)
+        written += nsamples(block)
+        maxlen = size(result,1)-written
+        if maxlen > 0
+            block = nextblock(x,maxlen,false,block)
+        end
+    end
+    @assert written == size(result,1)
+
+    block
+end
+
+@noinline function sink_helper!(result,written,x,block)
+    @inbounds @simd for i in 1:nsamples(block)
+        writesink!(result,i+written,sample(x,block,i))
     end
 end
 

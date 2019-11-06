@@ -34,10 +34,10 @@ prepend(x) = y -> append(x,y)
 prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))
 
 function append(xs...)
+    xs = uniform(xs,channels=true)
     if any(isinf ∘ nsamples,xs[1:end-1])
         error("Cannot append to the end of an infinite signal")
     end
-    xs = uniform(xs,channels=true)
 
     El = promote_type(channel_eltype.(xs)...)
     xs = map(xs) do x
@@ -56,59 +56,34 @@ tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;b
 tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
 
-struct AppendCheckpoint{Si,S,C} <: AbstractCheckpoint{Si}
+struct AppendBlock{S,C}
     signal::S
-    offset::Int
     child::C
     k::Int
 end
-checkindex(x::AppendCheckpoint) = checkindex(x.child)+x.offset
-child(x::AppendCheckpoint) = x.child
+child(x::AppendBlock) = x.child
+nsamples(x::AppendBlock) = nsamples(x.child)
+@Base.propagate_inbounds sample(::AppendSignals,x::AppendBlock,i) =
+    sample(x.signal,x.child,i)
 
-atcheckpoint(x::AppendSignals,offset::Number,stopat) =
-    append_checkpoint(x,nothing,offset+1,stopat,1,0)
-
-atcheckpoint(x::S,check::AppendCheckpoint{S},stopat) where S <: AppendSignals =
-    append_checkpoint(x,check,checkindex(check),stopat,check.k,
-        check.offset)
-
-function append_checkpoint(x,check,startat,stopat,start_k,offset)
-    childcheck = nothing
-    childsig = x.signals[1]
-    k = start_k
-    K = length(x.signals)
-    keepme(k,sig,check) =
-        !isnothing(check) && (k == K || checkindex(check) ≤ nsamples(sig))
-    while isnothing(childcheck) && k ≤ length(x.signals)
-        childsig = x.signals[k]
-        child_range = (1:nsamples(childsig)) .+ offset
-        if !isempty((startat:stopat) ∩ child_range)
-            child_stopat = min(stopat - offset,nsamples(childsig))
-            if isnothing(check) || k != start_k
-                child_offset = max(0,startat - offset - 1)
-                childcheck = atcheckpoint(childsig,child_offset,child_stopat)
-                keepme(k,childsig,childcheck) || (childcheck = nothing)
-            else
-                childcheck = atcheckpoint(childsig,child(check),child_stopat)
-                keepme(k,childsig,childcheck) || (childcheck = nothing)
-            end
-        end
-        if isnothing(childcheck)
-            offset += nsamples(childsig)
-            k += 1
-        end
-    end
-
-    if !isnothing(childcheck)
-        Si,S = typeof(x),typeof(childsig)
-        AppendCheckpoint{Si,S,typeof(childcheck)}(childsig,offset,childcheck,k)
-    end
+function nextblock(x::AppendSignals,maxlen,skip)
+    child = nextblock(x.signals[1],maxlen,skip)
+    advancechild(x,maxlen,skip,1,child)
+end
+function nextblock(x::AppendSignals,maxlen,skip,block::AppendBlock)
+    childblock = nextblock(x.signals[block.k],maxlen,skip,child(block))
+    advancechild(x,maxlen,skip,block.k,childblock)
 end
 
-@Base.propagate_inbounds function sampleat!(result,x::AppendSignals,
-    i,j,check)
-
-    sampleat!(result,check.signal,i,j-check.offset,check.child)
+function advancechild(x::AppendSignals,maxlen,skip,k,childblock)
+    K = length(x.signals)
+    while k < K && isnothing(childblock)
+        k += 1
+        childblock = nextblock(x.signals[k],maxlen,skip)
+    end
+    if !isnothing(childblock)
+        AppendBlock(x.signals[k],childblock,k)
+    end
 end
 
 Base.show(io::IO,::MIME"text/plain",x::AppendSignals) = pprint(io,x)
@@ -243,22 +218,22 @@ can be passed as the second argument to  [`pad`](@ref).
     x[helper(i,end),j]
 end
 
-usepad(x::PaddedSignal,check) = usepad(x,SignalTrait(x),check)
-usepad(x::PaddedSignal,s::IsSignal,check) = usepad(x,s,x.pad,check)
-usepad(x::PaddedSignal,s::IsSignal{T},p::Number,check) where T =
+usepad(x::PaddedSignal,block) = usepad(x,SignalTrait(x),block)
+usepad(x::PaddedSignal,s::IsSignal,block) = usepad(x,s,x.pad,block)
+usepad(x::PaddedSignal,s::IsSignal{T},p::Number,block) where T =
     Fill(convert(T,p),nchannels(x.signal))
 function usepad(x::PaddedSignal,s::IsSignal{T},
-    p::Union{Array,Tuple},check) where T
+    p::Union{Array,Tuple},block) where T
 
     map(x -> convert(T,x),p)
 end
-usepad(x::PaddedSignal,s::IsSignal,::typeof(lastsample),check) =
-    sampleat!(one_sample,x,1,nsamples(x.signal),check)
-function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,check) where T
+usepad(x::PaddedSignal,s::IsSignal,::typeof(lastsample),block) =
+    sample(x,block,nsamples(block))
+function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
     nargs = map(x -> x.nargs - 1, methods(fn).ms)
     if 3 ∈ nargs
         if indexable(x.signal)
-            fn
+            i -> fn(x.signal,i,:)
         else
             io = IOBuffer()
             show(io,MIME("text/plain"),x)
@@ -285,53 +260,41 @@ struct UsePad
 end
 const use_pad = UsePad()
 
-struct PadCheckpoint{S,P,C} <: AbstractCheckpoint{S}
+struct PadBlock{P,C}
     pad::P
-    child_or_index::C
+    child_or_len::C
+    offset::Int
 end
-child(x::PadCheckpoint{<:Any,Nothing}) = x.child_or_index
-child(x::PadCheckpoint) = nothing
-checkindex(c::PadCheckpoint{<:Any,Nothing}) = checkindex(c.child_or_index)
-checkindex(c::PadCheckpoint) = c.child_or_index
+child(x::PadBlock{<:Nothing}) = x.child_or_len
+child(x::PadBlock) = nothing
+nsamples(x::PadBlock{<:Nothing}) = nsamples(child(x))
+nsamples(x::PadBlock) = x.child_or_len
 
-atcheckpoint(x::PaddedSignal,offset::Number,stopat) =
-    pad_atcheckpoint(x,offset,stopat)
-atcheckpoint(x::S,offset::AbstractCheckpoint{S},stopat) where
-    S <: PaddedSignal = pad_atcheckpoint(x,offset,stopat)
-function pad_atcheckpoint(x::PaddedSignal,check,stopat)
-    childcheck = isnothing(child(check)) ? nothing :
-        atcheckpoint(child(x),child(check),min(stopat,nsamples(child(x))))
-    if !isnothing(childcheck) && checkindex(childcheck) < nsamples(child(x))
-        S,C = typeof(x), typeof(childcheck)
-        PadCheckpoint{S,Nothing,C}(nothing,childcheck)
+@Base.propagate_inbounds sample(x,block::PadBlock{<:Nothing},i) =
+    sample(child(x),child(block),i)
+@Base.propagate_inbounds sample(x,block::PadBlock{<:Function},i) =
+    block.pad(i + block.offset)
+@Base.propagate_inbounds sample(x,block::PadBlock,i) = block.pad
+
+function nextblock(x::PaddedSignal,maxlen,skip)
+    block = nextblock(child(x),maxlen,skip)
+    if isnothing(block)
+        PadBlock(usepad(x,block),maxlen,0)
     else
-        p = usepad(x,check)
-        index = if !isnothing(childcheck)
-            checkindex(childcheck)
-        else
-            check isa Number ? check+1 : stopat+1
-        end
-        S,P,C = typeof(x), typeof(p), typeof(index)
-        PadCheckpoint{S,P,C}(p,index)
+        PadBlock(nothing,block,0)
     end
 end
 
-@Base.propagate_inbounds function sampleat!(result,x::S,
-    i,j,check::PadCheckpoint{S,<:Nothing}) where S <: PaddedSignal
-
-    sampleat!(result,x.signal,i,j,child(check))
+function nextblock(x::PaddedSignal,maxlen,skip,block::PadBlock{<:Nothing})
+    childblock = nextblock(child(x),maxlen,skip,child(block))
+    if isnothing(childblock)
+        PadBlock(usepad(x,block),maxlen,nsamples(block) + block.offset)
+    else
+        PadBlock(nothing,childblock,nsamples(block) + block.offset)
+    end
 end
-
-@Base.propagate_inbounds function sampleat!(result,x::S,
-    i,j,check::PadCheckpoint{S,<:Function}) where S <: PaddedSignal
-
-    writesink!(result,i,check.pad(x.signal,j,:))
-end
-
-@Base.propagate_inbounds function sampleat!(result,x::S,
-    i,j,check::PadCheckpoint{S}) where S <: PaddedSignal
-
-    writesink!(result,i,check.pad)
+function nextblock(x::PaddedSignal,len,skip,block::PadBlock)
+    PadBlock(block.pad,len,nsamples(block) + block.offset)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)

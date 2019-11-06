@@ -55,3 +55,11 @@ rampoff
 ramp
 fadeto
 ```
+
+## Custom Signals
+```@docs
+SignalOperators.SignalTrait
+SignalOperators.IsSignal
+SignalOperators.nextblock
+SignalOperators.sample
+```

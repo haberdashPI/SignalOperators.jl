@@ -50,6 +50,10 @@ Base.ceil(::InfiniteLength) = inflen
 Base.floor(::T,::InfiniteLength) where T = inflen
 Base.floor(::InfiniteLength) = inflen
 
+Base.length(::InfiniteLength) = 1
+Base.iterate(::InfiniteLength) = inflen, nothing
+Base.iterate(::InfiniteLength,::Nothing) = nothing
+
 struct LowerBoundedRange{T}
     val::T
 end

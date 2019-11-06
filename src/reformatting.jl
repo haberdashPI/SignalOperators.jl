@@ -6,19 +6,59 @@ export tosamplerate, tochannels, format, uniform, toeltype
     tosamplerate(x,fs;blocksize)
 
 Change the sample rate of `x` to the given sample rate `fs`. The underlying
-implementation depends on whether the signal is defined by a function or by
-actual data (samples).
+implementation depends on whether the input is a computed or data signal,
+as determined by [`EvalTrait`](@ref).
 
-Functionally defined signals (e.g. `signal(sin)`) are resampled exactly: the
-function is simply called more times or fewer times, so as to generate the
-appropriate number of samples.
+Computed signals (e.g. `signal(sin)`) are resampled exactly: the result is
+simply computed for more time points or fewer time points, so as to generate
+the appropriate number of samples.
 
 Data-based signals (`signal(rand(50,2))`) are resampled using filtering (akin
 to `DSP.resample`). In this case you can use the keyword arugment `blocksize`
 to change the analysis window used. See [`filtersignal`](@ref) for more
-details. Setting `blocksize` for a functionally defined signal will succeed,
+details. Setting `blocksize` for a computed signal will succeed,
 but different `blocksize` values have no effect on the underlying
 implementation.
+
+# Implementation
+
+You need only implement this function for custom signals for particular
+scenarios, described below.
+
+## Custom Computed Signals
+
+If you implement a new sigal type that is a computed signal, you must
+implement `tosamplerate` with the following type signature.
+
+```julia
+
+function tosamplerate(x::MyCustomSignal,s::IsSignal{<:Any,<:Number},
+    c::ComputedSignal,samplerate;blocksize)
+
+    ## ...
+end
+```
+
+The result should be a new version of the computed signal with the given
+sample rate.
+
+## Handling missing sample rates
+
+If you implement a new signal type that can handle missing sample rate values,
+you will need to implement the following version of `tosamplerate` so that
+a known sample rate can be applied to a signal with a missing sample rate.
+
+```julia
+
+function tosamplerate(x::MyCustomSignal,s::IsSignal{<:Any,Missing},
+    evaltrait,samplerate;blocksize)
+
+    ## ...
+end
+
+The result should be a new version of the signal with the specified sample rate.
+
+```
 
 """
 tosamplerate(fs;blocksize=default_blocksize) =
