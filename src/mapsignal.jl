@@ -163,7 +163,7 @@ nsamples(::EmptyChildBlock) = 0
 nextblock(x,maxlen,skip,::EmptyChildBlock) = nextblock(x,maxlen,skip)
 
 initblock(x::MapSignal{<:Any,N}) where N =
-    MapSignalBlock(0,0,prepare_channels(x),[emptychild for _ in 1:N],
+    MapSignalBlock(0,0,prepare_channels(x),Tuple(emptychild for _ in 1:N),
         Tuple(zeros(N)))
 function nextblock(x::MapSignal{Fn,N,CN},maxlen,skip,
     block::MapSignalBlock=initblock(x)) where {Fn,N,CN}
