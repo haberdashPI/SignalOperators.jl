@@ -116,15 +116,6 @@ signals](@ref custom_signals).
 function sample
 end
 
-"""
-## Signal Blocks
-
-The return value of `nsamples` for a block (see [custom signals](@ref
-custom_signals) must be a non-missing, finite value.
-"""
-function nsamples
-end
-
 fold(x) = zip(x,Iterators.drop(x,1))
 sink!(result,x,sig::IsSignal) =
     sink!(result,x,sig,nextblock(x,size(result,1),false))

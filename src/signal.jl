@@ -84,6 +84,11 @@ Returns the number of samples in the signal, if known. May return `missing`
 or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
 length.
 
+!!! note
+
+    The return value of `nsamples` for a block (see [custom signals](@ref
+    custom_signals) must be a non-missing, finite value.
+
 """
 function nsamples
 end
