@@ -60,6 +60,7 @@ fadeto
 ```@docs
 SignalOperators.SignalTrait
 SignalOperators.IsSignal
+SignalOperators.EvalTrait
 SignalOperators.nextblock
 SignalOperators.sample
 ```

@@ -9,11 +9,11 @@ using FileIO
 
 Represents the format of a signal type with three type parameters:
 
-    * `T` - The [`channel_eltype`](@ref) of the signal.
-    * `Fs` - The type of the samplerate. It should be either `Float64` or
-      `Missing`.
-    * `L` - The type of the length of the signal. It should be either
-    `InfiniteLength`, `Missing` or `Int`.
+* `T` - The [`channel_eltype`](@ref) of the signal.
+* `Fs` - The type of the samplerate. It should be either `Float64` or
+    `Missing`.
+* `L` - The type of the length of the signal. It should be either
+`InfiniteLength`, `Missing` or `Int`.
 
 """
 struct IsSignal{T,Fs,L}
@@ -69,7 +69,7 @@ length.
 
 !!! note
 
-    If your are implementing a [custom signal](@ref), you need not normally
+    If your are implementing a [custom signal](@ref custom_signals), you need not normally
     define `duration` as it will be computed from `nsamples` and `samplerate`.
     However, if one or both of these is `missing` and you want `duartion` to
     return a non-missing value, you can define custom method of `duration`.
@@ -148,7 +148,7 @@ arguments to it.
 !!! note
 
     If you are implementing `signal` for a [custom signal](@ref
-    custom_signals), you will need to suppor the second argument of `signal`
+    custom_signals), you will need to support the second argument of `signal`
     by specifying `fs::Union{Number,Missing}=missing`, or equivalent, as your
     second argument.
 
@@ -189,13 +189,13 @@ end
 """
     SiganlOperators.EvalTrait(x)
 
-Indicated whether the signal is a `SignalOperators.DataSignal` or
-`SignalOperators.ComputedSignal`. Data signals represent samples concretely
+Indicates whether the signal is a `DataSignal` or
+`ComputedSignal`. Data signals represent samples concretely
 as a set of samples. Examples include arrays and numbers. Data signals
 generally return themselves, or some wrapper type when `sink` is called on
 them. Computed signals are any signal that invovles some intermediate
 computation, in which samples must be computued on the fly. Calls to `sink`
-on a computed signal results in some new, data signal. Most samples returned
+on a computed signal results in some new, data signal. Most signals returned
 by a signal operator are computed signals.
 
 Computed signals have the extra responsibility of implementing

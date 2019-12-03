@@ -55,10 +55,9 @@ function tosamplerate(x::MyCustomSignal,s::IsSignal{<:Any,Missing},
 
     ## ...
 end
+```
 
 The result should be a new version of the signal with the specified sample rate.
-
-```
 
 """
 tosamplerate(fs;blocksize=default_blocksize) =
