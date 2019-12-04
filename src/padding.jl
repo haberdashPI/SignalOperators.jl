@@ -135,7 +135,7 @@ function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
             i -> fn(x.signal,i,:)
         else
             io = IOBuffer()
-            show(io,MIME("text/plain"),x)
+            show(io,MIME("text/plain"),child(x))
             sig_string = String(take!(io))
             error("Attemped to specify an indexing pad function for the ",
                   "following signal, which is not known to support ",

@@ -80,20 +80,18 @@ end
 
 function nextblock(x::RampSignal{:on},maxlen,skip,block::RampBlock)
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.marker - block.offset)
+    len = min(nsamples(x) - offset,maxlen,block.marker - offset)
     if len == 0
-        nothing
-    elseif offset < block.marker
-        RampBlock(x,x.fn,block.marker,block.stop,offset,len)
-    else
-        @assert offset == block.marker
+        len = min(nsamples(x) - offset,maxlen)
         RampBlock(x,nothing,block.marker,block.stop,offset,len)
+    else
+        RampBlock(x,x.fn,block.marker,block.stop,offset,len)
     end
 end
 
 function nextblock(x::RampSignal{:on},maxlen,skip,block::RampBlock{Nothing})
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.stop - block.offset)
+    len = min(nsamples(x) - offset,maxlen,block.stop - offset)
     if len > 0
         RampBlock(x,nothing,block.marker,block.stop,offset,len)
     end
@@ -101,20 +99,18 @@ end
 
 function nextblock(x::RampSignal{:off},maxlen,skip,block::RampBlock{Nothing})
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.marker - block.offset)
+    len = min(nsamples(x) - offset,maxlen,block.marker - offset)
     if len == 0
-        nothing
-    elseif offset < block.marker
-        RampBlock(x,nothing,block.marker,block.stop,offset,len)
-    else
-        @assert offset == block.marker
+        len = min(nsamples(x) - offset,maxlen)
         RampBlock(x,x.fn,block.marker,block.stop,offset,len)
+    else
+        RampBlock(x,nothing,block.marker,block.stop,offset,len)
     end
 end
 
 function nextblock(x::RampSignal{:off},maxlen,skip,block::RampBlock)
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.stop - block.offset)
+    len = min(nsamples(x) - offset,maxlen,block.stop - offset)
     if len > 0
         RampBlock(x,x.fn,block.marker,block.stop,offset,len)
     end

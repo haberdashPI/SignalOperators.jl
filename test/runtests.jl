@@ -96,6 +96,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test_throws ErrorException signal(rand(5),10Hz) |> signal(5Hz)
         @test_throws ErrorException signal(randn,10Hz) |> signal(5Hz)
         @test_throws ErrorException signal(rand(5),10Hz) |> sink(duration=10samples)
+        @test_throws ErrorException sink!(ones(10,2),ones(5,2))
     end
     next!(progress)
 
@@ -204,6 +205,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
             padv = rand(nch)
             result = pad(x,padv) |> until(15samples) |> sink
             @test all(result[11:end,:] .== padv')
+
+            @test_throws ErrorException sin |> until(1s) |> pad(mirror) |>
+                until(2s) |> sink(samplerate=10Hz)
+            @test_throws ErrorException sin |> until(1s) |> pad((a,b) -> a+b) |>
+                until(2s) |> sink(samplerate=10Hz)
         end
     end
     next!(progress)
@@ -341,8 +347,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
     @testset "Ramps" begin
         for nch in 1:2
-            tone = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
-            ramped = signal(sin,100Hz,ω=10Hz) |> tochannels(nch) |> until(5s) |>
+            tone = signal(sin,50Hz,ω=10Hz) |> tochannels(nch) |> until(5s)
+            ramped = signal(sin,50Hz,ω=10Hz) |> tochannels(nch) |> until(5s) |>
                 ramp(500ms) |> sink
             @test mean(@λ(_^2),ramped[0s .. 500ms]) < mean(@λ(_^2),ramped[500ms .. 1s])
             @test mean(@λ(_^2),ramped[4.5s .. 5s]) < mean(@λ(_^2),ramped[4s .. 4.5s])
@@ -713,6 +719,22 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test_throws ErrorException x |> fadeto(y) |> sink(samplerate=10Hz)
     end
     next!(progress)
+
+    @testset "Short-block Operators" begin
+        x = signal(ones(25,2),10Hz)
+        y = signal(ones(10,2),10Hz)
+        z = signal(ones(15,2),10Hz)
+        @test sink(x |> append(y) |> append(z) |> lowpass(3Hz,blocksize=5)) ==
+            sink(x |> append(y) |> append(z) |> lowpass(3Hz))
+
+        @test sink(x |> pad(zero) |> until(15s) |> append(y) |> lowpass(3Hz,blocksize=5)) ==
+            sink(x |> pad(zero) |> until(15s) |> append(y) |> lowpass(3Hz,blocksize=5))
+
+        @test sink(x |> rampoff(7samples) |> lowpass(3Hz,blocksize=5)) ==
+            sink(x |> rampoff(7samples) |> lowpass(3Hz))
+        @test sink(x |> rampoff(3samples) |> lowpass(3Hz,blocksize=5)) ==
+            sink(x |> rampoff(3samples) |> lowpass(3Hz))
+    end
 
     # try out more complicated combinations of various features
     @testset "Stress tests" begin
