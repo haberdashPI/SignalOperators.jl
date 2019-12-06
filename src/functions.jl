@@ -42,21 +42,20 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
 end
 
 struct FunctionBlock
-    offset::Int
     len::Int
 end
-nextblock(x::SignalFunction,maxlen,skip) = FunctionBlock(0,maxlen)
-nextblock(x::SignalFunction,maxlen,skip,block::FunctionBlock) =
-    FunctionBlock(block.offset + block.len,maxlen)
+nextblock(x::SignalFunction,maxlen,skip) = FunctionBlock(0), maxlen
+nextblock(x::SignalFunction,maxlen,skip,block::FunctionBlock,offset) =
+    FunctionBlock(offset + block.len), maxlen
 nsamples(block::FunctionBlock) = block.len
 
 sample(x,block::FunctionBlock,i) =
     x.fn(2π*(((i+block.offset)/x.samplerate*x.ω + x.ϕ) % 1.0))
-sample(x::SignalFunction{<:Any,Missing},block::FunctionBlock,i) =
+sample(x::SignalFunction{<:Any,Missing},block::FunctionBlock,::Nothing,i) =
     x.fn((i+block.offset)/x.samplerate + x.ϕ)
-sample(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
+sample(x::SignalFunction{typeof(sin)},block::FunctionBlock,::Nothing,i) =
     sinpi(2*((i+block.offset)/x.samplerate*x.ω + x.ϕ))
-sample(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
+sample(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,::Nothing,i) =
     sinpi(2*((i+block.offset)/x.samplerate + x.ϕ))
 
 tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =

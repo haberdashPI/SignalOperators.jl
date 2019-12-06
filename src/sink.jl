@@ -88,15 +88,15 @@ end
 
 """
 
-    SignalOperators.nextblock(x,maxlength,skip,[block])
+    SignalOperators.nextblock(x,maxlength,skip,[state])
 
-Retrieve the next block of samples for signal `x`. The final, fourth argument
-is optional. If it is left out, nextblock returns the first block of the
-signal. The resulting block must has no more than `maxlength` samples, but
-may have fewer samples than that; it should not have zero samples unless
+Retrieve the next block of samples for signal `x` and the state, as a tuple.
+The final, fourth argument, if provided, should be the state of the prior
+block. The resulting block must has no more than `maxlength` samples, but may
+have fewer samples than that; it should not have zero samples unless
 `maxlength == 0`. If `skip == true`, it is guaranted that [`sample`](@ref)
-will never be called on the returned block. The value of `skip` is `true`, for
-example, when skipping blocks during a call to [`after`](@ref)).
+will never be called on the returned block. The value of `skip` is `true`,
+for example, when skipping blocks during a call to [`after`](@ref)).
 
 """
 function nextblock
@@ -104,10 +104,10 @@ end
 
 """
 
-    SignalOperators.sample(x,block,i)
+    SignalOperators.sample(x,block,state,i)
 
 Retrieves the sample at index `i` of the given block of signal `x`. A sample
-is one or more channels of `chnanle_eltypep(x)` values. The return value
+is one or more channels of `channel_eltype(x)` values. The return value
 should be an indexable object (e.g. a number, tuple or array) of these
 channel values. This method should be implemented by blocks of [custom
 signals](@ref custom_signals).
@@ -119,25 +119,26 @@ end
 fold(x) = zip(x,Iterators.drop(x,1))
 sink!(result,x,sig::IsSignal) =
     sink!(result,x,sig,nextblock(x,size(result,1),false))
-function sink!(result,x,::IsSignal,block)
+function sink!(result,x,::IsSignal,result)
     written = 0
-    while !isnothing(block) && written < size(result,1)
+    while !isnothing(result) && written < size(result,1)
+        block, state = result
         @assert nsamples(block) > 0
-        sink_helper!(result,written,x,block)
+        sink_helper!(result,written,x,block,state)
         written += nsamples(block)
         maxlen = size(result,1)-written
         if maxlen > 0
-            block = nextblock(x,maxlen,false,block)
+            result = nextblock(x,maxlen,false,block,state)
         end
     end
     @assert written == size(result,1)
 
-    block
+    result
 end
 
-@noinline function sink_helper!(result,written,x,block)
+@noinline function sink_helper!(result,written,x,block,state)
     @inbounds @simd for i in 1:nsamples(block)
-        writesink!(result,i+written,sample(x,block,i))
+        writesink!(result,i+written,sample(x,block,state,i))
     end
 end
 

@@ -80,19 +80,14 @@ const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 const AxTime = Union{AxTimeD1,AxTimeD2}
 
 nsamples(block::AbstractArray) = size(block,1)
-@Base.propagate_inbounds sample(x,block::AbstractArray,i) = view(block,i,:)
+@Base.propagate_inbounds sample(x,block::AbstractArray,state,i) = view(block,i,:)
 
-function nextblock(x::AxTime,maxlen,skip,block = _view(x,1:0))
-    offset = _nextoffset(x,block)
+function nextblock(x::AxTime,maxlen,skip,offset=0)
     if offset < nsamples(x)
         len = min(maxlen,nsamples(x)-offset)
-        _view(x,offset .+ (1:len))
+        _view(x,offset .+ (1:len)), offset
     end
 end
-_nextoffset(x::SubArray) = last(x.indices[1])
-_nextoffset(x::AbstractArray) = _nextoffset(parent(x))
-_nextoffset(x::AxTimeD1,block) = _nextoffset(block)
-_nextoffset(x::AxTimeD2,block) = _nextoffset(block)
 _view(x::AxTimeD1,indices) = view(x,indices,:)
 _view(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 
