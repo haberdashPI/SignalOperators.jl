@@ -107,7 +107,7 @@ end
     SignalOperators.sample(x,block,i)
 
 Retrieves the sample at index `i` of the given block of signal `x`. A sample
-is one or more channels of `chnanle_eltypep(x)` values. The return value
+is one or more channels of `channel_eltype(x)` values. The return value
 should be an indexable object (e.g. a number, tuple or array) of these
 channel values. This method should be implemented by blocks of [custom
 signals](@ref custom_signals).
