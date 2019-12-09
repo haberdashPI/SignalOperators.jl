@@ -730,10 +730,10 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test sink(x |> pad(zero) |> until(15s) |> append(y) |> lowpass(3Hz,blocksize=5)) ==
             sink(x |> pad(zero) |> until(15s) |> append(y) |> lowpass(3Hz,blocksize=5))
 
-        @test sink(x |> rampoff(7samples) |> lowpass(3Hz,blocksize=5)) ==
-            sink(x |> rampoff(7samples) |> lowpass(3Hz))
-        @test sink(x |> rampoff(3samples) |> lowpass(3Hz,blocksize=5)) ==
-            sink(x |> rampoff(3samples) |> lowpass(3Hz))
+        @test sink(x |> rampon(7samples) |> lowpass(3Hz,blocksize=5)) ==
+            sink(x |> rampon(7samples) |> lowpass(3Hz))
+        @test sink(x |> ramp(3samples) |> lowpass(3Hz,blocksize=5)) ==
+            sink(x |> ramp(3samples) |> lowpass(3Hz))
     end
 
     # try out more complicated combinations of various features

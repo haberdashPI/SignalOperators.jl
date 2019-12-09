@@ -57,7 +57,7 @@ sample(x::RampSignal{:off},block::RampBlock{Nothing,T},i) where T =
     Fill(one(T),nchannels(x))
 function sample(x::RampSignal{:on},block::RampBlock,i)
     ramplen = block.marker
-    rampval = block.ramp((i-1) / ramplen)
+    rampval = block.ramp((i+block.offset-1) / ramplen)
     Fill(rampval,nchannels(x))
 end
 function sample(x::RampSignal{:off},block::RampBlock,i)
