@@ -79,20 +79,32 @@ const AxTimeD1 = Union{
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 const AxTime = Union{AxTimeD1,AxTimeD2}
 
-nsamples(block::AbstractArray) = size(block,1)
-@Base.propagate_inbounds sample(x,block::AbstractArray,i) = view(block,i,:)
+"""
 
-function nextblock(x::AxTime,maxlen,skip,block = _view(x,1:0))
-    offset = _nextoffset(x,block)
+    ArrayBlock{A,S}(data::A,state::S)
+
+A straightforward implementation of blocks as an array and a custom state.
+The array allows a generic implementation of [`nsamples`](@ref) and
+[`SignalOperators.sample`](@ref). The fields of this struct ar `data` and
+`state`. [Custom signals](@ref custom_signals) can return this value from
+[`SignalOperators.nextblock`](@ref) to simplify its implementation.
+
+"""
+struct ArrayBlock{A,S}
+    data::A
+    state::S
+end
+
+nsamples(block::ArrayBlock) = size(block.data,1)
+@Base.propagate_inbounds sample(x,block::ArrayBlock,i) = view(block.data,i,:)
+
+function nextblock(x::AxTime,maxlen,skip,block = ArrayBlock(_view(x,1:0),0))
+    offset = block.state + nsamples(block)
     if offset < nsamples(x)
         len = min(maxlen,nsamples(x)-offset)
-        _view(x,offset .+ (1:len))
+        ArrayBlock(_view(x,offset .+ (1:len)),offset)
     end
 end
-_nextoffset(x::SubArray) = last(x.indices[1])
-_nextoffset(x::AbstractArray) = _nextoffset(parent(x))
-_nextoffset(x::AxTimeD1,block) = _nextoffset(block)
-_nextoffset(x::AxTimeD2,block) = _nextoffset(block)
 _view(x::AxTimeD1,indices) = view(x,indices,:)
 _view(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 

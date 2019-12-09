@@ -128,6 +128,8 @@ function usepad(x::PaddedSignal,s::IsSignal{T},
 end
 usepad(x::PaddedSignal,s::IsSignal,::typeof(lastsample),block) =
     sample(x,block,nsamples(block))
+usepad(x::PaddedSignal,s::IsSignal,::typeof(lastsample),::Nothing) =
+    error("Signal is length zero; there is no last sample to pad with.")
 function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
     nargs = map(x -> x.nargs - 1, methods(fn).ms)
     if 3 ∈ nargs

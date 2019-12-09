@@ -10,17 +10,17 @@ using FixedPointNumbers
 using Unitful
 using ProgressMeter
 using BenchmarkTools
-using Statistics
 
 using DSP
 dB = SignalOperators.Units.dB
 
 test_wav = "test.wav"
 example_wav = "example.wav"
+example_ogg = "example.ogg"
 examples_wav = "examples.wav"
-test_files = [test_wav,example_wav,examples_wav]
+test_files = [test_wav,example_wav,example_ogg,examples_wav]
 
-const total_test_groups = 29
+const total_test_groups = 30
 progress = Progress(total_test_groups,desc="Running tests...")
 
 @testset "SignalOperators.jl" begin
@@ -839,6 +839,18 @@ progress = Progress(total_test_groups,desc="Running tests...")
         append(sound1,sound2,sound3,sound4,scene) |> sink(examples_wav)
 
         @test isfile(examples_wav)
+    end
+    next!(progress)
+
+    # test LibSndFile and SampleBuf
+    @testset "Testing LibSndFile" begin
+        using LibSndFile
+        using SampledSignals
+
+        randn |> until(2s) |> normpower |> sink(example_ogg,samplerate=4kHz)
+        x = example_ogg |> sink(SampleBuf)
+        example_ogg |> sink(AxisArray)
+        @test SignalOperators.samplerate(x) == 4000
     end
     next!(progress)
 

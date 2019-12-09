@@ -33,9 +33,13 @@ julia = "1"
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+LibSndFile = "b13ce0c6-77b0-50c6-a2db-140568b8d1a5"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
+SignalOperators = "4d633899-0529-4c96-b1ed-a77d049c39ef"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88"
 
 [targets]
-test = ["Test", "WAV", "FixedPointNumbers", "BenchmarkTools", "ProgressMeter"]
+test = [ "BenchmarkTools", "FixedPointNumbers", "LibSndFile", "ProgressMeter",
+    "SampledSignals", "SignalOperators", "Test", "WAV"]

@@ -159,6 +159,36 @@ signal(fs::Quantity;kwds...) = x -> signal(x,fs;kwds...)
 signal(x,fs::Union{Number,Missing}=missing) = signal(x,SignalTrait(x),fs)
 signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 
+function filetype(x)
+    m = match(r".+\.([^\.]+$)",x)
+    if isnothing(m)
+        error("The file \"$x\" has no filetype.")
+    else
+        DataFormat{Symbol(uppercase(m[1]))}()
+    end
+end
+
+"""
+
+## Filenames
+
+A string with a filename ending with an appropriate filetype can be read in
+as a signal. You will need to call `import` or `using` on the backend for
+reading the file.
+
+Available backends include the following pacakges
+- [WAV](https://github.com/dancasimiro/WAV.jl)
+- [LibSndFile](https://github.com/JuliaAudio/LibSndFile.jl)
+
+"""
+signal(x::String,fs::Union{Missing,Number}=missing) =
+    load_signal(filetype(x),x,fs)
+
+function load_signal(::DataFormat{T},x,fs) where T
+    error("No backend loaded for file of type $T. Refer to the ",
+          "documentation of `signal` to find a list of available backends.")
+end
+
 """
 
 ## Existing signals

@@ -3,28 +3,53 @@
     sink([signal],[to=AxisArray];duration,samplerate)
 
 Creates a given type of object (`to`) from a signal. By default it is an
-`AxisArray` with time as the rows and channels as the columns. If a filename
-is specified for `to`, the signal is written to the given file. If given a
-type (e.g. `Array`) the signal is written to a value of that type.
+`AxisArray` with time as the rows and channels as the columns.
 
-# Sample Rate
+# Keyword arguments
+
+## Sample Rate
 
 The sample rate does not need to be specified, it will use either the sample
 rate of `signal` or a default sample rate (which raises a warning). If
 specified, the given sample rate is passed to [`signal`](@ref) when coercing
 the input to a signal.
 
-# Duration
+## Duration
 
 You can limit the output of the given signal to the specified duration. If
 this duration exceedes the duration of the passed signal an error will be
 thrown.
 
+# Values for `to`
+
+## Type
+
+If `to` is a type (e.g. `Array`) the signal is written to a value of that
+type.
+
 """
 sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
-function sink(x::T,::Type{A}=AxisArray;
-        duration=missing,
-        samplerate=SignalOperators.samplerate(x)) where {T,A}
+sink(x;kwds...) = sink(x,AxisArray;kwds...)
+function sink(x,::Type{<:AxisArray};kwds...)
+    x,n = process_sink_params(x;kwds...)
+    result = sink(x,Array;kwds...)
+    times = Axis{:time}(range(0s,length=size(result,1),step=float(s/samplerate(x))))
+    channels = Axis{:channel}(1:nchannels(x))
+    AxisArray(result,times,channels)
+end
+function sink(x,::Type{<:Array};kwds...)
+    x,n = process_sink_params(x;kwds...)
+    result = Array{channel_eltype(x)}(undef,n,nchannels(x))
+    sink!(result,x)
+end
+
+function process_sink_params(x;duration=missing,
+    samplerate=nothing)
+    x = signal(x)
+
+    if isnothing(samplerate)
+        samplerate=SignalOperators.samplerate(x)
+    end
 
     if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
         @warn("No sample rate was specified, defaulting to 44.1 kHz.")
@@ -43,20 +68,31 @@ function sink(x::T,::Type{A}=AxisArray;
         error("Requested signal duration is too long for passed signal: $x.")
     end
 
-    sink(x,SignalTrait(x),n,A)
+    x,n
 end
 
-function sink(x,sig::IsSignal{El},len::Number,::Type{<:Array}) where El
-    result = Array{El}(undef,len,nchannels(x))
-    sink!(result,x)
+"""
+
+## Filename
+
+If `to` is a string, it is assumed to describe the name of a file to which
+the signal will be written. You will need to call `import` or `using` on an
+appropriate backend for writing to the given file type.
+
+Available backends include the following pacakges
+- [WAV](https://codecov.io/gh/haberdashPI/SignalOperators.jl/src/master/src/WAV.jl)
+- [LibSndFile](https://github.com/JuliaAudio/LibSndFile.jl)
+
+"""
+sink(to::String;kwds...) = x -> sink(x,to;kwds...)
+function sink(x,to::String;kwds...)
+    x,n = process_sink_params(x;kwds...)
+    save_signal(filetype(to),to,x,n)
 end
-function sink(x,sig::IsSignal{El},len,::Type{<:AxisArray}) where El
-    result = sink(x,sig,len,Array)
-    times = Axis{:time}(range(0s,length=size(result,1),step=float(s/samplerate(x))))
-    channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(result,times,channels)
+function save_signal(::Val{T},filename,x,len) where T
+    error("No backend loaded for file of type $T. Refer to the documentation ",
+          "of `signal` to find a list of available backends.")
 end
-sink(x, ::IsSignal, ::Nothing, ::Type) = error("Don't know how to interpret value as a signal: $x")
 
 """
     sink!(array,x;[samplerate])
