@@ -10,6 +10,7 @@ using FixedPointNumbers
 using Unitful
 using ProgressMeter
 using BenchmarkTools
+using Pkg
 
 using DSP
 dB = SignalOperators.Units.dB
@@ -843,14 +844,20 @@ progress = Progress(total_test_groups,desc="Running tests...")
     next!(progress)
 
     # test LibSndFile and SampleBuf
-    @testset "Testing LibSndFile" begin
-        using LibSndFile
-        using SampledSignals
+    # (only supported for Julia versions 1.3 or higher)
+    @static if VERSION ≥ v"1.3"
+        Pkg.activate(mktempdir(@__DIR__))
+        Pkg.add("LibSndFile")
+        Pkg.add("SampledSignals")
+        @testset "Testing LibSndFile" begin
+            using LibSndFile
+            using SampledSignals
 
-        randn |> until(2s) |> normpower |> sink(example_ogg,samplerate=4kHz)
-        x = example_ogg |> sink(SampleBuf)
-        example_ogg |> sink(AxisArray)
-        @test SignalOperators.samplerate(x) == 4000
+            randn |> until(2s) |> normpower |> sink(example_ogg,samplerate=4kHz)
+            x = example_ogg |> sink(SampleBuf)
+            example_ogg |> sink(AxisArray)
+            @test SignalOperators.samplerate(x) == 4000
+        end
     end
     next!(progress)
 
