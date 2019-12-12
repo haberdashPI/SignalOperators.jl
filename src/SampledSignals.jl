@@ -13,7 +13,7 @@ nchannels(x::SampleBuf) = size(x,2)
 samplerate(x::SampleBuf) = SampledSignals.samplerate(x)
 
 function nextblock(x::SampleBuf,maxlen,skip,block = ArrayBlock(view(x,1:0),0))
-    offset = block.state
+    offset = block.state + nsamples(block)
     if offset < nsamples(x)
         len = min(maxlen,nsamples(x)-offset)
         ArrayBlock(view(x,offset .+ (1:len),:),offset)
