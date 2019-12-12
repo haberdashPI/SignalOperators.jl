@@ -109,7 +109,7 @@ A standard array is treated as a finite signal with unknown sample rate.
 rand(10,2) |> sink(samplerate=10Hz) |> duration == 1
 ```
 
-An `AxisArray` is treated as a finite signal with a known sample rate (and is the default output of [`sink`](@ref))
+An `AxisArray` or `SampleBuf` (form [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl)) is treated as a finite signal with a known sample rate (and is the default output of [`sink`](@ref))
 
 ```julia
 using AxisArrays

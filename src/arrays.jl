@@ -7,13 +7,16 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 """
 ## Arrays
 
-Arrays can be treated as signals. The first dimension is time, the second
-channels.
+Arrays can be interpreted as signals. The first dimension is time, the second
+channels. By default their sample rate is a missing value.
 
 [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
 axis labeled `time` and one or zero additional axes, can be treated as a
 signal. The time dimension must be represented using on object with the `step`
-function defined (e.g. any `AbstractRange`).
+function defined (e.g. any `AbstractRange` object).
+
+[`SampleBuf`](https://github.com/JuliaAudio/SampledSignals.jl) objects are
+also properly interpreted as signals.
 
 """
 function signal(x::AbstractArray{<:Any,N},::IsSignal,
