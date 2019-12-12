@@ -110,5 +110,5 @@ generator; `rng` defaults to `Random.GLOBAL_RNG`.
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 
-sample(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i)
+sample(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =
     randn(x.fn.rng)
