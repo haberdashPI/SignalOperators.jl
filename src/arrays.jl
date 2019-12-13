@@ -45,7 +45,7 @@ end
 
 tosamplerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
     signal(x,fs)
-tosamplerate(x::AxisArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
+tosamplerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
     __tosamplerate__(x,s,fs,blocksize)
 
 

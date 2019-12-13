@@ -11,6 +11,8 @@ using Unitful
 using ProgressMeter
 using BenchmarkTools
 using Pkg
+using DimensionalData
+using DimensionalData: X, Time
 
 using DSP
 dB = SignalOperators.Units.dB
@@ -21,7 +23,7 @@ example_ogg = "example.ogg"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,example_ogg,examples_wav]
 
-const total_test_groups = 30
+const total_test_groups = 31
 progress = Progress(total_test_groups,desc="Running tests...")
 
 @testset "SignalOperators.jl" begin
@@ -858,6 +860,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
             example_ogg |> sink(AxisArray)
             @test SignalOperators.samplerate(x) == 4000
         end
+    end
+    next!(progress)
+
+    @testset "Testing DimensionalData" begin
+        x = rand(10,2)
+        data = DimensionalArray(x,(Time(range(0s,1s,length=10)),X(1:2)))
+        @test all(sink(mix(data,1)) .== data .+ 1)
+        data2 = x |> signal(10Hz) |> sink(DimensionalArray)
+        @test data2 == data
     end
     next!(progress)
 
