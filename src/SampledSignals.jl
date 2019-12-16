@@ -13,9 +13,5 @@ nchannels(x::SampleBuf) = size(x,2)
 samplerate(x::SampleBuf) = SampledSignals.samplerate(x)
 
 timeslice(x::SampleBuf,indices) = view(x,indices)
-
-function sink(x,::Type{<:SampleBuf};kwds...)
-    x,n = process_sink_params(x;kwds...)
-    result = SampleBuf(channel_eltype(x),samplerate(x),n,nchannels(x))
-    sink!(result,x)
-end
+initsink(x,::Type{<:SampleBuf},len) =
+    SampleBuf(channel_eltype(x),samplerate(x),len,nchannels(x))

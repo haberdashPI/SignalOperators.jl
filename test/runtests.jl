@@ -857,7 +857,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
     # test LibSndFile and SampleBuf
     # (only supported for Julia versions 1.3 or higher)
     @static if VERSION ≥ v"1.3"
-        Pkg.activate(mktempdir(@__DIR__))
+        mydir = mktempdir(@__DIR__)
+        Pkg.activate(mydir)
         Pkg.add("LibSndFile")
         Pkg.add("SampledSignals")
         @testset "Testing LibSndFile" begin

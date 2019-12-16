@@ -66,3 +66,11 @@ SignalOperators.sample
 SignalOperators.timeslice
 SignalOperators.ArrayBlock
 ```
+
+## Custom Sinks
+```@docs
+SignalOperators.initsink
+SignalOperators.sink_helper!
+```
+
+```

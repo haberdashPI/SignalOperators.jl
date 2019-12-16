@@ -30,17 +30,31 @@ type.
 """
 sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
 sink(x;kwds...) = sink(x,AxisArray;kwds...)
-function sink(x,::Type{<:AxisArray};kwds...)
+
+function sink(x,::Type{T};kwds...) where T <: AbstractArray
     x,n = process_sink_params(x;kwds...)
-    result = sink(x,Array;kwds...)
-    times = Axis{:time}(range(0s,length=size(result,1),step=float(s/samplerate(x))))
-    channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(result,times,channels)
-end
-function sink(x,::Type{<:Array};kwds...)
-    x,n = process_sink_params(x;kwds...)
-    result = Array{channel_eltype(x)}(undef,n,nchannels(x))
+    result = initsink(x,T,n)
     sink!(result,x)
+end
+
+"""
+
+    SignalOperators.initsink(x,::Type{T},len)
+
+Initialize an object of type T so that it can store the first `len` samples
+of signal `x`.
+
+If you wish an object to serve as a [custom sink](@ref custom_sinks) you can
+implement this method. You should probably use [`nchannels`](@ref) and
+[`channel_eltype`](@ref) of `x` to determine how to initialize the object.
+
+"""
+initsink(x,::Type{<:Array},len) =
+    Array{channel_eltype(x)}(undef,len,nchannels(x))
+function initsink(x,::Type{<:AxisArray},len)
+    times = Axis{:time}(range(0s,length=len,step=float(s/samplerate(x))))
+    channels = Axis{:channel}(1:nchannels(x))
+    AxisArray(initsink(x,Array,len),times,channels)
 end
 
 function process_sink_params(x;duration=missing,
@@ -185,6 +199,20 @@ function sink!(result,x,::IsSignal,block)
     block
 end
 
+
+"""
+
+    SignalOperators.sink_helper!(result,written,x,block)
+
+Write the given `block` of samples from signal `x` to `result` given that
+a total of `written` samples have already been written to the result.
+
+This method should be fast: i.e. a for loop using @simd and @inbounds. It
+should call [`nsamples`](@ref) and [`SignalOperators.sample`](@ref) on the
+block to write the samples. **Do not call `sample` more than once for each
+index of the block**.
+
+"""
 @noinline function sink_helper!(result,written,x,block)
     @inbounds @simd for i in 1:nsamples(block)
         writesink!(result,i+written,sample(x,block,i))

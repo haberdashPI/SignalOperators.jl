@@ -30,11 +30,8 @@ samplerate(x::AbstractDimensionalArray) =
 
 timeslice(x::AbstractDimensionalArray,indices) = view(x,Time(indices))
 
-function sink(x,::Type{<:DimensionalArray};kwds...)
-    x,n = process_sink_params(x;kwds...)
-    times = Time(range(0s,length=nsamples(x),step=1s/samplerate(x)))
+function initsink(x,::Type{<:DimensionalArray},len)
+    times = Time(range(0s,length=len,step=1s/samplerate(x)))
     channels = SigChannel(1:nchannels(x))
-    data = Array{channel_eltype(x)}(undef,length(times),length(channels))
-    result = DimensionalArray(data,(times,channels))
-    sink!(result,x)
+    DimensionalArray(initsink(x,Array,len),(times,channels))
 end
