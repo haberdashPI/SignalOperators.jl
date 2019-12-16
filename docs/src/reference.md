@@ -63,5 +63,6 @@ SignalOperators.IsSignal
 SignalOperators.EvalTrait
 SignalOperators.nextblock
 SignalOperators.sample
+SignalOperators.timeslice
 SignalOperators.ArrayBlock
 ```

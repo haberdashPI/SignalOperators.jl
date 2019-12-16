@@ -28,15 +28,7 @@ nchannels(x::AbstractDimensionalArray) = prod(length,setdiff(dims(x),(dims(x,Tim
 samplerate(x::AbstractDimensionalArray) =
     1/inseconds(Float64,step(dims(x,Time).val))
 
-function nextblock(x::AbstractDimensionalArray,maxlen,skip,
-    block=ArrayBlock([],0))
-
-    offset = block.state + nsamples(block)
-    if offset < nsamples(x)
-        len = min(maxlen,nsamples(x)-offset)
-        ArrayBlock(view(x,Time(offset .+ (1:len))),offset)
-    end
-end
+timeslice(x::AbstractDimensionalArray,indices) = view(x,Time(indices))
 
 function sink(x,::Type{<:DimensionalArray};kwds...)
     x,n = process_sink_params(x;kwds...)

@@ -140,6 +140,20 @@ end
 
 """
 
+    SignalOperators.timeslice(x::AbstractArray,indices)
+
+Extract the slice of x with the given time indices.
+
+[Custom signals](@ref custom_signals) can implement this method if the signal
+is an `AbstractArray` allowing the use of a fallback implementation of
+[`SignalOperators.nextblock`](@ref).
+
+"""
+function timeslice
+end
+
+"""
+
     SignalOperators.sample(x,block,i)
 
 Retrieves the sample at index `i` of the given block of signal `x`. A sample

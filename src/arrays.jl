@@ -88,9 +88,12 @@ const AxTime = Union{AxTimeD1,AxTimeD2}
 
 A straightforward implementation of blocks as an array and a custom state.
 The array allows a generic implementation of [`nsamples`](@ref) and
-[`SignalOperators.sample`](@ref). The fields of this struct ar `data` and
-`state`. [Custom signals](@ref custom_signals) can return this value from
-[`SignalOperators.nextblock`](@ref) to simplify its implementation.
+[`SignalOperators.sample`](@ref). The fields of this struct are `data` and
+`state`.
+
+[Custom signals](@ref custom_signals) can return an `ArrayBlock` from
+[`SignalOperators.nextblock`](@ref) to allow for fallback implementations of
+[`nsamples`](@ref) and [`SignalOperators.sample`](@ref).
 
 """
 struct ArrayBlock{A,S}
@@ -101,15 +104,16 @@ end
 nsamples(block::ArrayBlock) = size(block.data,1)
 @Base.propagate_inbounds sample(x,block::ArrayBlock,i) = view(block.data,i,:)
 
-function nextblock(x::AxTime,maxlen,skip,block = ArrayBlock(_view(x,1:0),0))
+timeslice(x::AxTimeD1,indices) = view(x,indices,:)
+timeslice(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
+
+function nextblock(x::AbstractArray,maxlen,skip,block = ArrayBlock([],0))
     offset = block.state + nsamples(block)
     if offset < nsamples(x)
         len = min(maxlen,nsamples(x)-offset)
-        ArrayBlock(_view(x,offset .+ (1:len)),offset)
+        ArrayBlock(timeslice(x,offset .+ (1:len)),offset)
     end
 end
-_view(x::AxTimeD1,indices) = view(x,indices,:)
-_view(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 
 function signaltile(x)
     io = IOBuffer()

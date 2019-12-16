@@ -10,11 +10,13 @@ To be propperly treated as a signal, an object must return an appropriate
 
 Any object returning [`SignalOperators.IsSignal`](@ref) should implement
 [`SignalOperators.nextblock`](@ref), which is used to sequentially retrieve
-blocks from a signal. Analogous to `Base.iterate`,
-[`SignalOperators.nextblock`](@ref) will return `nothing` when there are no
-more blocks to produce. The blocks returned by
-[`SignalOperators.nextblock`](@ref) must implement the following two methods (which have
-fallbacks for `AbstractArray` objects).
+blocks from a signal. If your custom signal is an `AbstractArray` there is a
+fallback implementaiton of [`SignalOperators.nextblock`](@ref) which only
+requires you to implement [`SignalOperators.timeslice`](@ref)
+
+Analogous to `Base.iterate`, [`SignalOperators.nextblock`](@ref) will return
+`nothing` when there are no more blocks to produce. The blocks returned by
+[`SignalOperators.nextblock`](@ref) must implement the following two methods.
 
 * [`nsamples`](@ref) Like a signal, each block has a fixed number of samples. Unlike signals, this cannot be an infinite or missing value. It should be a fast, type-stable function.
 * [`SignalOperators.sample`](@ref) Individual samples of the block can be accessed by their index within the block (falling in the range of `1:nsamples(block)`). This should be a fast, type-stable function. The method is guaranteed to only be called at most once for each index in the block. Normally, you should annotate it with `@Base.propagate_inbounds` just as you would an implementation of `Baes.getindex`.
