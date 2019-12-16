@@ -845,6 +845,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
     end
     next!(progress)
 
+    @testset "Testing DimensionalData" begin
+        x = rand(10,2)
+        data = DimensionalArray(x,(Time(range(0s,1s,length=10)),X(1:2)))
+        @test all(sink(mix(data,1)) .== data .+ 1)
+        data2 = x |> signal(10Hz) |> sink(DimensionalArray)
+        @test data2 == data
+    end
+    next!(progress)
+
     # test LibSndFile and SampleBuf
     # (only supported for Julia versions 1.3 or higher)
     @static if VERSION ≥ v"1.3"
@@ -860,15 +869,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             example_ogg |> sink(AxisArray)
             @test SignalOperators.samplerate(x) == 4000
         end
-    end
-    next!(progress)
-
-    @testset "Testing DimensionalData" begin
-        x = rand(10,2)
-        data = DimensionalArray(x,(Time(range(0s,1s,length=10)),X(1:2)))
-        @test all(sink(mix(data,1)) .== data .+ 1)
-        data2 = x |> signal(10Hz) |> sink(DimensionalArray)
-        @test data2 == data
+        rm(mydir,recursive=true,force=true)
     end
     next!(progress)
 
