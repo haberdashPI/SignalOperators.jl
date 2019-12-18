@@ -27,7 +27,21 @@ include("mapsignal.jl")
 include("reformatting.jl")
 include("ramps.jl")
 
+const curent_backend = Ref{Any}(Array)
+const allowed_backends = [Array]
+function init_array_backend!(::Type{T}) where T
+    curent_backend[] = T
+    push!(allowed_backends,T)
+end
+function set_array_backend!(::Type{T}) where T
+    @assert T in allowed_backends
+    curent_backend[] = T
+end
+
 function __init__()
+    # TODO: use @require for AxisArrays
+    init_array_backend!(AxisArray)
+
     @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
         include("WAV.jl")
     end
@@ -47,7 +61,6 @@ function __init__()
 
     @require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"  begin
         include("DimensionalData.jl")
-        current_backend[] = DimensionalData
     end
 end
 

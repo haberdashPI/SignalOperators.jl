@@ -28,8 +28,26 @@ If `to` is a type (e.g. `Array`) the signal is written to a value of that
 type.
 
 """
-sink(to::Type=AxisArray;kwds...) = x -> sink(x,to;kwds...)
-sink(x;kwds...) = sink(x,AxisArray;kwds...)
+sink(;kwds...) = x -> sink(x,refineroot(root(x));kwds...)
+sink(to::Type;kwds...) = x -> sink(x,to;kwds...)
+sink(x;kwds...) = sink(x,refineroot(root(x));kwds...)
+root(x) = x
+refineroot(x::AbstractArray) = typeof(x)
+refineroot(x::Array) = curent_backend[]
+refineroot(x) = curent_backend[]
+
+mergepriority(x) = 0
+mergepriority(x::Array) = 1
+mergepriority(x::AbstractArray) = mergepriority(x,SignalTrait(x))
+mergepriority(x::AbstractArray,::IsSignal) = 2
+mergepriority(x::AbstractArray,::Nothing) = 0
+function mergeroot(x,y)
+    if mergepriority(x) ≥ mergepriority(y)
+        return x
+    else
+        return y
+    end
+end
 
 function sink(x,::Type{T};kwds...) where T <: AbstractArray
     x,n = process_sink_params(x;kwds...)
@@ -50,11 +68,11 @@ implement this method. You should probably use [`nchannels`](@ref) and
 
 """
 initsink(x,::Type{<:Array},len) =
-    Array{channel_eltype(x)}(undef,len,nchannels(x))
+    (Array{channel_eltype(x)}(undef,len,nchannels(x)),samplerate(x))
 function initsink(x,::Type{<:AxisArray},len)
     times = Axis{:time}(range(0s,length=len,step=float(s/samplerate(x))))
     channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(initsink(x,Array,len),times,channels)
+    AxisArray(initsink(x,Array,len)[1],times,channels)
 end
 
 function process_sink_params(x;duration=missing,
@@ -118,6 +136,8 @@ default to 44.1kHz).
 """
 sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) =
     x -> sink!(result,x;kwds...)
+sink!(result::Tuple{<:AbstractArray,<:Number},x;kwds...) =
+    (sink!(result[1],x;kwds...), result[2])
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     samplerate=SignalOperators.samplerate(x))
 
