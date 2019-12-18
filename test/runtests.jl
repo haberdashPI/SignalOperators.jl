@@ -14,6 +14,8 @@ using Pkg
 using DimensionalData
 using DimensionalData: X, Time
 
+SignalOperators.set_array_backend!(AxisArray)
+
 using DSP
 dB = SignalOperators.Units.dB
 
@@ -23,7 +25,7 @@ example_ogg = "example.ogg"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,example_ogg,examples_wav]
 
-const total_test_groups = 31
+const total_test_groups = 33
 progress = Progress(total_test_groups,desc="Running tests...")
 
 @testset "SignalOperators.jl" begin
@@ -100,6 +102,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test_throws ErrorException signal(randn,10Hz) |> signal(5Hz)
         @test_throws ErrorException signal(rand(5),10Hz) |> sink(duration=10samples)
         @test_throws ErrorException sink!(ones(10,2),ones(5,2))
+    end
+    next!(progress)
+
+    @testset "Array tuple output" begin
+        SignalOperators.set_array_backend!(Array)
+        x = rand(10,2)
+        @test signal(x,10Hz) == (x,10)
+        @test sink(mix(signal(x,10Hz),1)) == (x.+1,10)
+        SignalOperators.set_array_backend!(AxisArray)
     end
     next!(progress)
 
@@ -450,6 +461,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
         proc = signal(x) |> ramp |> sink
         @test size(proc,1) == size(x,1)
+        @test proc isa AxisArray
     end
     next!(progress)
 
@@ -851,6 +863,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test all(sink(mix(data,1)) .== data .+ 1)
         data2 = x |> signal(10Hz) |> sink(DimensionalArray)
         @test data2 == data
+        @test sink(mix(data,1)) isa DimensionalArray
     end
     next!(progress)
 
@@ -863,16 +876,46 @@ progress = Progress(total_test_groups,desc="Running tests...")
         Pkg.add("SampledSignals")
         @testset "Testing LibSndFile" begin
             using LibSndFile
-            using SampledSignals
+            using SampledSignals: SampleBuf
 
             randn |> until(2s) |> normpower |> sink(example_ogg,samplerate=4kHz)
             x = example_ogg |> sink(SampleBuf)
             example_ogg |> sink(AxisArray)
             @test SignalOperators.samplerate(x) == 4000
+            @test sink(mix(x,1)) isa SampleBuf
+        end
+        next!(progress)
+
+        @testset "Test adaptive return type" begin
+            x = rand(10,2)
+
+            data = DimensionalArray(x,(Time(range(0s,1s,length=10)),X(1:2)))
+            @test sink(mix(1,data)) isa DimensionalArray
+            data = SampleBuf(x,10)
+            @test sink(mix(1,data)) isa SampleBuf
+
+            SignalOperators.set_array_backend!(AxisArray)
+            data = signal(rand(10,2),10Hz)
+            @test data isa AxisArray
+            @test sink(mix(1,data)) isa AxisArray
+
+            SignalOperators.set_array_backend!(SampleBuf)
+            @test signal(rand(10,2),10Hz) isa SampleBuf
+            SignalOperators.set_array_backend!(DimensionalArray)
+            @test signal(rand(10,2),10Hz) isa DimensionalArray
+
+            SignalOperators.set_array_backend!(AxisArray)
+            data = signal(rand(10,2),10Hz)
+            SignalOperators.set_array_backend!(Array)
+            @test sink(mix(rand(10,2),data)) isa AxisArray
+            data2 = SampleBuf(x,10)
+            @test sink(mix(rand(10,2),data2)) isa SampleBuf
+            @test sink(mix(data,data2)) isa AxisArray
+            @test sink(mix(data2,data)) isa SampleBuf
         end
         rm(mydir,recursive=true,force=true)
+        next!(progress)
     end
-    next!(progress)
 
     for file in test_files
         isfile(file) && rm(file)

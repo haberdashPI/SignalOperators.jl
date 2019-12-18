@@ -14,6 +14,8 @@ child(x::AppendSignals) = x.signals[1]
 nsamples(x::AppendSignals) = x.len
 duration(x::AppendSignals) = sum(duration.(x.signals))
 
+root(x::AppendSignals) = reduce(mergeroot,root.(x.signals))
+
 """
     append(x,y,...)
 

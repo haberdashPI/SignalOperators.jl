@@ -55,6 +55,8 @@ function tosamplerate(x::MapSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal
     end
 end
 
+root(x::MapSignal) = reduce(mergeroot,root.(x.signals))
+
 tosamplerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     mapsignal(cleanfn(x.fn),tosamplerate.(x.signals,fs,blocksize=blocksize)...,
         padding=x.padding,bychannel=x.bychannel,
