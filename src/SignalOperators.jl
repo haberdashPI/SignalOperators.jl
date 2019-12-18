@@ -27,11 +27,6 @@ include("mapsignal.jl")
 include("reformatting.jl")
 include("ramps.jl")
 
-using DimensionalData
-using DimensionalData: Time
-export Time
-include("DimensionalData.jl")
-
 function __init__()
     @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
         include("WAV.jl")
@@ -50,9 +45,10 @@ function __init__()
         include("LibSndFile.jl")
     end
 
-    # @require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"  begin
-        # include("DimensionalData.jl")
-    # end
+    @require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"  begin
+        include("DimensionalData.jl")
+        current_backend[] = DimensionalData
+    end
 end
 
 end # module
