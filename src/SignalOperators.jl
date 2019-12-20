@@ -29,10 +29,32 @@ include("ramps.jl")
 
 const curent_backend = Ref{Any}(Array)
 const allowed_backends = [Array]
+
+"""
+
+    init_array_backend!(::Type{T})
+
+Declare that type `T` can serve as an array backend for a signal. This means
+it is a signal (c.f. [custom signals](@ref custom_signals)) and that it
+implement [`SignalOperators.initsink`](@ref) (c.f. [custom sinks](@ref
+custom_sinks)).
+
+"""
 function init_array_backend!(::Type{T}) where T
     curent_backend[] = T
     push!(allowed_backends,T)
 end
+
+"""
+
+    set_array_backend!(::Type{T})
+
+Use the given type as the backend for the return type for `sink` and
+`signal`. When a backend is loaded (e.g. `using AxisArrays`), this method is
+called, so that the most recently loaded backend is used for `sink` and
+`signal` return values.
+
+"""
 function set_array_backend!(::Type{T}) where T
     @assert T in allowed_backends
     curent_backend[] = T

@@ -1,9 +1,21 @@
 
 """
-    sink([signal],[to=AxisArray];duration,samplerate)
+    sink([signal],[to];duration,samplerate)
 
-Creates a given type of object (`to`) from a signal. By default it is an
-`AxisArray` with time as the rows and channels as the columns.
+Creates a given type of object (`to`) from a signal. By default the type of
+the resulting sink is determined by the type of the underlying data of the
+signal: e.g. if `x` is a `SampleBuf` object then `sink(mix(x,2))` is also a
+`SampleBuf` object. If there is no underlying data (`signal(sin) |> sink`)
+then the the type for the current backend is used
+([`SignalOperators.set_array_backend`](@ref)).
+
+## Array return type
+
+When `to` is set to `Array` the return value is actually a tuple of an array
+and a second value, which is the sample rate in Hertz. Thus, if you use the
+default Array backend, you should use sink as follows:
+
+    x,fs = sink(mysignal)
 
 # Keyword arguments
 
