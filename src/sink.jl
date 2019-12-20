@@ -81,11 +81,6 @@ implement this method. You should probably use [`nchannels`](@ref) and
 """
 initsink(x,::Type{<:Array},len) =
     (Array{channel_eltype(x)}(undef,len,nchannels(x)),samplerate(x))
-function initsink(x,::Type{<:AxisArray},len)
-    times = Axis{:time}(range(0s,length=len,step=float(s/samplerate(x))))
-    channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(initsink(x,Array,len)[1],times,channels)
-end
 
 function process_sink_params(x;duration=missing,
     samplerate=nothing)

@@ -1,5 +1,4 @@
 export duration, nsamples, samplerate, nchannels, signal, sink, sink!, channel_eltype
-using AxisArrays
 using FileIO
 
 # Signals have a sample rate and some iterator element type

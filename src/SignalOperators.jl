@@ -62,7 +62,6 @@ end
 
 function __init__()
     # TODO: use @require for AxisArrays
-    init_array_backend!(AxisArray)
 
     @require WAV = "8149f6b0-98f6-5db9-b78f-408fbbb8ef88" begin
         include("WAV.jl")
@@ -70,6 +69,10 @@ function __init__()
 
     @require FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93" begin
         include("FixedPointNumbers.jl")
+    end
+
+    @require AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
+        include("AxisArrays.jl")
     end
 
     # extensions
