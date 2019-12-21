@@ -30,7 +30,7 @@ function signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
             errordim()
         end
     else
-        arraysignal(x,curent_backend[],fs)
+        arraysignal(x,current_backendl[],fs)
     end
 end
 

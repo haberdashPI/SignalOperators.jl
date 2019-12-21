@@ -45,8 +45,8 @@ sink(to::Type;kwds...) = x -> sink(x,to;kwds...)
 sink(x;kwds...) = sink(x,refineroot(root(x));kwds...)
 root(x) = x
 refineroot(x::AbstractArray) = typeof(x)
-refineroot(x::Array) = curent_backend[]
-refineroot(x) = curent_backend[]
+refineroot(x::Array) = current_backendl[]
+refineroot(x) = current_backendl[]
 
 mergepriority(x) = 0
 mergepriority(x::Array) = 1

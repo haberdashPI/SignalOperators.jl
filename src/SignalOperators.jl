@@ -27,7 +27,7 @@ include("mapsignal.jl")
 include("reformatting.jl")
 include("ramps.jl")
 
-const curent_backend = Ref{Any}(Array)
+const current_backendl = Ref{Any}(Array)
 const allowed_backends = [Array]
 
 """
@@ -41,7 +41,7 @@ custom_sinks)).
 
 """
 function init_array_backend!(::Type{T}) where T
-    curent_backend[] = T
+    current_backendl[] = T
     push!(allowed_backends,T)
 end
 
@@ -57,7 +57,7 @@ called, so that the most recently loaded backend is used for `sink` and
 """
 function set_array_backend!(::Type{T}) where T
     @assert T in allowed_backends
-    curent_backend[] = T
+    current_backendl[] = T
 end
 
 function __init__()
