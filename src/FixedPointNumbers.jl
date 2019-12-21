@@ -1,7 +1,7 @@
 using .FixedPointNumbers
 
 function pad(x,p::typeof(one))
-    if isinf(nsamples(x))
+    if isinf(nframes(x))
         x
     elseif channel_eltype(x) <: Fixed
         x |> toeltype(float(channel_eltype(x))) |> pad(p)

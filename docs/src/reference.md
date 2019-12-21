@@ -12,16 +12,16 @@ sink!
 ```@docs
 inflen
 duration
-nsamples
+nframes
 nchannels
-samplerate
+framerate
 channel_eltype
 ```
 
 ## Signal Reformatting
 
 ```@docs
-tosamplerate
+toframerate
 tochannels
 toeltype
 format
@@ -37,7 +37,7 @@ prepend
 pad
 mirror
 cycle
-lastsample
+lastframe
 SignalOperators.valuefunction
 filtersignal
 lowpass
@@ -62,7 +62,7 @@ SignalOperators.SignalTrait
 SignalOperators.IsSignal
 SignalOperators.EvalTrait
 SignalOperators.nextblock
-SignalOperators.sample
+SignalOperators.frame
 SignalOperators.timeslice
 SignalOperators.ArrayBlock
 ```

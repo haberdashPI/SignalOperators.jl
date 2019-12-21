@@ -1,6 +1,6 @@
 struct NumberSignal{T,S,DB} <: AbstractSignal{T}
     val::T
-    samplerate::S
+    framerate::S
 end
 
 NumberSignal(x::T,sr::Fs;dB=false) where {T,Fs} = NumberSignal{T,Fs,dB}(x,sr)
@@ -18,7 +18,7 @@ end
 ## Numbers
 
 Numbers can be treated as infinite length, constant signals of unknown
-sample rate.
+frame rate.
 
 """
 signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
@@ -28,17 +28,17 @@ signal(val::Unitful.Gain{<:Any,<:Any,T},::Nothing,fs) where T =
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 
 nchannels(x::NumberSignal) = 1
-nsamples(x::NumberSignal) = inflen
-samplerate(x::NumberSignal) = x.samplerate
+nframes(x::NumberSignal) = inflen
+framerate(x::NumberSignal) = x.framerate
 
-tosamplerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
+toframerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)
 
 struct NumberBlock
     len::Int
 end
 nextblock(x::NumberSignal,len,skip,block::NumberBlock=NumberBlock(0)) = NumberBlock(len)
-nsamples(block::NumberBlock) = block.len
-sample(x,block::NumberBlock,i) = x.val
+nframes(block::NumberBlock) = block.len
+frame(x,block::NumberBlock,i) = x.val
 
 mergerule(::Type{T},y::Type{<:NumberSignal}) where T<:AbstractArray = T

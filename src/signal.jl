@@ -1,7 +1,7 @@
-export duration, nsamples, samplerate, nchannels, signal, sink, sink!, channel_eltype
+export duration, nframes, framerate, nchannels, signal, sink, sink!, channel_eltype
 using FileIO
 
-# Signals have a sample rate and some iterator element type
+# Signals have a frame rate and some iterator element type
 # T, which is an NTuple{N,<:Number}.
 """
     SignalOperators.IsSignal{T,Fs,L}
@@ -9,7 +9,7 @@ using FileIO
 Represents the format of a signal type with three type parameters:
 
 * `T` - The [`channel_eltype`](@ref) of the signal.
-* `Fs` - The type of the samplerate. It should be either `Float64` or
+* `Fs` - The type of the framerate. It should be either `Float64` or
     `Missing`.
 * `L` - The type of the length of the signal. It should be either
 `InfiniteLength`, `Missing` or `Int`.
@@ -32,9 +32,9 @@ SignalTrait(::Type{T}) where T = nothing
 IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 
 function show_fs(io,x)
-    if !get(io,:compact,false) && !ismissing(samplerate(x))
+    if !get(io,:compact,false) && !ismissing(framerate(x))
         write(io," (")
-        show(io, MIME("text/plain"), samplerate(x))
+        show(io, MIME("text/plain"), framerate(x))
         write(io," Hz)")
     end
 end
@@ -69,38 +69,38 @@ length.
 !!! note
 
     If your are implementing a [custom signal](@ref custom_signals), you need not normally
-    define `duration` as it will be computed from `nsamples` and `samplerate`.
+    define `duration` as it will be computed from `nframes` and `framerate`.
     However, if one or both of these is `missing` and you want `duartion` to
     return a non-missing value, you can define custom method of `duration`.
 
 """
-duration(x) = nsamples(x) / samplerate(x)
+duration(x) = nframes(x) / framerate(x)
 """
 
-    nsamples(x)
+    nframes(x)
 
-Returns the number of samples in the signal, if known. May return `missing`
+Returns the number of frames in the signal, if known. May return `missing`
 or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
 length.
 
 !!! note
 
-    The return value of `nsamples` for a block (see [custom signals](@ref
+    The return value of `nframes` for a block (see [custom signals](@ref
     custom_signals) must be a non-missing, finite value.
 
 """
-function nsamples
+function nframes
 end
 
 """
 
-    samplerate(x)
+    framerate(x)
 
-Returns the sample rate of the signal (in Hertz). May return `missing` if the
-sample rate is unknown.
+Returns the frame rate of the signal (in Hertz). May return `missing` if the
+frame rate is unknown.
 
 """
-function samplerate
+function framerate
 end
 
 """
@@ -131,17 +131,17 @@ channel_eltype(x,::IsSignal{T}) where T = T
 isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 
 """
-    signal(x,[samplerate])
+    signal(x,[framerate])
 
-Coerce `x` to be a signal, optionally specifying its sample rate (usually in
+Coerce `x` to be a signal, optionally specifying its frame rate (usually in
 Hz). All signal operators first call `signal(x)` for each argument. This
 means you only need to call `signal` when you want to pass additional
 arguments to it.
 
 !!! note
 
-    If you pipe `signal` and pass a sample rate, you must specify the units
-    of the sample rate (e.g. `x |> signal(20Hz)`). A unitless number is
+    If you pipe `signal` and pass a frame rate, you must specify the units
+    of the frame rate (e.g. `x |> signal(20Hz)`). A unitless number is
     always interpreted as a constant, infinite-length signal (see below).
 
 !!! note
@@ -192,23 +192,23 @@ end
 
 ## Existing signals
 
-Any existing signal just returns itself from `signal`. If a sample rate is
-specified it will be set if `x` has an unknown sample rate. If it has a known
-sample rate and doesn't match `samplerate(x)` an error will be thrown. If
-you want to change the sample rate of a signal use [`tosamplerate`](@ref).
+Any existing signal just returns itself from `signal`. If a frame rate is
+specified it will be set if `x` has an unknown frame rate. If it has a known
+frame rate and doesn't match `framerate(x)` an error will be thrown. If
+you want to change the frame rate of a signal use [`toframerate`](@ref).
 
 """
 function signal(x,::IsSignal,fs)
-    if ismissing(samplerate(x))
-        tosamplerate(x,fs)
-    elseif !isconsistent(fs,samplerate(x))
-        error("Signal expected to have sample rate of $(inHz(fs)) Hz.")
+    if ismissing(framerate(x))
+        toframerate(x,fs)
+    elseif !isconsistent(fs,framerate(x))
+        error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
     else
         x
     end
 end
 
-# computed signals have to implement there own version of tosamplerate
+# computed signals have to implement there own version of toframerate
 # (e.g. resample) to avoid inefficient computations
 
 struct DataSignal
@@ -219,16 +219,16 @@ end
     SiganlOperators.EvalTrait(x)
 
 Indicates whether the signal is a `DataSignal` or
-`ComputedSignal`. Data signals represent samples concretely
-as a set of samples. Examples include arrays and numbers. Data signals
+`ComputedSignal`. Data signals represent frames concretely
+as a set of frames. Examples include arrays and numbers. Data signals
 generally return themselves, or some wrapper type when `sink` is called on
 them. Computed signals are any signal that invovles some intermediate
-computation, in which samples must be computued on the fly. Calls to `sink`
+computation, in which frames must be computued on the fly. Calls to `sink`
 on a computed signal results in some new, data signal. Most signals returned
 by a signal operator are computed signals.
 
 Computed signals have the extra responsibility of implementing
-[`tosamplerate`](@ref)
+[`toframerate`](@ref)
 
 """
 EvalTrait(x) = DataSignal()

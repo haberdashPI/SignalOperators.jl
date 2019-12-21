@@ -7,7 +7,7 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 ## Arrays
 
 Any array can be interpreted as a signal. By default the first dimension is
-time, the second channels and their sample rate is a missing value. Some
+time, the second channels and their frame rate is a missing value. Some
 array types change this default behavior.
 
 - [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
@@ -36,10 +36,10 @@ end
 
 arraysignal(x,::Type{<:Array},fs) = (x,inHz(fs))
 
-tosamplerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
+toframerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
     signal(x,fs)
-tosamplerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
-    __tosamplerate__(x,s,fs,blocksize)
+toframerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
+    __toframerate__(x,s,fs,blocksize)
 
 function SignalTrait(::Type{<:AbstractArray{T,N}}) where{T,N}
     if N ∈ [1,2]
@@ -49,9 +49,9 @@ function SignalTrait(::Type{<:AbstractArray{T,N}}) where{T,N}
     end
 end
 
-nsamples(x::AbstractVecOrMat) = size(x,1)
+nframes(x::AbstractVecOrMat) = size(x,1)
 nchannels(x::AbstractVecOrMat) = size(x,2)
-samplerate(x::AbstractVecOrMat) = missing
+framerate(x::AbstractVecOrMat) = missing
 
 timeslice(x::AbstractArray,indices) = view(x,indices,:)
 
@@ -60,7 +60,7 @@ timeslice(x::AbstractArray,indices) = view(x,indices,:)
 ## Array & Number
 
 A tuple of an array and a number can be interepted as a signal. The first
-dimension is time, the second channels, and the number determines the sample
+dimension is time, the second channels, and the number determines the frame
 rate (in Hertz).
 
 """
@@ -68,7 +68,7 @@ function signal(x::Tuple{<:AbstractArray,<:Number},
     fs::Union{Missing,Number}=missing)
 
     if !isconsistent(fs,x[2])
-        error("Signal expected to have sample rate of $(inHz(fs)) Hz.")
+        error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
     else
         x
     end
@@ -82,9 +82,9 @@ function SignalTrait(::Type{<:Tuple{<:AbstractArray{T,N},<:Number}}) where {T,N}
     end
 end
 
-nsamples(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],1)
+nframes(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],1)
 nchannels(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],2)
-samplerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
+framerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
 timeslice(x::Tuple{<:AbstractVecOrMat,<:Number}) = view(x[1],indices,:)
 function nextblock(x::Tuple{<:AbstractVecOrMat,<:Number},maxlen,skip,
     block=ArrayBlock([],0))
@@ -96,13 +96,13 @@ end
     ArrayBlock{A,S}(data::A,state::S)
 
 A straightforward implementation of blocks as an array and a custom state.
-The array allows a generic implementation of [`nsamples`](@ref) and
-[`SignalOperators.sample`](@ref). The fields of this struct are `data` and
+The array allows a generic implementation of [`nframes`](@ref) and
+[`SignalOperators.frame`](@ref). The fields of this struct are `data` and
 `state`.
 
 [Custom signals](@ref custom_signals) can return an `ArrayBlock` from
 [`SignalOperators.nextblock`](@ref) to allow for fallback implementations of
-[`nsamples`](@ref) and [`SignalOperators.sample`](@ref).
+[`nframes`](@ref) and [`SignalOperators.frame`](@ref).
 
 """
 struct ArrayBlock{A,S}
@@ -110,13 +110,13 @@ struct ArrayBlock{A,S}
     state::S
 end
 
-nsamples(block::ArrayBlock) = size(block.data,1)
-@Base.propagate_inbounds sample(x,block::ArrayBlock,i) = view(block.data,i,:)
+nframes(block::ArrayBlock) = size(block.data,1)
+@Base.propagate_inbounds frame(x,block::ArrayBlock,i) = view(block.data,i,:)
 
 function nextblock(x::AbstractArray,maxlen,skip,block = ArrayBlock([],0))
-    offset = block.state + nsamples(block)
-    if offset < nsamples(x)
-        len = min(maxlen,nsamples(x)-offset)
+    offset = block.state + nframes(block)
+    if offset < nframes(x)
+        len = min(maxlen,nframes(x)-offset)
         ArrayBlock(timeslice(x,offset .+ (1:len)),offset)
     end
 end

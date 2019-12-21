@@ -1,6 +1,6 @@
 
 """
-    sink([signal],[to];duration,samplerate)
+    sink([signal],[to];duration,framerate)
 
 Creates a given type of object (`to`) from a signal. By default the type of
 the resulting sink is determined by the type of the underlying data of the
@@ -12,18 +12,18 @@ then the the type for the current backend is used
 ## Array return type
 
 When `to` is set to `Array` the return value is actually a tuple of an array
-and a second value, which is the sample rate in Hertz. Thus, if you use the
+and a second value, which is the frame rate in Hertz. Thus, if you use the
 default Array backend, you should use sink as follows:
 
     x,fs = sink(mysignal)
 
 # Keyword arguments
 
-## Sample Rate
+## Frame Rate
 
-The sample rate does not need to be specified, it will use either the sample
-rate of `signal` or a default sample rate (which raises a warning). If
-specified, the given sample rate is passed to [`signal`](@ref) when coercing
+The frame rate does not need to be specified, it will use either the frame
+rate of `signal` or a default frame rate (which raises a warning). If
+specified, the given frame rate is passed to [`signal`](@ref) when coercing
 the input to a signal.
 
 ## Duration
@@ -71,7 +71,7 @@ end
 
     SignalOperators.initsink(x,::Type{T},len)
 
-Initialize an object of type T so that it can store the first `len` samples
+Initialize an object of type T so that it can store the first `len` frames
 of signal `x`.
 
 If you wish an object to serve as a [custom sink](@ref custom_sinks) you can
@@ -80,30 +80,30 @@ implement this method. You should probably use [`nchannels`](@ref) and
 
 """
 initsink(x,::Type{<:Array},len) =
-    (Array{channel_eltype(x)}(undef,len,nchannels(x)),samplerate(x))
+    (Array{channel_eltype(x)}(undef,len,nchannels(x)),framerate(x))
 
 function process_sink_params(x;duration=missing,
-    samplerate=nothing)
+    framerate=nothing)
     x = signal(x)
 
-    if isnothing(samplerate)
-        samplerate=SignalOperators.samplerate(x)
+    if isnothing(framerate)
+        framerate=SignalOperators.framerate(x)
     end
 
-    if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
-        @warn("No sample rate was specified, defaulting to 44.1 kHz.")
-        samplerate = 44.1kHz
+    if ismissing(framerate) && ismissing(SignalOperators.framerate(x))
+        @warn("No frame rate was specified, defaulting to 44.1 kHz.")
+        framerate = 44.1kHz
     end
-    x = signal(x,samplerate)
-    duration = coalesce(duration,nsamples(x)*samples)
+    x = signal(x,framerate)
+    duration = coalesce(duration,nframes(x)*frames)
 
     if isinf(duration)
         error("Cannot store infinite signal. Specify a finite duration when ",
             "calling `sink`.")
     end
 
-    n = insamples(Int,maybeseconds(duration),SignalOperators.samplerate(x))
-    if n > nsamples(x)
+    n = inframes(Int,maybeseconds(duration),SignalOperators.framerate(x))
+    if n > nframes(x)
         error("Requested signal duration is too long for passed signal: $x.")
     end
 
@@ -134,10 +134,10 @@ function save_signal(::Val{T},filename,x,len) where T
 end
 
 """
-    sink!(array,x;[samplerate])
+    sink!(array,x;[framerate])
 
-Write `size(array,1)` samples of signal `x` to `array`. If no sample rate has
-been specified for `x` you can specify it now, using `samplerate` (it will
+Write `size(array,1)` frames of signal `x` to `array`. If no frame rate has
+been specified for `x` you can specify it now, using `framerate` (it will
 default to 44.1kHz).
 
 """
@@ -146,15 +146,15 @@ sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) =
 sink!(result::Tuple{<:AbstractArray,<:Number},x;kwds...) =
     (sink!(result[1],x;kwds...), result[2])
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
-    samplerate=SignalOperators.samplerate(x))
+    framerate=SignalOperators.framerate(x))
 
-    if ismissing(samplerate) && ismissing(SignalOperators.samplerate(x))
-        @warn("No sample rate was specified, defaulting to 44.1 kHz.")
-        samplerate = 44.1kHz
+    if ismissing(framerate) && ismissing(SignalOperators.framerate(x))
+        @warn("No frame rate was specified, defaulting to 44.1 kHz.")
+        framerate = 44.1kHz
     end
-    x = signal(x,samplerate)
+    x = signal(x,framerate)
 
-    if nsamples(x) < size(result,1)
+    if nframes(x) < size(result,1)
         error("Signal is too short to fill buffer of length $(size(result,1)).")
     end
     x = tochannels(x,size(result,2))
@@ -167,11 +167,11 @@ end
 
     SignalOperators.nextblock(x,maxlength,skip,[block])
 
-Retrieve the next block of samples for signal `x`. The final, fourth argument
+Retrieve the next block of frames for signal `x`. The final, fourth argument
 is optional. If it is left out, nextblock returns the first block of the
-signal. The resulting block must has no more than `maxlength` samples, but
-may have fewer samples than that; it should not have zero samples unless
-`maxlength == 0`. If `skip == true`, it is guaranted that [`sample`](@ref)
+signal. The resulting block must has no more than `maxlength` frames, but
+may have fewer frames than that; it should not have zero frames unless
+`maxlength == 0`. If `skip == true`, it is guaranted that [`frame`](@ref)
 will never be called on the returned block. The value of `skip` is `true`, for
 example, when skipping blocks during a call to [`after`](@ref)).
 
@@ -195,16 +195,16 @@ end
 
 """
 
-    SignalOperators.sample(x,block,i)
+    SignalOperators.frame(x,block,i)
 
-Retrieves the sample at index `i` of the given block of signal `x`. A sample
+Retrieves the frame at index `i` of the given block of signal `x`. A frame
 is one or more channels of `channel_eltype(x)` values. The return value
 should be an indexable object (e.g. a number, tuple or array) of these
 channel values. This method should be implemented by blocks of [custom
 signals](@ref custom_signals).
 
 """
-function sample
+function frame
 end
 
 fold(x) = zip(x,Iterators.drop(x,1))
@@ -213,9 +213,9 @@ sink!(result,x,sig::IsSignal) =
 function sink!(result,x,::IsSignal,block)
     written = 0
     while !isnothing(block) && written < size(result,1)
-        @assert nsamples(block) > 0
+        @assert nframes(block) > 0
         sink_helper!(result,written,x,block)
-        written += nsamples(block)
+        written += nframes(block)
         maxlen = size(result,1)-written
         if maxlen > 0
             block = nextblock(x,maxlen,false,block)
@@ -231,18 +231,18 @@ end
 
     SignalOperators.sink_helper!(result,written,x,block)
 
-Write the given `block` of samples from signal `x` to `result` given that
-a total of `written` samples have already been written to the result.
+Write the given `block` of frames from signal `x` to `result` given that
+a total of `written` frames have already been written to the result.
 
 This method should be fast: i.e. a for loop using @simd and @inbounds. It
-should call [`nsamples`](@ref) and [`SignalOperators.sample`](@ref) on the
-block to write the samples. **Do not call `sample` more than once for each
+should call [`nframes`](@ref) and [`SignalOperators.frame`](@ref) on the
+block to write the frames. **Do not call `frame` more than once for each
 index of the block**.
 
 """
 @noinline function sink_helper!(result,written,x,block)
-    @inbounds @simd for i in 1:nsamples(block)
-        writesink!(result,i+written,sample(x,block,i))
+    @inbounds @simd for i in 1:nframes(block)
+        writesink!(result,i+written,frame(x,block,i))
     end
 end
 

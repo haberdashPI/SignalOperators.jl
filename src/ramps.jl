@@ -23,21 +23,21 @@ function SignalTrait(::Type{<:RampSignal{D,S,Tm,Fn,T}},::IsSignal{<:Any,Fs,L}) w
 end
 
 child(x::RampSignal) = x.signal
-resolvelen(x::RampSignal) = max(1,insamples(Int,maybeseconds(x.time),samplerate(x)))
+resolvelen(x::RampSignal) = max(1,inframes(Int,maybeseconds(x.time),framerate(x)))
 
-function tosamplerate(
+function toframerate(
     x::RampSignal{D},
     s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize) where D
 
-    RampSignal(D,tosamplerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+    RampSignal(D,toframerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
-function tosamplerate(
+function toframerate(
     x::RampSignal{D},
     s::IsSignal{<:Any,Missing},
     __ignore__,fs; blocksize) where D
 
-    RampSignal(D,tosamplerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+    RampSignal(D,toframerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
 
 struct RampBlock{Fn,T}
@@ -49,18 +49,18 @@ struct RampBlock{Fn,T}
 end
 RampBlock(x,fn,marker,stop,offset,len) =
     RampBlock{typeof(fn),float(channel_eltype(x))}(fn,marker,stop,offset,len)
-nsamples(x::RampBlock) = x.len
+nframes(x::RampBlock) = x.len
 
-sample(x::RampSignal{:on},block::RampBlock{Nothing,T},i) where T =
+frame(x::RampSignal{:on},block::RampBlock{Nothing,T},i) where T =
     Fill(one(T),nchannels(x))
-sample(x::RampSignal{:off},block::RampBlock{Nothing,T},i) where T =
+frame(x::RampSignal{:off},block::RampBlock{Nothing,T},i) where T =
     Fill(one(T),nchannels(x))
-function sample(x::RampSignal{:on},block::RampBlock,i)
+function frame(x::RampSignal{:on},block::RampBlock,i)
     ramplen = block.marker
     rampval = block.ramp((i+block.offset-1) / ramplen)
     Fill(rampval,nchannels(x))
 end
-function sample(x::RampSignal{:off},block::RampBlock,i)
+function frame(x::RampSignal{:off},block::RampBlock,i)
     startramp = block.marker - block.offset
     stop = block.stop - block.offset
     rampval = block.stop > startramp ?
@@ -71,18 +71,18 @@ end
 
 function nextblock(x::RampSignal{:on},maxlen,skip)
     ramplen = resolvelen(x)
-    RampBlock(x,x.fn,ramplen,nsamples(x),0,min(ramplen,maxlen))
+    RampBlock(x,x.fn,ramplen,nframes(x),0,min(ramplen,maxlen))
 end
 function nextblock(x::RampSignal{:off},maxlen,skip)
-    rampstart = nsamples(x) - resolvelen(x)
-    RampBlock(x,nothing,rampstart,nsamples(x),0,min(rampstart,maxlen))
+    rampstart = nframes(x) - resolvelen(x)
+    RampBlock(x,nothing,rampstart,nframes(x),0,min(rampstart,maxlen))
 end
 
 function nextblock(x::RampSignal{:on},maxlen,skip,block::RampBlock)
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.marker - offset)
+    len = min(nframes(x) - offset,maxlen,block.marker - offset)
     if len == 0
-        len = min(nsamples(x) - offset,maxlen)
+        len = min(nframes(x) - offset,maxlen)
         RampBlock(x,nothing,block.marker,block.stop,offset,len)
     else
         RampBlock(x,x.fn,block.marker,block.stop,offset,len)
@@ -91,7 +91,7 @@ end
 
 function nextblock(x::RampSignal{:on},maxlen,skip,block::RampBlock{Nothing})
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.stop - offset)
+    len = min(nframes(x) - offset,maxlen,block.stop - offset)
     if len > 0
         RampBlock(x,nothing,block.marker,block.stop,offset,len)
     end
@@ -99,9 +99,9 @@ end
 
 function nextblock(x::RampSignal{:off},maxlen,skip,block::RampBlock{Nothing})
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.marker - offset)
+    len = min(nframes(x) - offset,maxlen,block.marker - offset)
     if len == 0
-        len = min(nsamples(x) - offset,maxlen)
+        len = min(nframes(x) - offset,maxlen)
         RampBlock(x,x.fn,block.marker,block.stop,offset,len)
     else
         RampBlock(x,nothing,block.marker,block.stop,offset,len)
@@ -110,7 +110,7 @@ end
 
 function nextblock(x::RampSignal{:off},maxlen,skip,block::RampBlock)
     offset = block.offset + block.len
-    len = min(nsamples(x) - offset,maxlen,block.stop - offset)
+    len = min(nframes(x) - offset,maxlen,block.stop - offset)
     if len > 0
         RampBlock(x,x.fn,block.marker,block.stop,offset,len)
     end
@@ -224,11 +224,11 @@ fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
 function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
     x,y = uniform((x,y))
     x = signal(x)
-    if ismissing(samplerate(x))
-        error("Unknown sample rate is not supported by `fadeto`.")
+    if ismissing(framerate(x))
+        error("Unknown frame rate is not supported by `fadeto`.")
     end
-    n = insamples(Int,maybeseconds(len),samplerate(x))
-    silence = signal(zero(channel_eltype(y))) |> until((nsamples(x) - n)*samples)
+    n = inframes(Int,maybeseconds(len),framerate(x))
+    silence = signal(zero(channel_eltype(y))) |> until((nframes(x) - n)*frames)
     x |> rampoff(len,fun) |> mix(
         y |> rampon(len,fun) |> prepend(silence))
 end

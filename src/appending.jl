@@ -11,7 +11,7 @@ function SignalTrait(x::Type{<:AppendSignals{Si,Rst,T,L}},
     IsSignal{T,Fs,L}()
 end
 child(x::AppendSignals) = x.signals[1]
-nsamples(x::AppendSignals) = x.len
+nframes(x::AppendSignals) = x.len
 duration(x::AppendSignals) = sum(duration.(x.signals))
 
 root(x::AppendSignals) = reduce(mergeroot,root.(x.signals))
@@ -34,7 +34,7 @@ prepend(x,y,rest...) = prepend(reverse((x,y,rest...)...))
 
 function append(xs...)
     xs = uniform(xs,channels=true)
-    if any(isinf ∘ nsamples,xs[1:end-1])
+    if any(isinf ∘ nframes,xs[1:end-1])
         error("Cannot append to the end of an infinite signal")
     end
 
@@ -47,13 +47,13 @@ function append(xs...)
         end
     end
 
-    len = sum(nsamples,xs)
+    len = sum(nframes,xs)
     AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
-tosamplerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
-    append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
-tosamplerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
-    blocksize) = append(tosamplerate.(x.signals,fs;blocksize=blocksize)...)
+toframerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
+    append(toframerate.(x.signals,fs;blocksize=blocksize)...)
+toframerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
+    blocksize) = append(toframerate.(x.signals,fs;blocksize=blocksize)...)
 
 struct AppendBlock{S,C}
     signal::S
@@ -61,9 +61,9 @@ struct AppendBlock{S,C}
     k::Int
 end
 child(x::AppendBlock) = x.child
-nsamples(x::AppendBlock) = nsamples(x.child)
-@Base.propagate_inbounds sample(::AppendSignals,x::AppendBlock,i) =
-    sample(x.signal,x.child,i)
+nframes(x::AppendBlock) = nframes(x.child)
+@Base.propagate_inbounds frame(::AppendSignals,x::AppendBlock,i) =
+    frame(x.signal,x.child,i)
 
 function nextblock(x::AppendSignals,maxlen,skip)
     child = nextblock(x.signals[1],maxlen,skip)

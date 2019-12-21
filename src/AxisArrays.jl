@@ -10,7 +10,7 @@ function SignalTrait(::Type{<:AxisArray{T,N}}) where {T,N}
     end
 end
 
-function samplerate(x::AxisArray)
+function framerate(x::AxisArray)
     times = axisvalues(AxisArrays.axes(x,Axis{:time}))[1]
     inHz(1/step(times))
 end
@@ -22,7 +22,7 @@ const AxTimeD1 = Union{
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 const AxTime = Union{AxTimeD1,AxTimeD2}
 
-nsamples(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
+nframes(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
 function nchannels(x::AxisArray)
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
@@ -42,8 +42,8 @@ function arraysignal(x,::Type{<:AxisArray},fs)
 end
 
 function signal(x::AxisArray,fs::Union{Missing,Number}=missing)
-    if !isconsistent(fs,samplerate(x))
-        error("Signal expected to have sample rate of $(inHz(fs)) Hz.")
+    if !isconsistent(fs,framerate(x))
+        error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
     else
         x
     end
@@ -53,7 +53,7 @@ timeslice(x::AxTimeD1,indices) = view(x,indices,:)
 timeslice(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 
 function initsink(x,::Type{<:AxisArray},len)
-    times = Axis{:time}(range(0s,length=len,step=float(s/samplerate(x))))
+    times = Axis{:time}(range(0s,length=len,step=float(s/framerate(x))))
     channels = Axis{:channel}(1:nchannels(x))
     AxisArray(initsink(x,Array,len)[1],times,channels)
 end

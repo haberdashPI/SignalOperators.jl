@@ -12,7 +12,7 @@ sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
 
 This example creates a 1 kHz pure-tone (sine wave) that lasts 5 seconds. Its amplitude is 20 dB lower than a signal with unit 1 power.
 
-There are a few things going on here: piping, the use of units, infinite length signals, and unspecified sample rates.
+There are a few things going on here: piping, the use of units, infinite length signals, and unspecified frame rates.
 
 ### Piping
 
@@ -34,13 +34,13 @@ sound1 = signal(sin,ω=1kHz)
 sound1 = signal(sin,ω=1000)
 ```
 
-Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `samples`, `ksamples`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of the default units have been re-exported from `Unitful`. However, the `samples` unit and its derivatives (e.g. `ksamples`) are unique  to the SignalOperators package. They allow you to specify the time in terms of the number of samples: e.g. at a sample rate of 100 Hz, `2s == 200samples`. Other powers of ten are represented for `samples`, (e.g. `Msamples` for mega-samples) but they are not exported (e.g. you would have to call `SignalOperators.Units: Msamples` before using `20Msamples`).
+Each unit is represented by a constant you can multiply by a number (in Julia, 10ms == 10*ms). To make use of the unit constants, you must call `using SignalOperators.Units`. This exports the following units: `frames`, `kframes`, `Hz`, `kHz` `s`, `ms`, `rad`, `°`, and `dB`. You can just include the ones you want using e.g. `using SignalOperators.Units: Hz`, or you can include more by adding the [`Unitful`](https://github.com/PainterQubits/Unitful.jl) package to your project and adding the desired units from there. For example, `using Unitful: MHz` would include mega-Hertz frequencies (not usually useful for signals that are sounds). Most of the default units have been re-exported from `Unitful`. However, the `frames` unit and its derivatives (e.g. `kframes`) are unique  to the SignalOperators package. They allow you to specify the time in terms of the number of frames: e.g. at a frame rate of 100 Hz, `2s == 200frames`. Other powers of ten are represented for `frames`, (e.g. `Mframes` for mega-frames) but they are not exported (e.g. you would have to call `SignalOperators.Units: Mframes` before using `20Mframes`).
 
 !!! note
 
     You can find the available powers-of-ten for units in `Unitful.prefixdict`
 
-Note that the output of functions to inspect a signal (e.g. `duration`, `samplerate`) are bare values in the default unit (e.g. seconds or Hertz). No unit is explicitly provided by the return value.
+Note that the output of functions to inspect a signal (e.g. `duration`, `framerate`) are bare values in the default unit (e.g. seconds or Hertz). No unit is explicitly provided by the return value.
 
 #### Decibels
 
@@ -48,7 +48,7 @@ You can pass an amplification value as a unitless or a unitful value in `dB`; a 
 
 ### Infinite lengths
 
-Some of the ways you can define a signal lead to an infinite length signal. You cannot store an infinite signal. It is represented as a function of some kind. Operations on signals are generally lazy, meaning the samples of the signal aren't computed until necessary. To allow actual data to be created from a signal, you have to specify the length, using [`until`](@ref). For example, when using `signal(sin)`, the signal is an infinite length sine wave. That's why, in the example above, we use [`until`](@ref) to specify the length, as follows.
+Some of the ways you can define a signal lead to an infinite length signal. You cannot store an infinite signal. It is represented as a function of some kind. Operations on signals are generally lazy, meaning the frames of the signal aren't computed until necessary. To allow actual data to be created from a signal, you have to specify the length, using [`until`](@ref). For example, when using `signal(sin)`, the signal is an infinite length sine wave. That's why, in the example above, we use [`until`](@ref) to specify the length, as follows.
 
 ```julia
 signal(sin,ω=1kHz) |> until(5s)
@@ -56,33 +56,33 @@ signal(sin,ω=1kHz) |> until(5s)
 
 Infinite lengths are represented as the value [`inflen`](@ref). This has overloaded definitions of various operators to play nicely with ordering, arithmetic etc...
 
-### Unspecified sample rates
+### Unspecified frame rates
 
-You may notice that the above signal has no defined sample rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined sample rate, the unspecified sample rate will be resolved to that same rate (see signal promotion, below). If there is no defined sample rate by the time you call [`sink`](@ref), you can specify it then.
+You may notice that the above signal has no defined frame rate. Such a signal is defined by a function, and can be sampled at whatever rate you desire. If you add a signal to the chain of operations that does have a defined frame rate, the unspecified frame rate will be resolved to that same rate (see signal promotion, below). If there is no defined frame rate by the time you call [`sink`](@ref), you can specify it then.
 
 ### Sinking
 
-Once you have defined a signal, you can create some concrete sequence of samples from it. This is done using [`sink`](@ref). When `sink` is simply passed a signal, the resulting value is itself a signal. This means you can continue to processes it with more operators. The function [`sink`](@ref) can also write data to a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
+Once you have defined a signal, you can create some concrete sequence of frames from it. This is done using [`sink`](@ref). When `sink` is simply passed a signal, the resulting value is itself a signal. This means you can continue to processes it with more operators. The function [`sink`](@ref) can also write data to a file. Sink must consume a finite-length signal. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
 sound1 |> sink("example.wav")
 ```
 
-In this case `sound1` had no defined sample rate, so the default sample rate
-of 44.1khz will be used. The absence of an explicit sample rate will raise a
+In this case `sound1` had no defined frame rate, so the default frame rate
+of 44.1khz will be used. The absence of an explicit frame rate will raise a
 warning.
 
 ### Signal promotion
 
 A final concept, which is not as obvious from the examples, is the use of
 automatic signal promotion. When multiple signals are passed to the same
-operator, and they have a different number of channels or different sample
+operator, and they have a different number of channels or different frame
 rate, the signals are first converted to the highest fidelity format and then
 operated on. This allows for a relatively seamless chain of operations where
 you don't have to worry about the specific format of the signal, and you
 won't loose information about your signals unless you explicitly request a
 lower fidelity signal format (e.g. using [`tochannels`](@ref) or
-[`tosamplerate`](@ref)).
+[`toframerate`](@ref)).
 
 ## Signal generation
 
@@ -90,31 +90,31 @@ There are four basic types that can be interpreted as signals: numbers,
 arrays, functions and files. Internally the function [`signal`](@ref) is
 called on any object passed to a function that inspects or operates on a
 signal; you can call [`signal`](@ref) yourself if you want to specify more
-information. For example, you may want to provide the exact sample rate the
+information. For example, you may want to provide the exact frame rate the
 signal should be interpreted to have.
 
 ### Numbers
 
-A number is treated as an infinite length signal, with unknown sample rate.
+A number is treated as an infinite length signal, with unknown frame rate.
 
 ```julia
-1 |> until(1s) |> sink(samplerate=10Hz) == ones(10)
+1 |> until(1s) |> sink(framerate=10Hz) == ones(10)
 ```
 
 ### Arrays
 
-A standard array is treated as a finite signal with unknown sample rate.
+A standard array is treated as a finite signal with unknown frame rate.
 
 ```julia
-rand(10,2) |> sink(samplerate=10Hz) |> duration == 1
+rand(10,2) |> sink(framerate=10Hz) |> duration == 1
 ```
 
-An `AxisArray` or `SampleBuf` (form [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl)) is treated as a finite signal with a known sample rate (and is the default output of [`sink`](@ref))
+An `AxisArray` or `SampleBuf` (form [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl)) is treated as a finite signal with a known frame rate (and is the default output of [`sink`](@ref))
 
 ```julia
 using AxisArrays
 x = AxisArray(rand(10,1),Axis{:time}(range(0,1,length=10)))
-samplerate(x) == 10
+framerate(x) == 10
 ```
 
 ### Functions
@@ -128,7 +128,7 @@ details.
 signal(sin,ω=1kHz) |> duration |> isinf == true
 ```
 
-A small exception to this is `randn`. It can be used directly as a signal with unknown sample rate.
+A small exception to this is `randn`. It can be used directly as a signal with unknown frame rate.
 
 ```julia
 randn |> duration == isinf
@@ -146,7 +146,7 @@ x = signal("example.wav")
 
 ## Signal inspection
 
-You can examine the properties of a signal using [`nsamples`](@ref), [`nchannels`](@ref), [`samplerate`](@ref), and [`duration`](@ref).
+You can examine the properties of a signal using [`nframes`](@ref), [`nchannels`](@ref), [`framerate`](@ref), and [`duration`](@ref).
 
 ## Signal operators
 
@@ -185,7 +185,7 @@ append(x,y,z) |> duration == duration(x) + duration(y) + duration(z)
 You can cut signals apart, removing either the end of the signal ([`until`](@ref)) or the beginning ([`after`](@ref)). The operations are exact compliments of one another.
 
 ```julia
-append(until(x,2s),after(x,2s)) |> nsamples == nsamples(x)
+append(until(x,2s),after(x,2s)) |> nframes == nframes(x)
 ```
 
 ### Filtering
@@ -200,7 +200,7 @@ signal(randn) |> lowpass(20Hz)
 
     If you write `using DSP` you will have to also write `dB = SignalOperators.Units.dB` if you want to make use of the proper meaning of `dB` for `SignalOperators`: `DSP` also defines `dB`.
 
-An unusual filter is [`normpower`](@ref): it computes the root mean squared power of the signal and then normalizes each sample by that value.
+An unusual filter is [`normpower`](@ref): it computes the root mean squared power of the signal and then normalizes each frame by that value.
 
 ### Ramping
 

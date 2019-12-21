@@ -1,4 +1,4 @@
-export cycle, mirror, lastsample
+export cycle, mirror, lastframe
 
 struct PaddedSignal{S,T} <: WrappedSignal{S,T}
     signal::S
@@ -8,12 +8,12 @@ SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
-nsamples(x::PaddedSignal) = inflen
+nframes(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
-tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
-    PaddedSignal(tosamplerate(x.signal,fs,blocksize=blocksize),x.pad)
-tosamplerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
-    blocksize) = PaddedSignal(tosamplerate(x.signal,fs;blocksize=blocksize),x.pad)
+toframerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
+    PaddedSignal(toframerate(x.signal,fs,blocksize=blocksize),x.pad)
+toframerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
+    blocksize) = PaddedSignal(toframerate(x.signal,fs;blocksize=blocksize),x.pad)
 
 """
 
@@ -33,25 +33,25 @@ The value `padding` can be:
 If the signal is already infinitely long (e.g. a previoulsy padded signal),
 `pad` has no effect.
 
-If `padding` is a number it is used as the value for all samples and channels
+If `padding` is a number it is used as the value for all frames and channels
 past the end of `x`.
 
-If `padding` is a tuple or vector it is the value for all samples past the end
+If `padding` is a tuple or vector it is the value for all frames past the end
 of `x`.
 
 If `padding` is a type function it is passed the [`channel_eltype`](@ref) of
-the signal and the resulting value is used as the value for all samples past
+the signal and the resulting value is used as the value for all frames past
 the end of `x`. Examples include `zero` and `one`
 
 If `padding` is a value function it is passed `x` just before padding during
 `sink` begins and it should return a tuple of `channel_eltype(x)` values.
-This value is repeated for the remaining samples. It is generally only useful
+This value is repeated for the remaining frames. It is generally only useful
 when x is an AbstractArray.
 
 If `padding` is an indexing function (it accepts 3 arguments) it will be used
-to retrieve samples from the signal `x` assuming it conforms to the
-`AbstractArray` interface, with the first index being samples and the second
-channels. If the sample index goes past the bounds of the array, it should be
+to retrieve frames from the signal `x` assuming it conforms to the
+`AbstractArray` interface, with the first index being frames and the second
+channels. If the frame index goes past the bounds of the array, it should be
 transformed to an index within the range of that array. Note that such
 padding functions only work on signals that are also AbstractArray objects.
 You can always generate an array from a given signal by first passing it
@@ -61,23 +61,23 @@ through `sink` or `sink!`.
 
 [`cycle`](@ref)
 [`mirror`](@ref)
-[`lastsample`](@ref)
+[`lastframe`](@ref)
 [`valuefunction`](@ref)
 """
 pad(p) = x -> pad(x,p)
 function pad(x,p)
     x = signal(x)
-    isinf(nsamples(x)) ? x : PaddedSignal(x,p)
+    isinf(nframes(x)) ? x : PaddedSignal(x,p)
 end
 
 """
-    lastsample
+    lastframe
 
-When passed as an argument to `pad`, allows padding using the last sample of a
+When passed as an argument to `pad`, allows padding using the last frame of a
 signal. You cannot use this function in other contexts, and it will normally
 throw an error. See [`pad`](@ref).
 """
-lastsample(x) = error("Must be passed as argument to `pad`.")
+lastframe(x) = error("Must be passed as argument to `pad`.")
 
 """
     SignalOperators.valuefunction(fn)
@@ -90,7 +90,7 @@ do this as follows.
 
 """
 valuefunction(x) = false
-valuefunction(::typeof(lastsample)) = true
+valuefunction(::typeof(lastframe)) = true
 
 """
     cycle(x,i,j)
@@ -105,7 +105,7 @@ argument to [`pad`](@ref).
     mirror(x,i,j)
 
 An indexing function which mirrors the indices when i > size(x,1). This means
-that past the end of the signal x, the signal first repeats with samples in
+that past the end of the signal x, the signal first repeats with frames in
 reverse order, then repeats in the original order, so on and so forth. It
 can be passed as the second argument to  [`pad`](@ref).
 """
@@ -126,10 +126,10 @@ function usepad(x::PaddedSignal,s::IsSignal{T},
 
     map(x -> convert(T,x),p)
 end
-usepad(x::PaddedSignal,s::IsSignal,::typeof(lastsample),block) =
-    sample(x,block,nsamples(block))
-usepad(x::PaddedSignal,s::IsSignal,::typeof(lastsample),::Nothing) =
-    error("Signal is length zero; there is no last sample to pad with.")
+usepad(x::PaddedSignal,s::IsSignal,::typeof(lastframe),block) =
+    frame(x,block,nframes(block))
+usepad(x::PaddedSignal,s::IsSignal,::typeof(lastframe),::Nothing) =
+    error("Signal is length zero; there is no last frame to pad with.")
 function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
     nargs = map(x -> x.nargs - 1, methods(fn).ms)
     if 3 ∈ nargs
@@ -168,14 +168,14 @@ struct PadBlock{P,C}
 end
 child(x::PadBlock{<:Nothing}) = x.child_or_len
 child(x::PadBlock) = nothing
-nsamples(x::PadBlock{<:Nothing}) = nsamples(child(x))
-nsamples(x::PadBlock) = x.child_or_len
+nframes(x::PadBlock{<:Nothing}) = nframes(child(x))
+nframes(x::PadBlock) = x.child_or_len
 
-@Base.propagate_inbounds sample(x,block::PadBlock{<:Nothing},i) =
-    sample(child(x),child(block),i)
-@Base.propagate_inbounds sample(x,block::PadBlock{<:Function},i) =
+@Base.propagate_inbounds frame(x,block::PadBlock{<:Nothing},i) =
+    frame(child(x),child(block),i)
+@Base.propagate_inbounds frame(x,block::PadBlock{<:Function},i) =
     block.pad(i + block.offset)
-@Base.propagate_inbounds sample(x,block::PadBlock,i) = block.pad
+@Base.propagate_inbounds frame(x,block::PadBlock,i) = block.pad
 
 function nextblock(x::PaddedSignal,maxlen,skip)
     block = nextblock(child(x),maxlen,skip)
@@ -189,13 +189,13 @@ end
 function nextblock(x::PaddedSignal,maxlen,skip,block::PadBlock{<:Nothing})
     childblock = nextblock(child(x),maxlen,skip,child(block))
     if isnothing(childblock)
-        PadBlock(usepad(x,block),maxlen,nsamples(block) + block.offset)
+        PadBlock(usepad(x,block),maxlen,nframes(block) + block.offset)
     else
-        PadBlock(nothing,childblock,nsamples(block) + block.offset)
+        PadBlock(nothing,childblock,nframes(block) + block.offset)
     end
 end
 function nextblock(x::PaddedSignal,len,skip,block::PadBlock)
-    PadBlock(block.pad,len,nsamples(block) + block.offset)
+    PadBlock(block.pad,len,nframes(block) + block.offset)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)

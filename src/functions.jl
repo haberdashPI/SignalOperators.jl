@@ -13,7 +13,7 @@ struct SignalFunction{Fn,Fr,El,T,Fs} <: AbstractSignal{El}
     first::El
     ω::Fr
     ϕ::Float64
-    samplerate::Fs
+    framerate::Fs
     function SignalFunction(fn::Fn,first::El,ω::Fr,ϕ,
         sr::Fs=missing) where {Fn,El,Fr,Fs}
 
@@ -23,8 +23,8 @@ end
 SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,<:Any,T,Fs}}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
-nsamples(x::SignalFunction) = inflen
-samplerate(x::SignalFunction) = x.samplerate
+nframes(x::SignalFunction) = inflen
+framerate(x::SignalFunction) = x.framerate
 EvalTrait(x::SignalFunction) = ComputedSignal()
 
 function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
@@ -48,19 +48,19 @@ end
 nextblock(x::SignalFunction,maxlen,skip) = FunctionBlock(0,maxlen)
 nextblock(x::SignalFunction,maxlen,skip,block::FunctionBlock) =
     FunctionBlock(block.offset + block.len,maxlen)
-nsamples(block::FunctionBlock) = block.len
+nframes(block::FunctionBlock) = block.len
 
-sample(x,block::FunctionBlock,i) =
-    x.fn(2π*(((i+block.offset)/x.samplerate*x.ω + x.ϕ) % 1.0))
-sample(x::SignalFunction{<:Any,Missing},block::FunctionBlock,i) =
-    x.fn((i+block.offset)/x.samplerate + x.ϕ)
-sample(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
-    sinpi(2*((i+block.offset)/x.samplerate*x.ω + x.ϕ))
-sample(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
-    sinpi(2*((i+block.offset)/x.samplerate + x.ϕ))
+frame(x,block::FunctionBlock,i) =
+    x.fn(2π*(((i+block.offset)/x.framerate*x.ω + x.ϕ) % 1.0))
+frame(x::SignalFunction{<:Any,Missing},block::FunctionBlock,i) =
+    x.fn((i+block.offset)/x.framerate + x.ϕ)
+frame(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
+    sinpi(2*((i+block.offset)/x.framerate*x.ω + x.ϕ))
+frame(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
+    sinpi(2*((i+block.offset)/x.framerate + x.ϕ))
 
-tosamplerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
-    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.samplerate))
+toframerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
+    SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.framerate))
 
 abstract type Functor
 end
@@ -68,9 +68,9 @@ end
 """
 ## Functions
 
-    signal(fn,[samplerate];[ω/frequency],[ϕ/phase])
+    signal(fn,[framerate];[ω/frequency],[ϕ/phase])
 
-Functions can define infinite length signals of known or unknown sample rate.
+Functions can define infinite length signals of known or unknown frame rate.
 The function `fn` can either return a number or, for multi-channel signals,
 a tuple of values.
 
@@ -86,13 +86,13 @@ is assumed to be in units of seconds.
 
 """
 function signal(fn::Union{Function,Functor},
-    samplerate::Union{Missing,Number}=missing;
+    framerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
     SignalFunction(fn,astuple(fn(0.0)),inHz(ω),
         ismissing(ω) ? inseconds(Float64,ϕ) :
             inradians(Float64,ϕ,ω)/2π,
-        inHz(Float64,samplerate))
+        inHz(Float64,framerate))
 end
 
 struct RandFn{R}
@@ -110,7 +110,7 @@ generator; `rng` defaults to `Random.GLOBAL_RNG`.
 signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 
-sample(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =
+frame(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =
     randn(x.fn.rng)
 
 mergerule(::Type{T},y::Type{<:SignalFunction}) where T<:AbstractArray = T

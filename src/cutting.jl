@@ -28,7 +28,7 @@ function SignalTrait(::Type{<:CutApply{Si,Tm,K}},::IsSignal{T,Fs,L}) where
 end
 
 child(x::CutApply) = x.signal
-resolvelen(x::CutApply) = insamples(Int,maybeseconds(x.time),samplerate(x))
+resolvelen(x::CutApply) = inframes(Int,maybeseconds(x.time),framerate(x))
 
 const UntilApply{S,T} = CutApply{S,T,Val{:until}}
 const AfterApply{S,T} = CutApply{S,T,Val{:after}}
@@ -36,7 +36,7 @@ const AfterApply{S,T} = CutApply{S,T,Val{:after}}
 """
     until(x,time)
 
-Create a signal of all samples of `x` up until and including `time`.
+Create a signal of all frames of `x` up until and including `time`.
 """
 until(time) = x -> until(x,time)
 until(x,time) = CutApply(signal(x),time,Val{:until}())
@@ -44,7 +44,7 @@ until(x,time) = CutApply(signal(x),time,Val{:until}())
 """
     after(x,time)
 
-Create a signal of all samples of `x` after `time`.
+Create a signal of all frames of `x` after `time`.
 """
 after(time) = x -> after(x,time)
 after(x,time) = CutApply(signal(x),time,Val{:after}())
@@ -59,23 +59,23 @@ signaltile(x::CutApply) = PrettyPrinting.tile(x)
 cutname(x::UntilApply) = "until"
 cutname(x::AfterApply) = "after"
 
-nsamples(x::UntilApply) = min(nsamples(x.signal),resolvelen(x))
+nframes(x::UntilApply) = min(nframes(x.signal),resolvelen(x))
 duration(x::UntilApply) =
-    min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),samplerate(x)))
+    min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),framerate(x)))
 
-nsamples(x::AfterApply) = max(0,nsamples(x.signal) - resolvelen(x))
+nframes(x::AfterApply) = max(0,nframes(x.signal) - resolvelen(x))
 duration(x::AfterApply) =
-    max(0,duration(x.signal) - inseconds(Float64,maybeseconds(x.time),samplerate(x)))
+    max(0,duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)))
 
 EvalTrait(x::AfterApply) = DataSignal()
-function tosamplerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
-    CutApply(tosamplerate(child(x),fs;blocksize=blocksize),x.time,
+function toframerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+    CutApply(toframerate(child(x),fs;blocksize=blocksize),x.time,
         Val{:until}())
 end
-function tosamplerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
+function toframerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     __ignore__,fs; blocksize) where K
 
-    CutApply(tosamplerate(child(x),fs;blocksize=blocksize),x.time,K())
+    CutApply(toframerate(child(x),fs;blocksize=blocksize),x.time,K())
 end
 
 struct CutBlock{C}
@@ -87,12 +87,12 @@ child(x::CutBlock) = x.child
 function nextblock(x::AfterApply,maxlen,skip)
     len = resolvelen(x)
     childblock = nextblock(child(x),len,true)
-    skipped = nsamples(childblock)
+    skipped = nframes(childblock)
     while !isnothing(childblock) && skipped < len
         childblock = nextblock(child(x),min(maxlen,len - skipped),true,
             childblock)
         isnothing(childblock) && break
-        skipped += nsamples(childblock)
+        skipped += nframes(childblock)
     end
     if skipped < len
         io = IOBuffer()
@@ -115,7 +115,7 @@ nextblock(x::AfterApply,maxlen,skip,block::CutBlock{Nothing}) = nothing
 
 initblock(x::UntilApply) = CutBlock(resolvelen(x),nothing)
 function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
-    nextlen = block.n - nsamples(block)
+    nextlen = block.n - nframes(block)
     if nextlen > 0
         childblock = !isnothing(child(block)) ?
             nextblock(child(x),min(nextlen,len),skip,child(block)) :
@@ -126,7 +126,7 @@ function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
     end
 end
 
-nsamples(x::CutBlock) = nsamples(child(x))
-nsamples(x::CutBlock{Nothing}) = 0
-@Base.propagate_inbounds sample(x::CutApply,block::CutBlock,i) =
-    sample(child(x),child(block),i)
+nframes(x::CutBlock) = nframes(child(x))
+nframes(x::CutBlock{Nothing}) = 0
+@Base.propagate_inbounds frame(x::CutApply,block::CutBlock,i) =
+    frame(child(x),child(block),i)

@@ -12,9 +12,9 @@ end
 filterfn(design,method,args...) = FilterFn(design,method,args)
 
 function nyquist_check(x,hz)
-    if !ismissing(samplerate(x)) && inHz(hz) ≥ 0.5samplerate(x)
+    if !ismissing(framerate(x)) && inHz(hz) ≥ 0.5framerate(x)
         error("The frequency $(hz) cannot be represented at a sampling rate ",
-              "of $(samplerate(x)) Hz. Increase the sampling rate or lower ",
+              "of $(framerate(x)) Hz. Increase the sampling rate or lower ",
               "the frequency.")
     end
 end
@@ -106,14 +106,14 @@ end
 
 resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
-function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=samplerate(x)) where {Si}
+function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=framerate(x)) where {Si}
     FilteredSignal(x,fn,blocksize,newfs)
 end
 struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
     signal::Si
     fn::Fn
     blocksize::Int
-    samplerate::Fs
+    framerate::Fs
 end
 function FilteredSignal(signal::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,Fs}
     T = float(channel_eltype(signal))
@@ -124,7 +124,7 @@ SignalTrait(x::Type{T}) where {S,T <: FilteredSignal{<:Any,S}} =
 SignalTrait(x::Type{<:FilteredSignal{T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
     IsSignal{T,Fs,L}()
 child(x::FilteredSignal) = x.signal
-samplerate(x::FilteredSignal) = x.samplerate
+framerate(x::FilteredSignal) = x.framerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
 
 Base.show(io::IO,::MIME"text/plain",x::FilteredSignal) = pprint(io,x)
@@ -149,29 +149,29 @@ filterstring(::Type{<:Bandpass}) = "bandpass"
 filterstring(::Type{<:Bandstop}) = "bandstop"
 filterstring(x) = string(x)
 
-function tosamplerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
+function toframerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
 blocksize)
     # is this a non-resampling filter?
-    if samplerate(x) == samplerate(x.signal)
-        FilteredSignal(tosamplerate(x.signal,fs,blocksize=blocksize),
+    if framerate(x) == framerate(x.signal)
+        FilteredSignal(toframerate(x.signal,fs,blocksize=blocksize),
             x.fn,x.blocksize,fs)
     else
-        tosamplerate(x.signal,s,DataSignal(),fs,blocksize=blocksize)
+        toframerate(x.signal,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
-function tosamplerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
+function toframerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
         blocksize)
-    FilteredSignal(tosamplerate(x.signal,fs,blocksize=blocksize),
+    FilteredSignal(toframerate(x.signal,fs,blocksize=blocksize),
         x.fn,x.blocksize,fs)
 end
 
-function nsamples(x::FilteredSignal)
-    if ismissing(samplerate(x.signal))
+function nframes(x::FilteredSignal)
+    if ismissing(framerate(x.signal))
         missing
-    elseif samplerate(x) == samplerate(x.signal)
-        nsamples(x.signal)
+    elseif framerate(x) == framerate(x.signal)
+        nframes(x.signal)
     else
-        ceil(Int,nsamples(x.signal)*samplerate(x)/samplerate(x.signal))
+        ceil(Int,nframes(x.signal)*framerate(x)/framerate(x.signal))
     end
 end
 
@@ -190,23 +190,23 @@ struct FilterBlock{H,S,T,C}
     child::C
 end
 child(x::FilterBlock) = x.child
-init_length(x::FilteredSignal) = min(nsamples(x),x.blocksize)
+init_length(x::FilteredSignal) = min(nframes(x),x.blocksize)
 init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn}) =
-    trunc(Int,min(nsamples(x),x.blocksize) / x.fn.ratio)
+    trunc(Int,min(nframes(x),x.blocksize) / x.fn.ratio)
 
 struct UndefChild
 end
 const undef_child = UndefChild()
 function FilterBlock(x::FilteredSignal)
-    hs = [resolve_filter(x.fn(samplerate(x))) for _ in 1:nchannels(x.signal)]
+    hs = [resolve_filter(x.fn(framerate(x))) for _ in 1:nchannels(x.signal)]
     len = init_length(x)
     input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
 
     FilterBlock(0,0,0, 0,0, hs,input,output,undef_child)
 end
-nsamples(x::FilterBlock) = x.len
-@Base.propagate_inbounds sample(::FilteredSignal,x::FilterBlock,i) =
+nframes(x::FilterBlock) = x.len
+@Base.propagate_inbounds frame(::FilteredSignal,x::FilterBlock,i) =
     view(x.output,i+x.last_output_index,:)
 
 inputlength(x,n) = n
@@ -218,11 +218,11 @@ function nextblock(x::FilteredSignal,maxlen,skip,
     block::FilterBlock=FilterBlock(x))
 
     last_output_index = block.last_output_index + block.len
-    if nsamples(x) == last_output_index
+    if nframes(x) == last_output_index
         return nothing
     end
 
-    # check for leftover samples in the output buffer
+    # check for leftover frames in the output buffer
     if last_output_index < block.available_output
         len = min(maxlen, block.available_output - last_output_index)
 
@@ -255,26 +255,26 @@ function nextblock(x::FilteredSignal,maxlen,skip,
 end
 
 # TODO: create an online version of normpower?
-# TODO: this should be excuted lazzily to allow for unkonwn samplerates
+# TODO: this should be excuted lazzily to allow for unkonwn framerates
 struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
     signal::Si
 end
 child(x::NormedSignal) = x.signal
-nsamples(x::NormedSignal) = nsamples(x.signal)
+nframes(x::NormedSignal) = nframes(x.signal)
 NormedSignal(x::Si) where Si = NormedSignal{Si,float(channel_eltype(Si))}(x)
 SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:NormedSignal{<:Any,T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
     IsSignal{T,Fs,L}()
-function tosamplerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
+function toframerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
     ::ComputedSignal,fs;blocksize)
 
-    NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
+    NormedSignal(toframerate(x.signal,fs,blocksize=blocksize))
 end
-function tosamplerate(x::NormedSignal,::IsSignal{<:Any,Missing},
+function toframerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     __ignore__,fs;blocksize)
 
-    NormedSignal(tosamplerate(x.signal,fs,blocksize=blocksize))
+    NormedSignal(toframerate(x.signal,fs,blocksize=blocksize))
 end
 
 struct NormedBlock{A}
@@ -282,16 +282,16 @@ struct NormedBlock{A}
     len::Int
     vals::A
 end
-nsamples(x::NormedBlock) = x.len
-@Base.propagate_inbounds sample(::NormedSignal,x::NormedBlock,i) =
+nframes(x::NormedBlock) = x.len
+@Base.propagate_inbounds frame(::NormedSignal,x::NormedBlock,i) =
     view(x.vals,i,:)
 
 function initblock(x::NormedSignal)
-    if isinf(nsamples(x))
+    if isinf(nframes(x))
         error("Cannot normalize an infinite-length signal. Please ",
               "use `until` to take a prefix of the signal")
     end
-    vals = Array{channel_eltype(x)}(undef,nsamples(x),nchannels(x))
+    vals = Array{channel_eltype(x)}(undef,nframes(x),nchannels(x))
     sink!(vals, x.signal)
 
     rms = sqrt(mean(x -> float(x)^2,vals))
@@ -302,14 +302,14 @@ function initblock(x::NormedSignal)
 end
 
 function nextblock(x::NormedSignal,maxlen,skip,block::NormedBlock=initblock(x))
-    len = min(maxlen,nsamples(x) - block.offset)
+    len = min(maxlen,nframes(x) - block.offset)
     NormedBlock(block.offset + block.len, len, block.vals)
 end
 
 """
     normpower(x)
 
-Return a signal with normalized power. That is, divide all samples by the
+Return a signal with normalized power. That is, divide all frames by the
 root-mean-squared value of the entire signal.
 
 """
