@@ -17,7 +17,7 @@ function arraysignal(x,::Type{<:DimensionalArray},fs)
     end
 end
 
-function signal(x::AbstractDimensionalArray,::IsSignal,
+function Signal(x::AbstractDimensionalArray,::IsSignal,
     fs::Union{Missing,Number}=missing)
 
     if !isconsistent(fs,framerate(x))

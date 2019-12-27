@@ -1,10 +1,10 @@
 using .FixedPointNumbers
 
-function pad(x,p::typeof(one))
+function Pad(x,p::typeof(one))
     if isinf(nframes(x))
         x
     elseif channel_eltype(x) <: Fixed
-        x |> toeltype(float(channel_eltype(x))) |> pad(p)
+        x |> ToEltype(float(channel_eltype(x))) |> Pad(p)
     else
         PaddedSignal(x,p)
     end

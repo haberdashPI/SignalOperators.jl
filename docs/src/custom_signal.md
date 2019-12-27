@@ -1,7 +1,7 @@
 # [Custom Signals](@id custom_signals)
 
-Many signals can be readily created by passing a function to [`signal`](@ref)
-or by using [`mapsignal`](@ref). However, in some cases it may be preferable
+Many signals can be readily created by passing a function to [`Signal`](@ref)
+or by using [`MapSignal`](@ref). However, in some cases it may be preferable
 to define a new signal type entirely. This allows for the most flexibility in
 terms of how the signal will behave within a chain of signal operators.
 
@@ -27,14 +27,14 @@ The custom signal will also need to implement methods for the following, signal-
 
 * [`nframes`](@ref) - to indicate how many frames are present in the signal;
 this may be an infinite or missing value.
-* [`framerate`](@ref) - to indicate the sampling rate of the signal
+* [`framerate`](@ref) - to indicate the frame rate of the signal
 * [`nchannels`](@ref) - to indicate how many channels per frame there are in this signal
 
 Finally, there are several **optional** methods you can define for signals as
 well.
 
-* [`signal`](@ref) - to enable one more other types to be interpreted as your
+* [`Signal`](@ref) - to enable one more other types to be interpreted as your
 custom signal type.
 * [`duration`](@ref) - to allow `missing` values for `nframes` and non-missing values for `duration`.
-* [`SignalOperators.EvalTrait`](@ref) and [`toframerate`](@ref) - to enable custom handling of
+* [`SignalOperators.EvalTrait`](@ref) and [`ToFramerate`](@ref) - to enable custom handling of
 signal resmapling.

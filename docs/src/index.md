@@ -16,28 +16,28 @@ using SignalOperators.Units # allows the use of dB, Hz, s etc... as unitful valu
 
 # a pure tone 20 dB below a power 1 signal, with on and off ramps (for
 # a smooth onset/offset)
-sound1 = signal(sin,ω=1kHz) |> until(5s) |> ramp |> normpower |> amplify(-20dB)
+sound1 = Signal(sin,ω=1kHz) |> Until(5s) |> Ramp |> Normpower |> Amplify(-20dB)
 
 # a sound defined by a file, matching the overall power to that of sound1
-sound2 = "example.wav" |> normpower |> amplify(-20dB)
+sound2 = "example.wav" |> Normpower |> Amplify(-20dB)
 
 # a 1kHz sawtooth wave
-sound3 = signal(ϕ -> ϕ-π,ω=1kHz) |> ramp |> normpower |> amplify(-20dB)
+sound3 = Signal(ϕ -> ϕ-π,ω=1kHz) |> Ramp |> Normpower |> Amplify(-20dB)
 
 # a 5 Hz amplitude modulated noise
 sound4 = randn |>
-    amplify(signal(ϕ -> 0.5sin(ϕ) + 0.5,ω=5Hz)) |>
-    until(5s) |> normpower |> amplify(-20dB)
+    Amplify(Signal(ϕ -> 0.5sin(ϕ) + 0.5,ω=5Hz)) |>
+    Until(5s) |> Normpower |> Amplify(-20dB)
 
 # a 1kHz tone surrounded by a notch noise
 SNR = 5dB
-x = signal(sin,ω=1kHz) |> until(1s) |> ramp |> normpower |> amplify(-20dB + SNR)
-y = signal(randn) |> until(1s) |> bandstop(0.5kHz,2kHz) |> normpower |>
-  amplify(-20dB)
-scene = mix(x,y)
+x = Signal(sin,ω=1kHz) |> Until(1s) |> Ramp |> Normpower |> Amplify(-20dB + SNR)
+y = Signal(randn) |> Until(1s) |> bandstop(0.5kHz,2kHz) |> Normpower |>
+  Amplify(-20dB)
+scene = Mix(x,y)
 
 # write all of the signals to a single file, at 44.1 kHz
-append(sound1,sound2,sound3,sound4,scene) |> toframerate(44.1kHz) |> sink("examples.wav")
+Append(sound1,sound2,sound3,sound4,scene) |> ToFramerate(44.1kHz) |> sink("examples.wav")
 
 ```
 

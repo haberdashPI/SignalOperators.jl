@@ -1,4 +1,4 @@
-export until, after
+export Until, After, until, after
 
 ################################################################################
 # cutting signals
@@ -18,9 +18,9 @@ function SignalTrait(::Type{<:CutApply{Si,Tm,K}},::IsSignal{T,Fs,L}) where
 
     if Fs <: Missing
         IsSignal{T,Missing,Missing}()
-    elseif K <: Val{:until}
+    elseif K <: Val{:Until}
         IsSignal{T,Float64,Int}()
-    elseif K <: Val{:after}
+    elseif K <: Val{:After}
         IsSignal{T,Float64,L}()
     else
         error("Unexpected cut apply type $K")
@@ -30,24 +30,48 @@ end
 child(x::CutApply) = x.signal
 resolvelen(x::CutApply) = inframes(Int,maybeseconds(x.time),framerate(x))
 
-const UntilApply{S,T} = CutApply{S,T,Val{:until}}
-const AfterApply{S,T} = CutApply{S,T,Val{:after}}
+const UntilApply{S,T} = CutApply{S,T,Val{:Until}}
+const AfterApply{S,T} = CutApply{S,T,Val{:After}}
+
+"""
+    Until(x,time)
+
+Create a signal of all frames of `x` up Until and including `time`.
+"""
+Until(time) = x -> Until(x,time)
+Until(x,time) = CutApply(Signal(x),time,Val{:Until}())
 
 """
     until(x,time)
 
-Create a signal of all frames of `x` up until and including `time`.
+Equivalent to `sink(Until(x,time))`
+
+## See also
+
+[`Until`](@ref)
+
 """
-until(time) = x -> until(x,time)
-until(x,time) = CutApply(signal(x),time,Val{:until}())
+until(x,time) = sink(Until(x,time))
+
+"""
+    After(x,time)
+
+Create a signal of all frames of `x` After `time`.
+"""
+After(time) = x -> After(x,time)
+After(x,time) = CutApply(Signal(x),time,Val{:After}())
 
 """
     after(x,time)
 
-Create a signal of all frames of `x` after `time`.
+Equivalent to `sink(After(x,time))`
+
+## See also
+
+[`After`](@ref)
+
 """
-after(time) = x -> after(x,time)
-after(x,time) = CutApply(signal(x),time,Val{:after}())
+after(x,time) = sink(After(x,time))
 
 Base.show(io::IO,::MIME"text/plain",x::CutApply) = pprint(io,x)
 function PrettyPrinting.tile(x::CutApply)
@@ -56,8 +80,8 @@ function PrettyPrinting.tile(x::CutApply)
 end
 signaltile(x::CutApply) = PrettyPrinting.tile(x)
 
-cutname(x::UntilApply) = "until"
-cutname(x::AfterApply) = "after"
+cutname(x::UntilApply) = "Until"
+cutname(x::AfterApply) = "After"
 
 nframes(x::UntilApply) = min(nframes(x.signal),resolvelen(x))
 duration(x::UntilApply) =
@@ -68,14 +92,14 @@ duration(x::AfterApply) =
     max(0,duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)))
 
 EvalTrait(x::AfterApply) = DataSignal()
-function toframerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
-    CutApply(toframerate(child(x),fs;blocksize=blocksize),x.time,
-        Val{:until}())
+function ToFramerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),x.time,
+        Val{:Until}())
 end
-function toframerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
+function ToFramerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     __ignore__,fs; blocksize) where K
 
-    CutApply(toframerate(child(x),fs;blocksize=blocksize),x.time,K())
+    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),x.time,K())
 end
 
 struct CutBlock{C}

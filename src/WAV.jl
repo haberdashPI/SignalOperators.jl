@@ -9,7 +9,7 @@ function load_signal(::DataFormat{:WAV},x,fs=missing)
     x,_fs = wavread(x)
     if !isconsistent(fs,_fs)
         error("Expected file $x to have framerate $fs. If you wish to convert",
-              " the frame rate, you can use `toframerate`.")
+              " the frame rate, you can use `ToFramerate`.")
     end
-    signal(x,_fs)
+    Signal(x,_fs)
 end

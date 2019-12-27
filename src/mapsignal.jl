@@ -1,5 +1,6 @@
 using Unitful
-export mapsignal, mix, amplify, addchannel, channel
+export MapSignal, Mix, Amplify, AddChannel, SelectChannel,
+    mapsignal, mix, amplify, addchannel, selectchannel
 
 ################################################################################
 # binary operators
@@ -23,7 +24,7 @@ function MapSignal(fn::Fn,val::El,len::L,signals::Si,
     T = El == NoValues ? Nothing : ntuple_T(El)
     N = El == NoValues ? 0 : length(signals)
     C = El == NoValues ? 1 : nchannels(signals[1])
-    padded_signals = pad.(signals,Ref(padding))
+    padded_signals = Pad.(signals,Ref(padding))
     PSi = typeof(padded_signals)
     MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,framerate,padding,
         padded_signals,blocksize,bychannel)
@@ -43,27 +44,27 @@ function duration(x::MapSignal)
         any(ismissing,durs) ? missing :
         maximum(filter(!isinf,durs))
 end
-function toframerate(x::MapSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
     if inHz(fs) < x.framerate
         # reframe input if we are downsampling
-        mapsignal(cleanfn(x.fn),toframerate.(x.signals,fs,blocksize=blocksize)...,
+        MapSignal(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
             padding=x.padding,bychannel=x.bychannel,
             blocksize=x.blocksize)
     else
         # reframe output if we are upsampling
-        toframerate(x,s,DataSignal(),fs,blocksize=blocksize)
+        ToFramerate(x,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
 
 root(x::MapSignal) = reduce(mergeroot,root.(x.signals))
 
-toframerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
-    mapsignal(cleanfn(x.fn),toframerate.(x.signals,fs,blocksize=blocksize)...,
+ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
+    MapSignal(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
         padding=x.padding,bychannel=x.bychannel,
         blocksize=x.blocksize)
 
 """
-    mapsignal(fn,arguments...;padding,bychannel)
+    MapSignal(fn,arguments...;padding,bychannel)
 
 Apply `fn` across the frames of arguments, producing a signal of the output
 of `fn`. Shorter signals are padded to accommodate the longest finite-length
@@ -72,7 +73,7 @@ return a single number. This operation is broadcast across all channels of
 the input. It is expected to be a type stable function.
 
 Normally the signals are first promoted to have the same samle rate and the
-same number of channels using [`uniform`](@ref) (with `channels=true`).
+same number of channels using [`Uniform`](@ref) (with `channels=true`).
 
 ## Cross-channel functions
 
@@ -86,7 +87,7 @@ and right channels.
 
 ```julia
 x = rand(10,2)
-swapped = mapsignal(x,bychannel=false) do val
+swapped = MapSignal(x,bychannel=false) do val
     val[2],val[1]
 end
 ```
@@ -96,7 +97,7 @@ When `bychannel=false` the channels of each signal are not promoted:
 ## Padding
 
 Padding determines how frames past the end of shorter signals are reported.
-The value of `padding` is passd to [`pad`](@ref). Its default value is
+The value of `padding` is passd to [`Pad`](@ref). Its default value is
 determined by the value of `fn`. The default value for the four basic
 arithmetic operators is their identity (`one` for `*` and `zero` for `+`).
 These defaults are set on the basis of `fn` using `default_pad(fn)`. A
@@ -113,10 +114,10 @@ SignalOperators.default_pad(::typeof(myfun)) = one
 ```
 
 """
-function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
+function MapSignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     blocksize=default_blocksize)
 
-    xs = uniform(xs,channels=bychannel)
+    xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
     lens = nframes.(xs) |> collect
     len = all(isinf,lens) ? inflen :
@@ -130,6 +131,18 @@ function mapsignal(fn,xs...;padding = default_pad(fn),bychannel=true,
     MapSignal(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
         bychannel)
 end
+
+"""
+    mapsignal(fn,args...;padding,bychannel)
+
+Equivalent to `sink(MapSignal(fn,args...;padding,bychannel))`
+
+## See also
+
+[`MapSignal`](@ref)
+
+"""
+mapsignal(fn,args...;kwds...) = sink(MapSignal(fn,args...;kwds...))
 
 struct FnBr{Fn}
     fn::Fn
@@ -243,57 +256,106 @@ function PrettyPrinting.tile(x::MapSignal)
     # values
 end
 signaltile(x::MapSignal) = PrettyPrinting.tile(x)
-mapstring(fn) = string("mapsignal(",fn,",")
-mapstring(x::FnBr) = string("mapsignal(",x.fn,",")
+mapstring(fn) = string("MapSignal(",fn,",")
+mapstring(x::FnBr) = string("MapSignal(",x.fn,",")
 
 """
 
+    Mix(xs...)
+
+Sum all signals together, using [`MapSignal`](@ref)
+
+"""
+Mix(y) = x -> Mix(x,y)
+Mix(xs...) = MapSignal(+,xs...)
+mapstring(::FnBr{<:typeof(+)}) = "Mix("
+
+"""
     mix(xs...)
 
-Sum all signals together, using [`mapsignal`](@ref)
+Equivalent to `sink(Mix(xs...))`
+
+## See also
+
+[`Mix`](@ref)
 
 """
-mix(y) = x -> mix(x,y)
-mix(xs...) = mapsignal(+,xs...)
-mapstring(::FnBr{<:typeof(+)}) = "mix("
+mix(xs...) = sink(Mix(xs...))
 
 """
 
-    amplify(xs...)
+    Amplify(xs...)
 
 Find the product, on a per-frame basis, for all signals `xs` using
-[`mapsignal`](@ref).
+[`MapSignal`](@ref).
 
 """
-amplify(y) = x -> amplify(x,y)
-amplify(xs...) = mapsignal(*,xs...)
-mapstring(::FnBr{<:typeof(*)}) = "amplify("
+Amplify(y) = x -> Amplify(x,y)
+Amplify(xs...) = MapSignal(*,xs...)
+mapstring(::FnBr{<:typeof(*)}) = "Amplify("
+
+"""
+    amplify(xs...)
+
+Equivalent to `sink(Amplify(xs...))`
+
+## See also
+
+[`Amplify`](@ref)
+
+"""
+amplify(xs...) = sink(Amplify(xs...))
 
 """
 
-    addchannel(xs...)
+    AddChannel(xs...)
 
 Concatenate the channels of all signals into one signal, using
-[`mapsignal`](@ref). This will result in a signal with `sum(nchannels,xs)`
+[`MapSignal`](@ref). This will result in a signal with `sum(nchannels,xs)`
 channels.
 
 """
-addchannel(y) = x -> addchannel(x,y)
-addchannel(xs...) = mapsignal(tuplecat,xs...;bychannel=false)
+AddChannel(y) = x -> AddChannel(x,y)
+AddChannel(xs...) = MapSignal(tuplecat,xs...;bychannel=false)
 tuplecat(a,b) = (a...,b...)
 tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
-mapstring(::typeof(tuplecat)) = "addchannel("
+mapstring(::typeof(tuplecat)) = "AddChannel("
+
+"""
+    addchannel(xs...)
+
+Equivalent to `sink(AddChannel(xs...))`
+
+## See also
+
+[`AddChannel`](@ref)
+
+"""
+addchannel(xs...) = sink(AddChannel(xs...))
+
 
 """
 
-    channel(x,n)
+    SelectChannel(x,n)
 
 Select channel `n` of signal `x`, as a single-channel signal, using
-[`mapsignal`](@ref).
+[`MapSignal`](@ref).
 
 """
-channel(n) = x -> channel(x,n)
-channel(x,n) = mapsignal(GetChanFn(n),x,bychannel=false)
+SelectChannel(n) = x -> SelectChannel(x,n)
+SelectChannel(x,n) = MapSignal(GetChanFn(n),x,bychannel=false)
 struct GetChanFn; n::Int; end
 (fn::GetChanFn)(x) = x[fn.n]
-mapstring(fn::GetChanFn) = string("channel(",fn.n)
+mapstring(fn::GetChanFn) = string("SelectChannel(",fn.n)
+
+"""
+    selectchannel(xs...)
+
+Equivalent to `sink(SelectChannel(xs...))`
+
+## See also
+
+[`SelectChannel`](@ref)
+
+"""
+selectchannel(xs...) = sink(SelectChannel(xs...))

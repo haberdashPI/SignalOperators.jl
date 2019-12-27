@@ -2,9 +2,9 @@ using .SampledSignals: SampleBuf
 
 init_array_backend!(SampleBuf)
 arraysignal(x,::Type{<:SampleBuf},fs) = SampleBuf(x,inHz(fs))
-arraysignal(x::SampleBuf,::Type{<:SampleBuf},fs) = signal(x,fs)
+arraysignal(x::SampleBuf,::Type{<:SampleBuf},fs) = Signal(x,fs)
 
-function signal(x::SampleBuf,fs::Union{Missing,Number}=missing)
+function Signal(x::SampleBuf,fs::Union{Missing,Number}=missing)
     if !isconsistent(fs,framerate(x))
         error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
     else

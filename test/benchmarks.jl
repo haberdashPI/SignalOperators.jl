@@ -18,12 +18,12 @@ rng = MersenneTwister(1983)
 x = rand(rng,10^4,2)
 y = rand(rng,10^4,2)
 
-signal(x,1000Hz) |> toframerate(500Hz) |> sink
+Signal(x,1000Hz) |> ToFramerate(500Hz) |> sink
 
-suite["signal"]["sinking"] = @benchmarkable signal(x,1000Hz) |> sink
+suite["signal"]["sinking"] = @benchmarkable Signal(x,1000Hz) |> sink
 suite["baseline"]["sinking"] = @benchmarkable copy(x)
 suite["signal"]["functions"] = @benchmarkable begin
-    signal(sin,ω=10Hz) |> sink(duration=10_000frames,framerate=1000Hz)
+    Signal(sin,ω=10Hz) |> sink(duration=10_000frames,framerate=1000Hz)
 end
 suite["baseline"]["functions"] = @benchmarkable begin
     sinpi.(range(0,step=1/1000,length=10^4) .* (2*10))
@@ -36,28 +36,29 @@ suite["baseline"]["numbers"] = @benchmarkable begin
 end
 
 suite["signal"]["cutting"] = @benchmarkable begin
-    x |> until(5*10^3*frames) |> sink(framerate=1000Hz)
+    x |> Until(5*10^3*frames) |> sink(framerate=1000Hz)
 end
 suite["baseline"]["cutting"] = @benchmarkable x[1:(5*10^3)]
 suite["signal"]["padding"] = @benchmarkable begin
-    pad($x,zero) |> until(20_000frames) |> sink(framerate=1000Hz)
+    Pad($x,zero) |> Until(20_000frames) |> sink(framerate=1000Hz)
 end
 suite["baseline"]["padding"] = @benchmarkable vcat($x,zero($x))
-suite["signal"]["appending"] = @benchmarkable sink(append($x,$y),framerate=1000Hz)
+suite["signal"]["appending"] = @benchmarkable sink(Append($x,$y),framerate=1000Hz)
 suite["baseline"]["appending"] = @benchmarkable vcat($x,$y)
 
-suite["signal"]["mapping"] = @benchmarkable sink(mix($x,$y),framerate=1000Hz)
+suite["signal"]["mapping"] = @benchmarkable sink(Mix($x,$y),framerate=1000Hz)
 suite["baseline"]["mapping"] = @benchmarkable $x .+ $y
 
 suite["signal"]["filtering"] = @benchmarkable begin
-    lowpass($x,20Hz) |> sink(framerate=1000Hz)
+    Filt($x,Lowpass,20Hz) |> sink(framerate=1000Hz)
 end
 suite["baseline"]["filtering"] = @benchmarkable begin
-    filt(digitalfilter(Lowpass(20,fs=1000),Butterworth(5)),$x)
+    Filt($x,digitalfilter(Lowpass(20,fs=1000),Butterworth(5))) |>
+        sink(framerate=1000Hz)
 end
 
 suite["signal"]["resampling"]  = @benchmarkable begin
-    signal($x,1000Hz) |> toframerate(500Hz) |> sink
+    Signal($x,1000Hz) |> ToFramerate(500Hz) |> sink
 end
 suite["baseline"]["resampling"]  = @benchmarkable begin
     Filters.resample($(x[:,1]),1//2)
@@ -65,7 +66,7 @@ suite["baseline"]["resampling"]  = @benchmarkable begin
 end
 
 suite["signal"]["resampling-irrational"]  = @benchmarkable begin
-    signal($x,1000Hz) |> toframerate(π*1000Hz) |> sink
+    Signal($x,1000Hz) |> ToFramerate(π*1000Hz) |> sink
 end
 suite["baseline"]["resampling-irrational"]  = @benchmarkable begin
     Filters.resample($(x[:,1]),Float64(π))
@@ -78,12 +79,12 @@ end
 suite["signal"]["overall"] = @benchmarkable begin
     N = 10000
     x_ = rand(2N,2)
-    mix(signal(sin,ω=10Hz),x_) |>
-        toframerate(2000Hz) |>
-        until(0.5*N*frames) |> after(0.25*N*frames) |>
-        append(sin) |> until(N*frames) |>
+    Mix(Signal(sin,ω=10Hz),x_) |>
+        ToFramerate(2000Hz) |>
+        Until(0.5*N*frames) |> After(0.25*N*frames) |>
+        Append(sin) |> Until(N*frames) |>
         lowpass(20Hz) |>
-        normpower |> amplify(-10dB) |>
+        Normpower |> Amplify(-10dB) |>
         sink
 end
 

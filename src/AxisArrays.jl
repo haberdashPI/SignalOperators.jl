@@ -41,7 +41,7 @@ function arraysignal(x,::Type{<:AxisArray},fs)
     end
 end
 
-function signal(x::AxisArray,fs::Union{Missing,Number}=missing)
+function Signal(x::AxisArray,fs::Union{Missing,Number}=missing)
     if !isconsistent(fs,framerate(x))
         error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
     else
@@ -56,9 +56,4 @@ function initsink(x,::Type{<:AxisArray},len)
     times = Axis{:time}(range(0s,length=len,step=float(s/framerate(x))))
     channels = Axis{:channel}(1:nchannels(x))
     AxisArray(initsink(x,Array,len)[1],times,channels)
-end
-
-function signalshow(io,x::AxisArray)
-    signalshow(io,x.data)
-    show_fs(io,x)
 end

@@ -32,7 +32,7 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
         write(io,string(x.fn))
         show_fs(io,x)
     else
-        write(io,"signal(")
+        write(io,"Signal(")
         write(io,string(x.fn))
         !ismissing(x.ω) && write(io,",ω=",string(x.ω))
         !iszero(x.ϕ) && write(io,",ϕ=",string(x.ϕ),"π")
@@ -59,7 +59,7 @@ frame(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
 frame(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
     sinpi(2*((i+block.offset)/x.framerate + x.ϕ))
 
-toframerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
+ToFramerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.framerate))
 
 abstract type Functor
@@ -68,7 +68,7 @@ end
 """
 ## Functions
 
-    signal(fn,[framerate];[ω/frequency],[ϕ/phase])
+    Signal(fn,[framerate];[ω/frequency],[ϕ/phase])
 
 Functions can define infinite length signals of known or unknown frame rate.
 The function `fn` can either return a number or, for multi-channel signals,
@@ -85,7 +85,7 @@ time (e.g. `s` for seconds)). When frequency is not specified the phase
 is assumed to be in units of seconds.
 
 """
-function signal(fn::Union{Function,Functor},
+function Signal(fn::Union{Function,Functor},
     framerate::Union{Missing,Number}=missing;
     ω=missing,frequency=ω,ϕ=0,phase=ϕ)
 
@@ -107,7 +107,7 @@ single keyword argument, `rng`, which allows you to specify the random number
 generator; `rng` defaults to `Random.GLOBAL_RNG`.
 
 """
-signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
+Signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
     SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
 
 frame(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =

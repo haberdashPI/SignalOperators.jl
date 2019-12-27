@@ -17,46 +17,72 @@ nchannels
 framerate
 channel_eltype
 ```
-
-## Signal Reformatting
-
-```@docs
-toframerate
-tochannels
-toeltype
-format
-uniform
-```
-
 ## Signal Operators
+
+### Basic Operators
+
 ```@docs
+Until
 until
+After
 after
+Append
 append
-prepend
-pad
+Prepend
+preprend
+Pad
 mirror
 cycle
 lastframe
 SignalOperators.valuefunction
-filtersignal
-lowpass
-highpass
-bandpass
-bandstop
-normpower
+```
+
+### Mapping Operators
+
+```@docs
+Filt
+Normpower
+MapSignal
 mapsignal
+Mix
 mix
+Amplify
 amplify
+AddChannel
 addchannel
-channel
+SelectChannel
+selectchannel
+```
+
+### Ramping Operators
+
+```@docs
+RampOn
 rampon
+RampOff
 rampoff
+Ramp
 ramp
+FadeTo
 fadeto
 ```
 
+### Reformatting Operators
+
+```@docs
+ToFramerate
+toframerate
+ToChannels
+tochannels
+ToEltype
+toeltype
+Format
+format
+Uniform
+```
+
 ## Custom Signals
+
 ```@docs
 SignalOperators.SignalTrait
 SignalOperators.IsSignal
@@ -68,6 +94,7 @@ SignalOperators.ArrayBlock
 ```
 
 ## Custom Sinks
+
 ```@docs
 SignalOperators.initsink
 SignalOperators.sink_helper!

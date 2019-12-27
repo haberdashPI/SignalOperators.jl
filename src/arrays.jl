@@ -7,8 +7,13 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 ## Arrays
 
 Any array can be interpreted as a signal. By default the first dimension is
-time, the second channels and their frame rate is a missing value. Some
-array types change this default behavior.
+time, the second channels and their frame rate is a missing value. Some array
+types change this default behavior. If you specify a frame rate when
+(see "Array & Number" section below).
+
+!!! warn
+
+    Arrays of more than two dimensions are not currently supported.
 
 - [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
 axis labeled `time` and one or zero additional axes, can be treated as a
@@ -19,10 +24,11 @@ also properly interpreted as signals, as per the conventions employed for its
 package.
 - [`DimensionalArrays`](https://github.com/rafaqz/DimensionalData.jl) can be
 treated as signals if there is a `Time` dimension, which must be represented
-using an object with the `step` function defined (e.g. `AbstractRange`)
+using an object with the `step` function defined (e.g. `AbstractRange`) and
+zero or one additional dimensions (treated as channels)
 
 """
-function signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
+function Signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
     if ismissing(fs)
         if ndims(x) ∈ [1,2]
             return x
@@ -36,10 +42,10 @@ end
 
 arraysignal(x,::Type{<:Array},fs) = (x,inHz(fs))
 
-toframerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
-    signal(x,fs)
-toframerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
-    __toframerate__(x,s,fs,blocksize)
+ToFramerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
+    Signal(x,fs)
+ToFramerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
+    __ToFramerate__(x,s,fs,blocksize)
 
 function SignalTrait(::Type{<:AbstractArray{T,N}}) where{T,N}
     if N ∈ [1,2]
@@ -64,7 +70,7 @@ dimension is time, the second channels, and the number determines the frame
 rate (in Hertz).
 
 """
-function signal(x::Tuple{<:AbstractArray,<:Number},
+function Signal(x::Tuple{<:AbstractArray,<:Number},
     fs::Union{Missing,Number}=missing)
 
     if !isconsistent(fs,x[2])
@@ -126,10 +132,16 @@ function signaltile(x)
     signalshow(io,x)
     literal(String(take!(io)))
 end
-function signalshow(io,x::AbstractArray)
-    show(IOContext(io,:displaysize=>(1,30),:limit=>true),
-        MIME("text/plain"),x)
-    show_fs(io,x)
+function signalshow(io,x::AbstractArray,shownfs=false)
+    p = parent(x)
+    if p === x
+        show(IOContext(io,:displaysize=>(1,30),:limit=>true),
+            MIME("text/plain"),x)
+        !shownfs && show_fs(io,x)
+    else
+        signalshow(io,p,true)
+        show_fs(io,x)
+    end
 end
 
 mergerule(::Type{<:AbstractArray},y::Type{<:AbstractArray}) = Array

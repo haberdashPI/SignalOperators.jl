@@ -1,4 +1,4 @@
-export duration, nframes, framerate, nchannels, signal, sink, sink!, channel_eltype
+export duration, nframes, framerate, nchannels, Signal, sink, sink!, channel_eltype
 using FileIO
 
 # Signals have a frame rate and some iterator element type
@@ -6,7 +6,7 @@ using FileIO
 """
     SignalOperators.IsSignal{T,Fs,L}
 
-Represents the format of a signal type with three type parameters:
+Represents the Format of a signal type with three type parameters:
 
 * `T` - The [`channel_eltype`](@ref) of the signal.
 * `Fs` - The type of the framerate. It should be either `Float64` or
@@ -23,7 +23,7 @@ end
     SiganlOperators.SignalTrait(::Type{T}) where T
 
 Returns either `nothing` if the type T should not be considered a signal (the
-default) or [`IsSignal`](@ref) to indicate the signal format for this signal.
+default) or [`IsSignal`](@ref) to indicate the signal Format for this signal.
 
 """
 SignalTrait(x::T) where T = SignalTrait(T)
@@ -68,10 +68,11 @@ length.
 
 !!! note
 
-    If your are implementing a [custom signal](@ref custom_signals), you need not normally
-    define `duration` as it will be computed from `nframes` and `framerate`.
-    However, if one or both of these is `missing` and you want `duartion` to
-    return a non-missing value, you can define custom method of `duration`.
+    If your are implementing a [custom signal](@ref custom_signals), you need
+    not normally define `duration` as it will be computed from `nframes` and
+    `framerate`. However, if one or both of these is `missing` and you want
+    `duartion` to return a non-missing value, you can define custom method of
+    `duration`.
 
 """
 duration(x) = nframes(x) / framerate(x)
@@ -131,32 +132,31 @@ channel_eltype(x,::IsSignal{T}) where T = T
 isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 
 """
-    signal(x,[framerate])
+    Signal(x,[framerate])
 
 Coerce `x` to be a signal, optionally specifying its frame rate (usually in
-Hz). All signal operators first call `signal(x)` for each argument. This
-means you only need to call `signal` when you want to pass additional
+Hz). All signal operators first call `Signal(x)` for each argument. This
+means you only need to call `Signal` when you want to pass additional
 arguments to it.
 
 !!! note
 
-    If you pipe `signal` and pass a frame rate, you must specify the units
-    of the frame rate (e.g. `x |> signal(20Hz)`). A unitless number is
+    If you pipe `Signal` and pass a frame rate, you must specify the units
+    of the frame rate (e.g. `x |> Signal(20Hz)`). A unitless number is
     always interpreted as a constant, infinite-length signal (see below).
 
 !!! note
 
-    If you are implementing `signal` for a [custom signal](@ref
-    custom_signals), you will need to support the second argument of `signal`
-    by specifying `fs::Union{Number,Missing}=missing`, or equivalent, as your
-    second argument.
+    If you are implementing `Signal` for a [custom signal](@ref
+    custom_signals), you will need to support the second argument of `Signal`
+    by specifying `fs::Union{Number,Missing}=missing`, or equivalent.
 
 The type of objects that can be coerced to signals are as follows.
 """
-signal(;kwds...) = x -> signal(x;kwds...)
-signal(fs::Quantity;kwds...) = x -> signal(x,fs;kwds...)
-signal(x,fs::Union{Number,Missing}=missing) = signal(x,SignalTrait(x),fs)
-signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
+Signal(;kwds...) = x -> Signal(x;kwds...)
+Signal(fs::Quantity;kwds...) = x -> Signal(x,fs;kwds...)
+Signal(x,fs::Union{Number,Missing}=missing) = Signal(x,SignalTrait(x),fs)
+Signal(x,::Nothing,fs) = error("Don't know how create a signal from $x.")
 
 function filetype(x)
     m = match(r".+\.([^\.]+$)",x)
@@ -180,27 +180,27 @@ Available backends include the following pacakges
 - [LibSndFile](https://github.com/JuliaAudio/LibSndFile.jl)
 
 """
-signal(x::String,fs::Union{Missing,Number}=missing) =
+Signal(x::String,fs::Union{Missing,Number}=missing) =
     load_signal(filetype(x),x,fs)
 
 function load_signal(::DataFormat{T},x,fs) where T
     error("No backend loaded for file of type $T. Refer to the ",
-          "documentation of `signal` to find a list of available backends.")
+          "documentation of `Signal` to find a list of available backends.")
 end
 
 """
 
 ## Existing signals
 
-Any existing signal just returns itself from `signal`. If a frame rate is
+Any existing signal just returns itself from `Signal`. If a frame rate is
 specified it will be set if `x` has an unknown frame rate. If it has a known
 frame rate and doesn't match `framerate(x)` an error will be thrown. If
-you want to change the frame rate of a signal use [`toframerate`](@ref).
+you want to change the frame rate of a signal use [`ToFramerate`](@ref).
 
 """
-function signal(x,::IsSignal,fs)
+function Signal(x,::IsSignal,fs)
     if ismissing(framerate(x))
-        toframerate(x,fs)
+        ToFramerate(x,fs)
     elseif !isconsistent(fs,framerate(x))
         error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
     else
@@ -208,7 +208,7 @@ function signal(x,::IsSignal,fs)
     end
 end
 
-# computed signals have to implement there own version of toframerate
+# computed signals have to implement there own version of ToFramerate
 # (e.g. resample) to avoid inefficient computations
 
 struct DataSignal
@@ -228,7 +228,7 @@ on a computed signal results in some new, data signal. Most signals returned
 by a signal operator are computed signals.
 
 Computed signals have the extra responsibility of implementing
-[`toframerate`](@ref)
+[`ToFramerate`](@ref)
 
 """
 EvalTrait(x) = DataSignal()

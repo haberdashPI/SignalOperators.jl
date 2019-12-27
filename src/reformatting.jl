@@ -1,21 +1,22 @@
 using DSP: FIRFilter, resample_filter
-export toframerate, tochannels, format, uniform, toeltype
+export ToFramerate, ToChannels, Format, Uniform, ToEltype,
+    toframerate, tochannels, format, toeltype
 
 """
 
-    toframerate(x,fs;blocksize)
+    ToFramerate(x,fs;blocksize)
 
 Change the frame rate of `x` to the given frame rate `fs`. The underlying
 implementation depends on whether the input is a computed or data signal,
 as determined by [`EvalTrait`](@ref).
 
-Computed signals (e.g. `signal(sin)`) are resampled exactly: the result is
+Computed signals (e.g. `Signal(sin)`) are resampled exactly: the result is
 simply computed for more time points or fewer time points, so as to generate
 the appropriate number of frames.
 
-Data-based signals (`signal(rand(50,2))`) are resampled using filtering (akin
+Data-based signals (`Signal(rand(50,2))`) are resampled using filtering (akin
 to `DSP.resample`). In this case you can use the keyword arugment `blocksize`
-to change the analysis window used. See [`filtersignal`](@ref) for more
+to change the analysis window used. See [`Filt`](@ref) for more
 details. Setting `blocksize` for a computed signal will succeed,
 but different `blocksize` values have no effect on the underlying
 implementation.
@@ -28,11 +29,11 @@ scenarios, described below.
 ## Custom Computed Signals
 
 If you implement a new sigal type that is a computed signal, you must
-implement `toframerate` with the following type signature.
+implement `ToFramerate` with the following type signature.
 
 ```julia
 
-function toframerate(x::MyCustomSignal,s::IsSignal{<:Any,<:Number},
+function ToFramerate(x::MyCustomSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,framerate;blocksize)
 
     ## ...
@@ -45,12 +46,12 @@ frame rate.
 ## Handling missing frame rates
 
 If you implement a new signal type that can handle missing frame rate values,
-you will need to implement the following version of `toframerate` so that
+you will need to implement the following version of `ToFramerate` so that
 a known frame rate can be applied to a signal with a missing frame rate.
 
 ```julia
 
-function toframerate(x::MyCustomSignal,s::IsSignal{<:Any,Missing},
+function ToFramerate(x::MyCustomSignal,s::IsSignal{<:Any,Missing},
     evaltrait,framerate;blocksize)
 
     ## ...
@@ -60,19 +61,32 @@ end
 The result should be a new version of the signal with the specified frame rate.
 
 """
-toframerate(fs;blocksize=default_blocksize) =
-    x -> toframerate(x,fs;blocksize=blocksize)
-toframerate(x,fs;blocksize=default_blocksize) =
+ToFramerate(fs;blocksize=default_blocksize) =
+    x -> ToFramerate(x,fs;blocksize=blocksize)
+ToFramerate(x,fs;blocksize=default_blocksize) =
     ismissing(fs) && ismissing(framerate(x)) ? x :
         coalesce(inHz(fs) == framerate(x),false) ? x :
-        toframerate(x,SignalTrait(x),EvalTrait(x),inHz(fs);blocksize=blocksize)
-toframerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
+        ToFramerate(x,SignalTrait(x),EvalTrait(x),inHz(fs);blocksize=blocksize)
+ToFramerate(x,::Nothing,ev,fs;kwds...) = nosignal(x)
 
-toframerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
-toframerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
+"""
+    toframerate(x,fs;blocksize)
 
-function toframerate(x,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize)
-    __toframerate__(x,s,fs,blocksize)
+Equivalent to `sink(ToFramerate(x,fs;blocksize=blocksize))`
+
+## See also
+
+[`ToFramerate`](@ref)
+
+"""
+toframerate(x,fs;blocksize=default_blocksize) =
+    sink(ToFramerate(x,fs;blocksize=blocksize))
+
+ToFramerate(x,::IsSignal,::DataSignal,::Missing;kwds...) = x
+ToFramerate(x,::IsSignal,::ComputedSignal,::Missing;kwds...) = x
+
+function ToFramerate(x,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize)
+    __ToFramerate__(x,s,fs,blocksize)
 end
 
 function (fn::ResamplerFn)(fs)
@@ -84,7 +98,7 @@ function (fn::ResamplerFn)(fs)
     self
 end
 filterstring(fn::ResamplerFn) =
-    string("toframerate(",inHz(fn.fs)*Hz,")")
+    string("ToFramerate(",inHz(fn.fs)*Hz,")")
 
 function maybe_rationalize(r)
     x = rationalize(r)
@@ -96,47 +110,59 @@ function maybe_rationalize(r)
     end
 end
 
-function __toframerate__(x,s::IsSignal{T},fs,blocksize) where T
+function __ToFramerate__(x,s::IsSignal{T},fs,blocksize) where T
     # copied and modified from DSP's `resample`
     ratio = maybe_rationalize(fs/framerate(x))
     init_fs = framerate(x)
     if ratio == 1
         x
     else
-        filtersignal(x,s,ResamplerFn(ratio,fs);blocksize=blocksize,newfs=fs)
+        Filt(x,s,ResamplerFn(ratio,fs);blocksize=blocksize,newfs=fs)
     end
 end
 
 """
 
-    tochannels(x,ch)
+    ToChannels(x,ch)
 
-Force a signal to have `ch` number of channels, by mixing channels together
+Force a signal to have `ch` number of channels, by Mixing channels together
 or broadcasting a single channel over multiple channels.
 
 """
-tochannels(ch) = x -> tochannels(x,ch)
-tochannels(x,ch) = tochannels(x,SignalTrait(x),ch)
-tochannels(x,::Nothing,ch) = tochannels(signal(x),ch)
+ToChannels(ch) = x -> ToChannels(x,ch)
+ToChannels(x,ch) = ToChannels(x,SignalTrait(x),ch)
+ToChannels(x,::Nothing,ch) = ToChannels(Signal(x),ch)
+
+"""
+    tochannels(x,ch)
+
+Equivalent to `sink(ToChannels(x,ch))`
+
+## See also
+
+[`ToFramerate`](@ref)
+
+"""
+tochannels(x,ch) = sink(ToChannels(x,ch))
 
 struct AsNChannels
     ch::Int
 end
 (fn::AsNChannels)(x) = tuple((x[1] for _ in 1:fn.ch)...)
-mapstring(fn::AsNChannels) = string("tochannels(",fn.ch)
+mapstring(fn::AsNChannels) = string("ToChannels(",fn.ch)
 
 struct As1Channel
 end
 (fn::As1Channel)(x) = sum(x)
-mapstring(fn::As1Channel) = string("tochannels(1")
+mapstring(fn::As1Channel) = string("ToChannels(1")
 
-function tochannels(x,::IsSignal,ch)
+function ToChannels(x,::IsSignal,ch)
     if ch == nchannels(x)
         x
     elseif ch == 1
-        mapsignal(As1Channel(),x,bychannel=false)
+        MapSignal(As1Channel(),x,bychannel=false)
     elseif nchannels(x) == 1
-        mapsignal(AsNChannels(ch),x,bychannel=false)
+        MapSignal(AsNChannels(ch),x,bychannel=false)
     else
         error("No rule to convert signal with $(nchannels(x)) channels to",
             " a signal with $ch channels.")
@@ -147,58 +173,82 @@ end
 struct ToEltypeFn{El}
 end
 (fn::ToEltypeFn{El})(x) where El = convert(El,x)
-mapstring(fn::ToEltypeFn{El}) where El = string("toeltype(",El,")")
+mapstring(fn::ToEltypeFn{El}) where El = string("ToEltype(",El,")")
+
+"""
+    ToEltype(x,T)
+
+Converts individual frames in signal `x` to type `T`.
+"""
+ToEltype(::Type{T}) where T = x -> ToEltype(x,T)
+ToEltype(x,::Type{T}) where T = MapSignal(ToEltypeFn{T}(),x)
 
 """
     toeltype(x,T)
 
-Converts individual frames in signal `x` to type `T`.
+Equivalent to `sink(ToEltype(x,T))`
+
+## See also
+
+[`ToEltype`](@ref)
+
 """
-toeltype(::Type{T}) where T = x -> toeltype(x,T)
-toeltype(x,::Type{T}) where T = mapsignal(ToEltypeFn{T}(),x)
+toeltype(x,::Type{T}) where T = sink(ToEltype(x,T))
 
 """
 
-    format(x,fs,ch)
+    Format(x,fs,ch)
 
 Efficiently convert both the framerate (`fs`) and channels `ch` of signal
-`x`. This selects an optimal ordering for `toframerate` and `tochannels` to
+`x`. This selects an optimal ordering for `ToFramerate` and `ToChannels` to
 avoid redundant computations.
 
 """
-function format(x,fs,ch=nchannels(x))
+function Format(x,fs,ch=nchannels(x))
     if ch > 1 && nchannels(x) == 1
-        toframerate(x,fs) |> tochannels(ch)
+        ToFramerate(x,fs) |> ToChannels(ch)
     else
-        tochannels(x,ch) |> toframerate(fs)
+        ToChannels(x,ch) |> ToFramerate(fs)
     end
 end
 
 """
+    format(x,fs,ch)
 
-    uniform(xs;channels=false)
+Equivalent to `sink(Format(x,fs,ch))`
+
+## See also
+
+[`Format`](@ref)
+
+"""
+format(x,fs,ch) = sink(Format(x,fs,ch))
+
+"""
+
+    Uniform(xs;channels=false)
 
 Promote the frame rate (and optionally the number of channels) to be the
 highest frame rate (and optionally highest channel count) of the iterable of signals `xs`.
 
 !!! note
 
-    `uniform` rarely needs to be called directly. It is called implicitly on
+    `Uniform` rarely needs to be called directly. It is called implicitly on
     all passed signals, within the body of operators such as
-    [`mapsignal`](@ref).
+    [`MapSignal`](@ref).
 
 """
-function uniform(xs;channels=false)
-    xs = signal.(xs)
+function Uniform(xs;channels=false)
+    xs = Signal.(xs)
     if any(!ismissing,SignalOperators.framerate.(xs))
         framerate = maximum(skipmissing(SignalOperators.framerate.(xs)))
     else
         framerate = missing
     end
     if !channels
-        format.(xs,framerate)
+        Format.(xs,framerate)
     else
         ch = maximum(skipmissing(nchannels.(xs)))
-        format.(xs,framerate,ch)
+        Format.(xs,framerate,ch)
     end
 end

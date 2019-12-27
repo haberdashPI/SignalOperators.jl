@@ -1,4 +1,4 @@
-export lowpass, highpass, bandpass, bandstop, normpower, filtersignal
+export Normpower, Filt, normpower, filt
 
 const default_blocksize = 2^12
 
@@ -14,89 +14,63 @@ filterfn(design,method,args...) = FilterFn(design,method,args)
 function nyquist_check(x,hz)
     if !ismissing(framerate(x)) && inHz(hz) ≥ 0.5framerate(x)
         error("The frequency $(hz) cannot be represented at a sampling rate ",
-              "of $(framerate(x)) Hz. Increase the sampling rate or lower ",
+              "of $(framerate(x)) Hz. Increase the frame rate or lower ",
               "the frequency.")
     end
 end
 
 """
-    lowpass(x,low;[order=5],[method=Butterworth(order)],[blocksize])
 
-Apply a lowpass filter to x at the given cutoff frequency (`low`).
-See [`filtersignal`](@ref) for details on `blocksize`.
-"""
-lowpass(low;kwds...) = x->lowpass(x,low;kwds...)
-function lowpass(x,low;order=5,method=Butterworth(order),
-    blocksize=default_blocksize)
+    Filt(x,::Type{<:FilterType},bounds...;method=Butterworth(order),order=5,
+         blocksize=4096)
 
-    nyquist_check(x,low)
-    filtersignal(x, filterfn(Lowpass,method,low), blocksize=blocksize)
-end
+Apply the given filter type (e.g. `Lowpass`) using the given method to design
+the filter coefficients. The type is specified as per the types from
+[`DSP`](https://github.com/JuliaDSP/DSP.jl)
 
-"""
-    highpass(x,high;[order=5],[method=Butterworth(order)],[blocksize])
+    Filt(x,h;[blocksize=4096])
 
-Apply a highpass filter to x at the given cutoff frequency (`low`).
-See [`filtersignal`](@ref) for details on `blocksize`.
-"""
-highpass(high;kwds...) = x->highpass(x,high;kwds...)
-function highpass(x,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize)
-
-    nyquist_check(x,high)
-    filtersignal(x, filterfn(Highpass,method,high),blocksize=blocksize)
-end
-
-"""
-    bandpass(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
-
-Apply a bandpass filter to x at the given cutoff frequencies (`low` and `high`).
-See [`filtersignal`](@ref) for details on `blocksize`.
-"""
-bandpass(low,high;kwds...) = x->bandpass(x,low,high;kwds...)
-function bandpass(x,low,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize)
-
-    nyquist_check(x,low)
-    nyquist_check(x,high)
-    filtersignal(x, filterfn(Bandpass,method,low,high),blocksize=blocksize)
-end
-
-"""
-    bandstop(x,low,high;[order=5],[method=Butterworth(order)],[blocksize])
-
-Apply a bandstop filter to x at the given cutoff frequencies (`low` and `high`).
-See [`filtersignal`](@ref) for details on `blocksize`.
-"""
-bandstop(low,high;kwds...) = x->bandstop(x,low,high;kwds...)
-function bandstop(x,low,high;order=5,method=Butterworth(order),
-    blocksize=default_blocksize)
-
-    nyquist_check(x,low)
-    nyquist_check(x,high)
-    filtersignal(x, filterfn(Bandstop,method,low,high),blocksize=blocksize)
-end
-
-"""
-    filtersignal(x,h;[blocksize])
-
-Apply the given filter `h` (from [`DSP`](https://github.com/JuliaDSP/DSP.jl))
-to signal `x`.
+Apply the given digital filter `h` (from
+[`DSP`](https://github.com/JuliaDSP/DSP.jl)) to signal `x`.
 
 ## Blocksize
 
 Blocksize determines the size of the buffer used when computing intermediate
-values of the filter. It defaults to 4096. It need not normally be adjusted.
+values of the filter. It need not normally be adjusted, though changing it
+can alter how efficient filter application is.
+
+!!! note
+
+    The non-lazy version of `Filt` is `filt` from the
+    [`DSP`](https://github.com/JuliaDSP/DSP.jl) package. Proper methods have
+    been defined such that it should be possible to call `filt` on a signal
+    and get a signal back.
+
+    The argument order for `filt` follows a different convention, with `x`
+    coming after the filter specification. In contrast, `Filt` uses the
+    convention of keeping `x` as the first argument to make piping possible.
 
 """
-filtersignal(h;blocksize=default_blocksize) =
-    x -> filtersignal(x,h;blocksize=blocksize)
-filtersignal(x,fn::Union{FilterFn,Function};kwds...) =
-    filtersignal(x,SignalTrait(x),fn;kwds...)
-filtersignal(x,h;kwds...) =
-    filtersignal(x,SignalTrait(x),RawFilterFn(h);kwds...)
-function filtersignal(x,::Nothing,args...;kwds...)
-    filtersignal(signal(x),args...;kwds...)
+Filt(::Type{T},bounds...;kwds...) where T <: DSP.Filters.FilterType =
+    x -> Filt(x,T,bounds...;kwds...)
+function Filt(x,::Type{F},bounds...;blocksize=default_blocksize,order=5,
+    method=Butterworth(order)) where F <: DSP.Filters.FilterType
+
+    nyquist_check.(Ref(x),bounds)
+    Filt(x, filterfn(F,method,bounds...),blocksize=blocksize)
+end
+
+Filt(h;kwds...) = x -> Filt(x,h;kwds...)
+Filt(x,fn::Union{FilterFn,Function};kwds...) = Filt(x,SignalTrait(x),fn;kwds...)
+Filt(x,h;kwds...) = Filt(x,SignalTrait(x),RawFilterFn(h);kwds...)
+Filt(x,::Nothing,args...;kwds...) = Filt(Signal(x),args...;kwds...)
+
+function DSP.filt(
+    b::Union{AbstractVector, Number}, a::Union{AbstractVector, Number},
+    x::AbstractSignal,
+    si::AbstractArray{S} = DSP._zerosi(b,a,T)) where {T,S}
+
+    arraysignal(filt(b,a,sink(x,Array),si),refineroot(root(x)),framerate(x))
 end
 
 struct RawFilterFn{H}
@@ -106,9 +80,8 @@ end
 
 resolve_filter(x) = DSP.Filters.DF2TFilter(x)
 resolve_filter(x::FIRFilter) = x
-function filtersignal(x::Si,s::IsSignal,fn;blocksize,newfs=framerate(x)) where {Si}
+Filt(x,s::IsSignal,fn;blocksize=default_blocksize,newfs=framerate(x)) =
     FilteredSignal(x,fn,blocksize,newfs)
-end
 struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
     signal::Si
     fn::Fn
@@ -134,34 +107,39 @@ function PrettyPrinting.tile(x::FilteredSignal)
     tilepipe(child,operate)
 end
 signaltile(x::FilteredSignal) = PrettyPrinting.tile(x)
-filterstring(fn::FilterFn) =
-    string(filterstring(fn.design),"(",join(string.(fn.args),","),")")
-filterstring(fn::Function) = string("filtersignal(",string(fn),")")
+function filterstring(fn::FilterFn)
+    if isempty(fn.args)
+        string("Filt(",designstring(fn.design),")")
+    else
+        string("Filt(",designstring(fn.design),",",
+            join(string.(fn.args),","),")")
+    end
+end
+filterstring(x) = string("Filt(",string(x),")")
 function filtertring(fn::RawFilterFn)
     io = IOBuffer()
     show(IOContext(io,:displaysize=>(1,30),:limit=>true),
         MIME("text/plain"),x)
-    string("filtersignal(",String(take!(io)),")")
+    string("Filt(",String(take!(io)),")")
 end
-filterstring(::Type{<:Lowpass}) = "lowpass"
-filterstring(::Type{<:Highpass}) = "highpass"
-filterstring(::Type{<:Bandpass}) = "bandpass"
-filterstring(::Type{<:Bandstop}) = "bandstop"
-filterstring(x) = string(x)
+designstring(::Type{<:Lowpass}) = "Lowpass"
+designstring(::Type{<:Highpass}) = "Highpass"
+designstring(::Type{<:Bandpass}) = "Bandpass"
+designstring(::Type{<:Bandstop}) = "Bandstop"
 
-function toframerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
+function ToFramerate(x::FilteredSignal,s::IsSignal{<:Any,<:Number},::ComputedSignal,fs;
 blocksize)
     # is this a non-resampling filter?
     if framerate(x) == framerate(x.signal)
-        FilteredSignal(toframerate(x.signal,fs,blocksize=blocksize),
+        FilteredSignal(ToFramerate(x.signal,fs,blocksize=blocksize),
             x.fn,x.blocksize,fs)
     else
-        toframerate(x.signal,s,DataSignal(),fs,blocksize=blocksize)
+        ToFramerate(x.signal,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
-function toframerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
+function ToFramerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
         blocksize)
-    FilteredSignal(toframerate(x.signal,fs,blocksize=blocksize),
+    FilteredSignal(ToFramerate(x.signal,fs,blocksize=blocksize),
         x.fn,x.blocksize,fs)
 end
 
@@ -233,7 +211,7 @@ function nextblock(x::FilteredSignal,maxlen,skip,
     else
         @assert !isnothing(child(block))
 
-        psig = pad(x.signal,zero)
+        psig = Pad(x.signal,zero)
         childblock = !isa(child(block), UndefChild) ?
             nextblock(psig,size(block.input,1),false,child(block)) :
             nextblock(psig,size(block.input,1),false)
@@ -254,7 +232,7 @@ function nextblock(x::FilteredSignal,maxlen,skip,
     end
 end
 
-# TODO: create an online version of normpower?
+# TODO: create an online version of Normpower?
 # TODO: this should be excuted lazzily to allow for unkonwn framerates
 struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
     signal::Si
@@ -266,15 +244,15 @@ SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:NormedSignal{<:Any,T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
     IsSignal{T,Fs,L}()
-function toframerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
+function ToFramerate(x::NormedSignal,s::IsSignal{<:Any,<:Number},
     ::ComputedSignal,fs;blocksize)
 
-    NormedSignal(toframerate(x.signal,fs,blocksize=blocksize))
+    NormedSignal(ToFramerate(x.signal,fs,blocksize=blocksize))
 end
-function toframerate(x::NormedSignal,::IsSignal{<:Any,Missing},
+function ToFramerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     __ignore__,fs;blocksize)
 
-    NormedSignal(toframerate(x.signal,fs,blocksize=blocksize))
+    NormedSignal(ToFramerate(x.signal,fs,blocksize=blocksize))
 end
 
 struct NormedBlock{A}
@@ -289,7 +267,7 @@ nframes(x::NormedBlock) = x.len
 function initblock(x::NormedSignal)
     if isinf(nframes(x))
         error("Cannot normalize an infinite-length signal. Please ",
-              "use `until` to take a prefix of the signal")
+              "use `Until` to take a prefix of the signal")
     end
     vals = Array{channel_eltype(x)}(undef,nframes(x),nchannels(x))
     sink!(vals, x.signal)
@@ -307,19 +285,32 @@ function nextblock(x::NormedSignal,maxlen,skip,block::NormedBlock=initblock(x))
 end
 
 """
-    normpower(x)
+    Normpower(x)
 
 Return a signal with normalized power. That is, divide all frames by the
 root-mean-squared value of the entire signal.
 
 """
-function normpower(x)
-    x = signal(x)
-    NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(signal(x))
+function Normpower(x)
+    x = Signal(x)
+    NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(Signal(x))
 end
+
+
+"""
+    normpower(x)
+
+Equivalent to `sink(Normpwoer(x))`
+
+## See also
+
+[`Normpower`](@ref)
+
+"""
+normpower(x) = sink(Normpower(x))
 
 Base.show(io::IO,::MIME"text/plain",x::NormedSignal) = pprint(io,x)
 function PrettyPrinting.tile(x::NormedSignal)
-    tilepipe(signaltile(x.signal),literal("normpower"))
+    tilepipe(signaltile(x.signal),literal("Normpower"))
 end
 signaltile(x::NormedSignal) = PrettyPrinting.tile(x)

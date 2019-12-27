@@ -4,8 +4,8 @@
 
 Creates a given type of object (`to`) from a signal. By default the type of
 the resulting sink is determined by the type of the underlying data of the
-signal: e.g. if `x` is a `SampleBuf` object then `sink(mix(x,2))` is also a
-`SampleBuf` object. If there is no underlying data (`signal(sin) |> sink`)
+signal: e.g. if `x` is a `SampleBuf` object then `sink(Mix(x,2))` is also a
+`SampleBuf` object. If there is no underlying data (`Signal(sin) |> sink`)
 then the the type for the current backend is used
 ([`SignalOperators.set_array_backend`](@ref)).
 
@@ -22,8 +22,8 @@ default Array backend, you should use sink as follows:
 ## Frame Rate
 
 The frame rate does not need to be specified, it will use either the frame
-rate of `signal` or a default frame rate (which raises a warning). If
-specified, the given frame rate is passed to [`signal`](@ref) when coercing
+rate of `Signal` or a default frame rate (which raises a warning). If
+specified, the given frame rate is passed to [`Signal`](@ref) when coercing
 the input to a signal.
 
 ## Duration
@@ -84,7 +84,7 @@ initsink(x,::Type{<:Array},len) =
 
 function process_sink_params(x;duration=missing,
     framerate=nothing)
-    x = signal(x)
+    x = Signal(x)
 
     if isnothing(framerate)
         framerate=SignalOperators.framerate(x)
@@ -94,7 +94,7 @@ function process_sink_params(x;duration=missing,
         @warn("No frame rate was specified, defaulting to 44.1 kHz.")
         framerate = 44.1kHz
     end
-    x = signal(x,framerate)
+    x = Signal(x,framerate)
     duration = coalesce(duration,nframes(x)*frames)
 
     if isinf(duration)
@@ -130,7 +130,7 @@ function sink(x,to::String;kwds...)
 end
 function save_signal(::Val{T},filename,x,len) where T
     error("No backend loaded for file of type $T. Refer to the documentation ",
-          "of `signal` to find a list of available backends.")
+          "of `Signal` to find a list of available backends.")
 end
 
 """
@@ -152,12 +152,12 @@ function sink!(result::Union{AbstractVector,AbstractMatrix},x;
         @warn("No frame rate was specified, defaulting to 44.1 kHz.")
         framerate = 44.1kHz
     end
-    x = signal(x,framerate)
+    x = Signal(x,framerate)
 
     if nframes(x) < size(result,1)
         error("Signal is too short to fill buffer of length $(size(result,1)).")
     end
-    x = tochannels(x,size(result,2))
+    x = ToChannels(x,size(result,2))
 
     sink!(result,x,SignalTrait(x))
     result
@@ -173,7 +173,7 @@ signal. The resulting block must has no more than `maxlength` frames, but
 may have fewer frames than that; it should not have zero frames unless
 `maxlength == 0`. If `skip == true`, it is guaranted that [`frame`](@ref)
 will never be called on the returned block. The value of `skip` is `true`, for
-example, when skipping blocks during a call to [`after`](@ref)).
+example, when skipping blocks during a call to [`After`](@ref)).
 
 """
 function nextblock

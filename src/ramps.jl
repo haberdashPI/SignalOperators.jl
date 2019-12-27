@@ -1,5 +1,5 @@
 
-export rampon, rampoff, ramp, fadeto, sinramp
+export RampOn, RampOff, Ramp, FadeTo, sinramp, rampon, rampoff, ramp, fadeto
 
 sinramp(x) = sinpi(0.5x)
 
@@ -25,23 +25,23 @@ end
 child(x::RampSignal) = x.signal
 resolvelen(x::RampSignal) = max(1,inframes(Int,maybeseconds(x.time),framerate(x)))
 
-function toframerate(
+function ToFramerate(
     x::RampSignal{D},
     s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize) where D
 
-    RampSignal(D,toframerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+    RampSignal(D,ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
-function toframerate(
+function ToFramerate(
     x::RampSignal{D},
     s::IsSignal{<:Any,Missing},
     __ignore__,fs; blocksize) where D
 
-    RampSignal(D,toframerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+    RampSignal(D,ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
 
 struct RampBlock{Fn,T}
-    ramp::Fn
+    Ramp::Fn
     marker::Int
     stop::Int
     offset::Int
@@ -57,15 +57,15 @@ frame(x::RampSignal{:off},block::RampBlock{Nothing,T},i) where T =
     Fill(one(T),nchannels(x))
 function frame(x::RampSignal{:on},block::RampBlock,i)
     ramplen = block.marker
-    rampval = block.ramp((i+block.offset-1) / ramplen)
+    rampval = block.Ramp((i+block.offset-1) / ramplen)
     Fill(rampval,nchannels(x))
 end
 function frame(x::RampSignal{:off},block::RampBlock,i)
     startramp = block.marker - block.offset
     stop = block.stop - block.offset
     rampval = block.stop > startramp ?
-        rampval = block.ramp(1-(i - startramp)/(stop - startramp)) :
-        rampval = block.ramp(1)
+        rampval = block.Ramp(1-(i - startramp)/(stop - startramp)) :
+        rampval = block.Ramp(1)
     Fill(rampval,nchannels(x))
 end
 
@@ -119,17 +119,17 @@ end
 function Base.show(io::IO, ::MIME"text/plain",x::RampSignal{D}) where D
     if x.fn isa typeof(sinramp)
         if D == :on
-            write(io,"rampon_fn(",string(x.time),")")
+            write(io,"RampOnFn(",string(x.time),")")
         elseif D == :off
-            write(io,"rampoff_fn(",string(x.time),")")
+            write(io,"RampOffFn(",string(x.time),")")
         else
             error("Reached unexpected code")
         end
     else
         if D == :on
-            write(io,"rampon_fn(",string(x.time),",",string(x.fn),")")
+            write(io,"RampOnFn(",string(x.time),",",string(x.fn),")")
         elseif D == :off
-            write(io,"rampoff_fn(",string(x.time),",",string(x.fn),")")
+            write(io,"RampOffFn(",string(x.time),",",string(x.fn),")")
         else
             error("Reached unexpected code")
         end
@@ -138,12 +138,12 @@ end
 
 """
 
-    rampon(x,[len=10ms],[fn=x -> sinpi(0.5x)])
+    RampOn(x,[len=10ms],[fn=x -> sinpi(0.5x)])
 
 Ramp the onset of a signal, smoothly transitioning from 0 to full amplitude
 over the course of `len` seconds.
 
-The function determines the shape of the ramp and should be non-decreasing
+The function determines the shape of the Ramp and should be non-decreasing
 with a range of [0,1] over the domain [0,1]. It should map over the entire
 range: that is `fn(0) == 0` and `fn(1) == 1`.
 
@@ -151,21 +151,34 @@ Both `len` and `fn` are optional arguments: either one or both can be
 specified, though `len` must occur before `fn` if present.
 
 """
-rampon(fun::Function) = rampon(10ms,fun)
-rampon(len::Number=10ms,fun::Function=sinramp) = x -> rampon(x,len,fun)
-function rampon(x,len::Number=10ms,fun::Function=sinramp)
-    x = signal(x)
-    x |> amplify(RampSignal(:on,x,len,fun))
+RampOn(fun::Function) = RampOn(10ms,fun)
+RampOn(len::Number=10ms,fun::Function=sinramp) = x -> RampOn(x,len,fun)
+function RampOn(x,len::Number=10ms,fun::Function=sinramp)
+    x = Signal(x)
+    x |> Amplify(RampSignal(:on,x,len,fun))
 end
 
 """
+    rampon(x,[len],[fn])
 
-    rampoff(x,[len=10ms],[fn=x -> sinpi(0.5x)])
+Equivalent to `sink(RampOn(x,[len],[fn]))`
+
+## See also
+
+[`RampOn`](@ref)
+
+"""
+rampon(args...) = sink(RampOn(args...))
+
+
+"""
+
+    RampOff(x,[len=10ms],[fn=x -> sinpi(0.5x)])
 
 Ramp the offset of a signal, smoothly transitioning from full amplitude to 0
 amplitude over the course of `len` seconds.
 
-The function determines the shape of the ramp and should be non-decreasing
+The function determines the shape of the Ramp and should be non-decreasing
 with a range of [0,1] over the domain [0,1]. It should map over the entire
 range: that is `fn(0) == 0` and `fn(1) == 1`.
 
@@ -173,22 +186,34 @@ Both `len` and `fn` are optional arguments: either one or both can be
 specified, though `len` must occur before `fn` if present.
 
 """
-rampoff(fun::Function) = rampoff(10ms,fun)
-rampoff(len::Number=10ms,fun::Function=sinramp) = x -> rampoff(x,len,fun)
-function rampoff(x,len::Number=10ms,fun::Function=sinramp)
-    x = signal(x)
-    x |> amplify(RampSignal(:off,x,len,fun))
+RampOff(fun::Function) = RampOff(10ms,fun)
+RampOff(len::Number=10ms,fun::Function=sinramp) = x -> RampOff(x,len,fun)
+function RampOff(x,len::Number=10ms,fun::Function=sinramp)
+    x = Signal(x)
+    x |> Amplify(RampSignal(:off,x,len,fun))
 end
 
 """
+    rampoff(x,[len],[fn])
 
-    ramp(x,[len=10ms],[fn=x -> sinpi(0.5x)])
+Equivalent to `sink(RampOff(x,[len],[fn]))`
+
+## See also
+
+[`RampOff`](@ref)
+
+"""
+rampoff(args...) = sink(RampOff(args...))
+
+"""
+
+    Ramp(x,[len=10ms],[fn=x -> sinpi(0.5x)])
 
 Ramp the onset and offset of a signal, smoothly transitioning from 0 to full
 amplitude over the course of `len` seconds at the start and from full to 0
 amplitude over the course of `len` seconds.
 
-The function determines the shape of the ramp and should be non-decreasing
+The function determines the shape of the Ramp and should be non-decreasing
 with a range of [0,1] over the domain [0,1]. It should map over the entire
 range: that is `fn(0) == 0` and `fn(1) == 1`.
 
@@ -196,22 +221,34 @@ Both `len` and `fn` are optional arguments: either one or both can be
 specified, though `len` must occur before `fn` if present.
 
 """
-ramp(fun::Function) = ramp(10ms,fun)
-ramp(len::Number=10ms,fun::Function=sinramp) = x -> ramp(x,len,fun)
-function ramp(x,len::Number=10ms,fun::Function=sinramp)
-    x = signal(x)
-    x |> rampon(len,fun) |> rampoff(len,fun)
+Ramp(fun::Function) = Ramp(10ms,fun)
+Ramp(len::Number=10ms,fun::Function=sinramp) = x -> Ramp(x,len,fun)
+function Ramp(x,len::Number=10ms,fun::Function=sinramp)
+    x = Signal(x)
+    x |> RampOn(len,fun) |> RampOff(len,fun)
 end
 
 """
+    ramp(x,[len],[fn])
 
-    fadeto(x,y,[len=10ms],[fn=x->sinpi(0.5x)])
+Equivalent to `sink(Ramp(x,[len],[fn]))`
+
+## See also
+
+[`Ramp`](@ref)
+
+"""
+ramp(args...) = sink(Ramp(args...))
+
+"""
+
+    FadeTo(x,y,[len=10ms],[fn=x->sinpi(0.5x)])
 
 Append x to y, with a smooth transition lasting `len` seconds fading from
 `x` to `y` (so the total length is `duration(x) + duration(y) - len`).
 
-This fade is accomplished with a [`rampoff`](@ref) of `x` and a
-[`rampon`](@ref) for `y`. `fn` should be non-decreasing with a range of [0,1]
+This fade is accomplished with a [`RampOff`](@ref) of `x` and a
+[`RampOn`](@ref) for `y`. `fn` should be non-decreasing with a range of [0,1]
 over the domain [0,1]. It should map over the entire range: that is
 `fn(0) == 0` and `fn(1) == 1`.
 
@@ -219,16 +256,28 @@ Both `len` and `fn` are optional arguments: either one or both can be
 specified, though `len` must occur before `fn` if present.
 
 """
-fadeto(y,fun::Function) = fadeto(y,10ms,fun)
-fadeto(y,len::Number=10ms,fun::Function=sinramp) = x -> fadeto(x,y,len,fun)
-function fadeto(x,y,len::Number=10ms,fun::Function=sinramp)
-    x,y = uniform((x,y))
-    x = signal(x)
+FadeTo(y,fun::Function) = FadeTo(y,10ms,fun)
+FadeTo(y,len::Number=10ms,fun::Function=sinramp) = x -> FadeTo(x,y,len,fun)
+function FadeTo(x,y,len::Number=10ms,fun::Function=sinramp)
+    x,y = Uniform((x,y))
+    x = Signal(x)
     if ismissing(framerate(x))
-        error("Unknown frame rate is not supported by `fadeto`.")
+        error("Unknown frame rate is not supported by `FadeTo`.")
     end
     n = inframes(Int,maybeseconds(len),framerate(x))
-    silence = signal(zero(channel_eltype(y))) |> until((nframes(x) - n)*frames)
-    x |> rampoff(len,fun) |> mix(
-        y |> rampon(len,fun) |> prepend(silence))
+    silence = Signal(zero(channel_eltype(y))) |> Until((nframes(x) - n)*frames)
+    x |> RampOff(len,fun) |> Mix(
+        y |> RampOn(len,fun) |> Prepend(silence))
 end
+
+"""
+    fadeto(x,y,[len],[fn])
+
+Equivalent to `sink(FadeTo(x,[len],[fn]))`
+
+## See also
+
+[`FadeTo`](@ref)
+
+"""
+fadeto(args...) = sink(FadeTo(args...))

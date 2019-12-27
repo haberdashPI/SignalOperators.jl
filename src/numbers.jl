@@ -21,8 +21,8 @@ Numbers can be treated as infinite length, constant signals of unknown
 frame rate.
 
 """
-signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
-signal(val::Unitful.Gain{<:Any,<:Any,T},::Nothing,fs) where T =
+Signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
+Signal(val::Unitful.Gain{<:Any,<:Any,T},::Nothing,fs) where T =
     NumberSignal(float(T)(uconvertrp(NoUnits,val)),inHz(Float64,fs),dB=true)
 
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
@@ -31,7 +31,7 @@ nchannels(x::NumberSignal) = 1
 nframes(x::NumberSignal) = inflen
 framerate(x::NumberSignal) = x.framerate
 
-toframerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
+ToFramerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)
 
 struct NumberBlock

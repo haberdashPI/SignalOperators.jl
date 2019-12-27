@@ -36,7 +36,7 @@ const allowed_backends = [Array]
 
 Declare that type `T` can serve as an array backend for a signal. This means
 it is a signal (c.f. [custom signals](@ref custom_signals)) and that it
-implement [`SignalOperators.initsink`](@ref) (c.f. [custom sinks](@ref
+implements [`SignalOperators.initsink`](@ref) (c.f. [custom sinks](@ref
 custom_sinks)).
 
 """
@@ -50,9 +50,9 @@ end
     set_array_backend!(::Type{T})
 
 Use the given type as the backend for the return type for `sink` and
-`signal`. When a backend is loaded (e.g. `using AxisArrays`), this method is
+`Signal`. When a backend is loaded (e.g. `using AxisArrays`), this method is
 called, so that the most recently loaded backend is used for `sink` and
-`signal` return values.
+`Signal` return values.
 
 """
 function set_array_backend!(::Type{T}) where T
