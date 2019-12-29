@@ -4,26 +4,26 @@ using SignalOperators.Units # allows the use of dB, Hz, s etc... as unitful valu
 
 # a pure tone 20 dB below a power 1 signal, with on and off ramps (for
 # a smooth onset/offset)
-sound1 = signal(sin,ω=1kHz) |&gt; until(5s) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB)
+sound1 = Signal(sin,ω=1kHz) |&gt; Until(5s) |&gt; Ramp |&gt; Normpower |&gt; Amplify(-20dB)
 
 # a sound defined by a file, matching the overall power to that of sound1
-sound2 = &quot;example.wav&quot; |&gt; normpower |&gt; amplify(-20dB)
+sound2 = &quot;example.wav&quot; |&gt; Normpower |&gt; Amplify(-20dB)
 
 # a 1kHz sawtooth wave
-sound3 = signal(ϕ -&gt; ϕ-π,ω=1kHz) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB)
+sound3 = Signal(ϕ -&gt; ϕ-π,ω=1kHz) |&gt; Ramp |&gt; Normpower |&gt; Amplify(-20dB)
 
 # a 5 Hz amplitude modulated noise
 sound4 = randn |&gt;
-    amplify(signal(ϕ -&gt; 0.5sin(ϕ) + 0.5,ω=5Hz)) |&gt;
-    until(5s) |&gt; normpower |&gt; amplify(-20dB)
+    Amplify(Signal(ϕ -&gt; 0.5sin(ϕ) + 0.5,ω=5Hz)) |&gt;
+    Until(5s) |&gt; Normpower |&gt; Amplify(-20dB)
 
 # a 1kHz tone surrounded by a notch noise
 SNR = 5dB
-x = signal(sin,ω=1kHz) |&gt; until(1s) |&gt; ramp |&gt; normpower |&gt; amplify(-20dB + SNR)
-y = signal(randn) |&gt; until(1s) |&gt; bandstop(0.5kHz,2kHz) |&gt; normpower |&gt;
-  amplify(-20dB)
-scene = mix(x,y)
+x = Signal(sin,ω=1kHz) |&gt; Until(1s) |&gt; Ramp |&gt; Normpower |&gt; Amplify(-20dB + SNR)
+y = Signal(randn) |&gt; Until(1s) |&gt; bandstop(0.5kHz,2kHz) |&gt; Normpower |&gt;
+  Amplify(-20dB)
+scene = Mix(x,y)
 
 # write all of the signals to a single file, at 44.1 kHz
-append(sound1,sound2,sound3,sound4,scene) |&gt; toframerate(44.1kHz) |&gt; sink(&quot;examples.wav&quot;)
-</code></pre><h2 id="Acknowledgements-1"><a class="docs-heading-anchor" href="#Acknowledgements-1">Acknowledgements</a><a class="docs-heading-anchor-permalink" href="#Acknowledgements-1" title="Permalink"></a></h2><p>Many thanks to @ssfrr for some great discussions during this <a href="https://github.com/JuliaAudio/SampledSignals.jl/pull/44">PR</a>, and related issues on the <a href="https://github.com/JuliaAudio/SampledSignals.jl">SampledSignals</a> package. Those interactions definitely influenced my final design here.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="manual/">Manual »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 21 December 2019 13:44">Saturday 21 December 2019</span>. Using Julia version 1.0.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+Append(sound1,sound2,sound3,sound4,scene) |&gt; ToFramerate(44.1kHz) |&gt; sink(&quot;examples.wav&quot;)
+</code></pre><h2 id="Acknowledgements-1"><a class="docs-heading-anchor" href="#Acknowledgements-1">Acknowledgements</a><a class="docs-heading-anchor-permalink" href="#Acknowledgements-1" title="Permalink"></a></h2><p>Many thanks to @ssfrr for some great discussions during this <a href="https://github.com/JuliaAudio/SampledSignals.jl/pull/44">PR</a>, and related issues on the <a href="https://github.com/JuliaAudio/SampledSignals.jl">SampledSignals</a> package. Those interactions definitely influenced my final design here.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="manual/">Manual »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 29 December 2019 18:58">Sunday 29 December 2019</span>. Using Julia version 1.0.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
