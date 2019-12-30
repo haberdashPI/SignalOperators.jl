@@ -1,7 +1,5 @@
 using .AxisArrays
 
-init_array_backend!(AxisArray)
-
 function SignalTrait(::Type{<:AxisArray{T,N}}) where {T,N}
     if N ∈ [1,2]
         IsSignal{T,Float64,Int}()
@@ -28,19 +26,6 @@ function nchannels(x::AxisArray)
     size(x,chdim)
 end
 
-function arraysignal(x,::Type{<:AxisArray},fs)
-    if ndims(x) == 1
-        times = range(0s,length=size(x,1),step=float(s/inHz(fs)))
-        AxisArray(x,Axis{:time}(times))
-    elseif ndims(x) == 2
-        times = range(0s,length=size(x,1),step=float(s/inHz(fs)))
-        channels = 1:size(x,2)
-        AxisArray(x,Axis{:time}(times),Axis{:channel}(channels))
-    else
-        errordim()
-    end
-end
-
 function Signal(x::AxisArray,fs::Union{Missing,Number}=missing)
     if !isconsistent(fs,framerate(x))
         error("Signal expected to have frame rate of $(inHz(fs)) Hz.")
@@ -55,5 +40,6 @@ timeslice(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 function initsink(x,::Type{<:AxisArray},len)
     times = Axis{:time}(range(0s,length=len,step=float(s/framerate(x))))
     channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(initsink(x,Array,len)[1],times,channels)
+    AxisArray(initsink(x,Array,len),times,channels)
 end
+AxisArray(x::AbstractSignal) = sink(x,AxisArray)

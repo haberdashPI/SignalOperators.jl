@@ -27,39 +27,6 @@ include("mapsignal.jl")
 include("reformatting.jl")
 include("ramps.jl")
 
-const current_backendl = Ref{Any}(Array)
-const allowed_backends = [Array]
-
-"""
-
-    init_array_backend!(::Type{T})
-
-Declare that type `T` can serve as an array backend for a signal. This means
-it is a signal (c.f. [custom signals](@ref custom_signals)) and that it
-implements [`SignalOperators.initsink`](@ref) (c.f. [custom sinks](@ref
-custom_sinks)).
-
-"""
-function init_array_backend!(::Type{T}) where T
-    current_backendl[] = T
-    push!(allowed_backends,T)
-end
-
-"""
-
-    set_array_backend!(::Type{T})
-
-Use the given type as the backend for the return type for `sink` and
-`Signal`. When a backend is loaded (e.g. `using AxisArrays`), this method is
-called, so that the most recently loaded backend is used for `sink` and
-`Signal` return values.
-
-"""
-function set_array_backend!(::Type{T}) where T
-    @assert T in allowed_backends
-    current_backendl[] = T
-end
-
 function __init__()
     # TODO: use @require for AxisArrays
 

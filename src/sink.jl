@@ -6,16 +6,7 @@ Creates a given type of object (`to`) from a signal. By default the type of
 the resulting sink is determined by the type of the underlying data of the
 signal: e.g. if `x` is a `SampleBuf` object then `sink(Mix(x,2))` is also a
 `SampleBuf` object. If there is no underlying data (`Signal(sin) |> sink`)
-then the the type for the current backend is used
-([`SignalOperators.set_array_backend`](@ref)).
-
-## Array return type
-
-When `to` is set to `Array` the return value is actually a tuple of an array
-and a second value, which is the frame rate in Hertz. Thus, if you use the
-default Array backend, you should use sink as follows:
-
-    x,fs = sink(mysignal)
+then a Tuple of an array and the framerate is returned.
 
 # Keyword arguments
 
@@ -44,9 +35,11 @@ sink(;kwds...) = x -> sink(x,refineroot(root(x));kwds...)
 sink(to::Type;kwds...) = x -> sink(x,to;kwds...)
 sink(x;kwds...) = sink(x,refineroot(root(x));kwds...)
 root(x) = x
-refineroot(x::AbstractArray) = typeof(x)
-refineroot(x::Array) = current_backendl[]
-refineroot(x) = current_backendl[]
+refineroot(x::AbstractArray) = refineroot(x,SignalTrait(x))
+refineroot(x,::Nothing) = Tuple{<:AbstractArray,<:Number}
+refineroot(x,::IsSignal) = typeof(x)
+refineroot(x) = Tuple{<:AbstractArray,<:Number}
+refineroot(x::T) where T <: Tuple{<:AbstractArray,<:Number} = T
 
 mergepriority(x) = 0
 mergepriority(x::Array) = 1
@@ -61,10 +54,11 @@ function mergeroot(x,y)
     end
 end
 
-function sink(x,::Type{T};kwds...) where T <: AbstractArray
+function sink(x,::Type{T};kwds...) where T
     x,n = process_sink_params(x;kwds...)
     result = initsink(x,T,n)
     sink!(result,x)
+    result
 end
 
 """
@@ -80,7 +74,10 @@ implement this method. You should probably use [`nchannels`](@ref) and
 
 """
 initsink(x,::Type{<:Array},len) =
+    Array{channel_eltype(x)}(undef,len,nchannels(x))
+initsink(x,::Type{<:Tuple},len) =
     (Array{channel_eltype(x)}(undef,len,nchannels(x)),framerate(x))
+Array(x::AbstractSignal) = sink(x,Array)
 
 function process_sink_params(x;duration=missing,
     framerate=nothing)

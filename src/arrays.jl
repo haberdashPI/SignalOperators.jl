@@ -7,9 +7,10 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 ## Arrays
 
 Any array can be interpreted as a signal. By default the first dimension is
-time, the second channels and their frame rate is a missing value. Some array
-types change this default behavior. If you specify a frame rate when
-(see "Array & Number" section below).
+time, the second channels and their frame rate is a missing value. If you
+specify a frame rate with an array type that has a missing frame rate the
+return value will be a Tuple (see "Array & Number" section below). Some array
+types change this default behavior, as follows.
 
 !!! warn
 
@@ -36,11 +37,9 @@ function Signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
             errordim()
         end
     else
-        arraysignal(x,current_backendl[],fs)
+        (x,Float64(inHz(fs)))
     end
 end
-
-arraysignal(x,::Type{<:Array},fs) = (x,inHz(fs))
 
 ToFramerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
     Signal(x,fs)
@@ -143,5 +142,7 @@ function signalshow(io,x::AbstractArray,shownfs=false)
         show_fs(io,x)
     end
 end
-
-mergerule(::Type{<:AbstractArray},y::Type{<:AbstractArray}) = Array
+function signalshow(io,x::Tuple{<:AbstractArray,<:Number},shownfs=false)
+    signalshow(io,x[1],true)
+    show_fs(io,x)
+end

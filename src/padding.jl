@@ -130,11 +130,17 @@ usepad(x::PaddedSignal,s::IsSignal,::typeof(lastframe),block) =
     frame(x,block,nframes(block))
 usepad(x::PaddedSignal,s::IsSignal,::typeof(lastframe),::Nothing) =
     error("Signal is length zero; there is no last frame to pad with.")
+
+indexable(x::AbstractArray) = true
+indexable(x::Tuple{<:AbstractArray,<:Number}) = true
+indexable(x) = false
+indexing(x::AbstractArray) = x
+indexing(x::Tuple{<:AbstractArray,<:Number}) = x[1]
 function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
     nargs = map(x -> x.nargs - 1, methods(fn).ms)
     if 3 ∈ nargs
         if indexable(x.signal)
-            i -> fn(x.signal,i,:)
+            i -> fn(indexing(x.signal),i,:)
         else
             io = IOBuffer()
             show(io,MIME("text/plain"),child(x))

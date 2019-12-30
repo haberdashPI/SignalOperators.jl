@@ -5,7 +5,6 @@ using LambdaFn
 using Test
 using Statistics
 using WAV
-using AxisArrays
 using FixedPointNumbers
 using Unitful
 using ProgressMeter
@@ -13,8 +12,7 @@ using BenchmarkTools
 using Pkg
 using DimensionalData
 using DimensionalData: X, Time
-
-SignalOperators.set_array_backend!(AxisArray)
+using AxisArrays
 
 using DSP
 dB = SignalOperators.Units.dB
@@ -91,24 +89,21 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test SignalTrait(Signal(randn,10Hz)) isa IsSignal
         @test_throws ErrorException Signal(x -> [1,2],5Hz)
         noise = Signal(randn,50Hz) |> Until(5s)
-        @test isapprox(noise |> sink |> mean,0,atol=0.3)
+        @test isapprox(noise |> Array |> mean,0,atol=0.3)
         z = Signal(0,10Hz) |> Until(5s)
-        @test all(z |> sink .== 0)
+        @test all(z |> Array .== 0)
         o = Signal(1,10Hz) |> Until(5s)
-        @test all(o |> sink .== 1)
+        @test all(o |> Array .== 1)
         @test_throws ErrorException Signal(rand(5),10Hz) |> Signal(5Hz)
         @test_throws ErrorException Signal(randn,10Hz) |> Signal(5Hz)
-        @test_throws ErrorException Signal(rand(5),10Hz) |> sink(duration=10frames)
         @test_throws ErrorException sink!(ones(10,2),ones(5,2))
     end
     next!(progress)
 
     @testset "Array tuple output" begin
-        SignalOperators.set_array_backend!(Array)
         x = rand(10,2)
         @test Signal(x,10Hz) == (x,10)
         @test sink(Mix(Signal(x,10Hz),1)) == (x.+1,10)
-        SignalOperators.set_array_backend!(AxisArray)
     end
     next!(progress)
 
@@ -119,18 +114,18 @@ progress = Progress(total_test_groups,desc="Running tests...")
             sink(Signal(sin,ω=5Hz,ϕ=100ms),duration=1s,framerate=20Hz)
         @test sink(Signal(sin,ω=5Hz,ϕ=π),duration=1s,framerate=20Hz) ==
             sink(Signal(sin,ω=5Hz,ϕ=180°),duration=1s,framerate=20Hz)
-        @test sink(Signal(sin,ϕ=1s),duration=1s,framerate=20Hz) ≈
-            sink(Signal(sin,ω=1Hz,ϕ=0),duration=1s,framerate=20Hz)
+        @test sink(Signal(sin,ϕ=1s),duration=1s,framerate=20Hz,Array) ≈
+            sink(Signal(sin,ω=1Hz,ϕ=0),duration=1s,framerate=20Hz,Array)
         @test_throws ErrorException sink(Signal(sin,ϕ=2π*rad),duration=1s,
             framerate=20Hz)
 
-        @test Signal(identity,ω=2Hz,10Hz) |> sink(duration=10frames) |>
+        @test Signal(identity,ω=2Hz,10Hz) |> Until(10frames) |> sink |>
             duration == 1.0
     end
     next!(progress)
 
     @testset "Sink to arrays" begin
-        tone = Signal(sin,44.1kHz,ω=100Hz) |> Until(5s) |> sink
+        tone = Signal(sin,44.1kHz,ω=100Hz) |> Until(5s) |> Array
         @test tone[1] .< tone[110] # verify bump of sine wave
     end
     next!(progress)
@@ -138,7 +133,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
     @testset "Files as signals" begin
         tone = Signal(range(0,1,length=4),10Hz) |> sink(test_wav)
         @test SignalTrait(Signal(test_wav)) isa IsSignal
-        @test isapprox(Signal(test_wav), range(0,1,length=4),rtol=1e-6)
+        @test isapprox(sink(Signal(test_wav),Array), range(0,1,length=4),rtol=1e-6)
     end
     next!(progress)
 
@@ -146,9 +141,9 @@ progress = Progress(total_test_groups,desc="Running tests...")
         tone = Signal(sin,22Hz,ω=10Hz) |> Until(5s)
         @test (tone |> ToChannels(2) |> nchannels) == 2
         @test (tone |> ToChannels(1) |> nchannels) == 1
-        data = tone |> ToChannels(2) |> sink
+        data = tone |> ToChannels(2) |> Array
         @test size(data,2) == 2
-        data2 = Signal(data,22Hz) |> ToChannels(1) |> sink
+        data2 = Signal(data,22Hz) |> ToChannels(1) |> Array
         @test all(data2 .== sum(data,dims=2))
         @test size(data2,2) == 1
 
@@ -185,43 +180,44 @@ progress = Progress(total_test_groups,desc="Running tests...")
     @testset "Padding" begin
         for nch in 1:3
             tone = Signal(sin,22Hz,ω=10Hz) |> ToChannels(nch) |> Until(5s) |>
-                Pad(zero) |> Until(7s) |> sink
+                Pad(zero) |> Until(7s) |> Array
             @test mean(abs.(tone[1:22*5,:])) > 0
             @test mean(abs.(tone[22*5:22*7,:])) == 0
 
             tone = Signal(sin,22Hz,ω=10Hz) |> Until(5s) |> Pad(0) |>
-                Until(7s) |> sink
+                Until(7s) |> Array
             @test mean(abs.(tone[1:22*5,:])) > 0
             @test mean(abs.(tone[22*5:22*7,:])) == 0
 
             @test rand(10,nch) |> Signal(10Hz) |> Pad(zero) |> After(15frames) |>
-                Until(10frames) |> sink == zeros(10,nch)
+                Until(10frames) |> Array == zeros(10,nch)
 
             x = 5ones(5,nch)
-            result = Pad(x,zero) |> Until(10frames) |> sink(framerate=10Hz)
-            all(iszero,result[6:10,:])
+            result = Pad(x,zero) |> Until(10frames) |> ToFramerate(10Hz) |>
+                Array
+            @test all(iszero,result[6:10,:])
 
-            x = rand(10,nch) |> Signal(10Hz)
-            result = Pad(x,cycle) |> Until(30frames) |> sink
+            x = rand(10,nch)
+            result = Pad(Signal(x,10Hz),cycle) |> Until(30frames) |> Array
             @test result == vcat(x,x,x)
-            result = Pad(x,mirror) |> Until(30frames) |> sink
+            result = Pad(Signal(x,10Hz),mirror) |> Until(30frames) |> Array
             @test result == vcat(x,reverse(x,dims=1),x)
-            result = Pad(x,lastframe) |> Until(15frames) |> sink
+            result = Pad(Signal(x,10Hz),lastframe) |> Until(15frames) |> Array
             @test all(result[11:end,:] .== result[10:10,:])
 
             x = Signal(sin,10Hz) |> ToChannels(nch) |> Until(1s)
-            @test_throws ErrorException Pad(x,cycle) |> sink
-            @test_throws ErrorException Pad(x,mirror) |> sink
-            result = Pad(x,lastframe) |> Until(15frames) |> sink
+            @test_throws ErrorException Pad(x,cycle) |> Array
+            @test_throws ErrorException Pad(x,mirror) |> Array
+            result = Pad(x,lastframe) |> Until(15frames) |> Array
             @test all(result[11:end,:] .== result[10:10,:])
             padv = rand(nch)
-            result = Pad(x,padv) |> Until(15frames) |> sink
+            result = Pad(x,padv) |> Until(15frames) |> Array
             @test all(result[11:end,:] .== padv')
 
             @test_throws ErrorException sin |> Until(1s) |> Pad(mirror) |>
-                Until(2s) |> sink(framerate=10Hz)
+                Until(2s) |> ToFramerate(10Hz) |> sink
             @test_throws ErrorException sin |> Until(1s) |> Pad((a,b) -> a+b) |>
-                Until(2s) |> sink(framerate=10Hz)
+                Until(2s) |> ToFramerate(10Hz) |> sink
         end
     end
     next!(progress)
@@ -232,13 +228,13 @@ progress = Progress(total_test_groups,desc="Running tests...")
             b = Signal(sin,22Hz,ω=5Hz) |> ToChannels(nch) |> Until(5s)
             tones = a |> Append(b)
             @test duration(tones) == 10
-            @test nframes(sink(tones)) == 220
-            @test all(sink(tones) .== vcat(sink(a),sink(b)))
+            @test nframes(Array(tones)) == 220
+            @test all(Array(tones) .== vcat(Array(a),Array(b)))
 
             fs = 3
             a = Signal(2,fs) |> ToChannels(nch) |> Until(2s) |>
                 Append(Signal(3,fs)) |> Until(4s)
-            @test nframes(sink(a)) == 4*fs
+            @test nframes(Array(a)) == 4*fs
 
             x = Append(
                     rand(10,nch) |> After(0.5s),
@@ -258,15 +254,16 @@ progress = Progress(total_test_groups,desc="Running tests...")
             b = Signal(sin,30Hz,ω=5Hz) |> ToChannels(2) |> Until(2s)
             complex = Mix(a,b)
             @test duration(complex) == 2
-            @test nframes(sink(complex)) == 60
+            @test nframes(Array(complex)) == 60
         end
 
         x = rand(20,SignalOperators.MAX_CHANNEL_STACK+1)
         y = rand(20,SignalOperators.MAX_CHANNEL_STACK+1)
-        @test (Mix(x,y) |> sink(framerate=20Hz)) == (x .+ y)
+        @test (Mix(x,y) |> ToFramerate(20Hz) |> Array) == (x .+ y)
 
         x = rand(20,2)
-        result = MapSignal(reverse,x,bychannel=false) |> sink(framerate=20Hz)
+        result = MapSignal(reverse,x,bychannel=false) |> ToFramerate(20Hz) |>
+            Array
         @test result == [x[:,2] x[:,1]]
     end
     next!(progress)
@@ -278,7 +275,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
                 Append(Signal(3,fs)) |> Until(4s)
             b = Signal(3,fs) |> ToChannels(nch) |> Until(3s)
 
-            result = Mix(a,b) |> sink
+            result = Mix(a,b) |> Array
             for ch in 1:nch
                 @test all(result[:,ch] .== [
                     fill(2,3*2) .+ fill(3,3*2);
@@ -287,7 +284,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
                 ])
             end
 
-            result = Amplify(a,b) |> sink
+            result = Amplify(a,b) |> Array
             for ch in 1:nch
                 @test all(result[:,ch] .== [
                     fill(2,3*2) .* fill(3,3*2);
@@ -310,13 +307,20 @@ progress = Progress(total_test_groups,desc="Running tests...")
             a = Signal(sin,100Hz,ω=10Hz) |> ToChannels(nch) |> Until(5s)
             b = Signal(sin,100Hz,ω=5Hz) |> ToChannels(nch) |> Until(5s)
             cmplx = Mix(a,b)
-            high = cmplx |> Filt(Highpass,8Hz,method=Chebyshev1(5,1)) |> sink
-            low = cmplx |> Filt(Lowpass,6Hz,method=Butterworth(5)) |> sink
-            highlow = low |>  Filt(Highpass,8Hz,method=Chebyshev1(5,1)) |> sink
-            bandp1 = cmplx |> Filt(Bandpass,20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
-            bandp2 = cmplx |> Filt(Bandpass,2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
-            bands1 = cmplx |> Filt(Bandstop,20Hz,30Hz,method=Chebyshev1(5,1)) |> sink
-            bands2 = cmplx |> Filt(Bandstop,2Hz,12Hz,method=Chebyshev1(5,1)) |> sink
+            high = cmplx |> Filt(Highpass,8Hz,method=Chebyshev1(5,1)) |>
+                DimensionalArray
+            low = cmplx |> Filt(Lowpass,6Hz,method=Butterworth(5)) |>
+                DimensionalArray
+            highlow = low |>  Filt(Highpass,8Hz,method=Chebyshev1(5,1)) |>
+                DimensionalArray
+            bandp1 = cmplx |> Filt(Bandpass,20Hz,30Hz,method=Chebyshev1(5,1)) |>
+                DimensionalArray
+            bandp2 = cmplx |> Filt(Bandpass,2Hz,12Hz,method=Chebyshev1(5,1)) |>
+                DimensionalArray
+            bands1 = cmplx |> Filt(Bandstop,20Hz,30Hz,method=Chebyshev1(5,1)) |>
+                DimensionalArray
+            bands2 = cmplx |> Filt(Bandstop,2Hz,12Hz,method=Chebyshev1(5,1)) |>
+                DimensionalArray
 
             @test_throws ErrorException Filt(a,Highpass,75Hz)
             @test_throws ErrorException Filt(a,Lowpass,75Hz)
@@ -333,26 +337,26 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test 10mean(abs,bandp1) < mean(abs,bandp2)
             @test 10mean(abs,bands2) < mean(abs,bands1)
 
-            @test mean(abs,cmplx |> Amplify(10) |> Normpower |> sink) <
-                mean(abs,cmplx |> Amplify(10) |> sink)
+            @test mean(abs,cmplx |> Amplify(10) |> Normpower |> Array) <
+                mean(abs,cmplx |> Amplify(10) |> Array)
 
             # proper filtering of blocks
             high2_ = cmplx |> Filt(Highpass,8Hz,method=Chebyshev1(5,1),blocksize=100)
             @test high2_.blocksize == 100
-            high2 = high2_ |> sink
-            @test sink(high2) ≈ sink(high)
+            high2 = high2_ |> Array
+            @test high2 ≈ high
 
             # proper state of cut filtered signal (with blocks)
             high3 = cmplx |>
                 Filt(Highpass,8Hz,method=Chebyshev1(5,1),blocksize=64) |>
                 After(1s)
-            @test sink(high3) ≈ sink(high)[1s .. 5s]
+            @test Array(high3) ≈ Array(high)[101:500,:]
 
             # custom filter interface
             high4 = cmplx |>
                 Filt(digitalfilter(Highpass(8,fs=framerate(cmplx)),
                                         Chebyshev1(5,1)))
-            @test sink(high) == sink(high4)
+            @test Array(high) == Array(high4)
         end
     end
     next!(progress)
@@ -361,29 +365,31 @@ progress = Progress(total_test_groups,desc="Running tests...")
         for nch in 1:2
             tone = Signal(sin,50Hz,ω=10Hz) |> ToChannels(nch) |> Until(5s)
             ramped = Signal(sin,50Hz,ω=10Hz) |> ToChannels(nch) |> Until(5s) |>
-                Ramp(500ms) |> sink
-            @test mean(@λ(_^2),ramped[0s .. 500ms]) < mean(@λ(_^2),ramped[500ms .. 1s])
-            @test mean(@λ(_^2),ramped[4.5s .. 5s]) < mean(@λ(_^2),ramped[4s .. 4.5s])
-            @test mean(abs,ramped) < mean(abs,sink(tone))
+                Ramp(500ms) |> DimensionalArray
+            @test mean(@λ(_^2),ramped[Time(Between(0s,500ms))]) <
+                mean(@λ(_^2),ramped[Time(Between(500ms, 1s))])
+            @test mean(@λ(_^2),ramped[Time(Between(4.5s, 5s))]) <
+                mean(@λ(_^2),ramped[Time(Between(4s, 4.5s))])
+            @test mean(abs,vec(ramped)) < mean(abs,vec(sink(tone,Array)))
             @test mean(ramped) < 1e-4
 
             x = Signal(sin,22Hz,ω=10Hz) |> ToChannels(nch) |> Until(2s)
             y = Signal(sin,22Hz,ω=5Hz) |> ToChannels(nch) |> Until(2s)
             fading = FadeTo(x,y,500ms)
-            result = sink(fading)
+            result = Array(fading)
             @test nframes(fading) == ceil(Int,(2+2-0.5)*22)
             @test nframes(result) == nframes(fading)
-            @test result[1:33,:] == sink(x)[1:33,:]
-            @test result[44:end,:] == sink(y)[11:end,:]
+            @test result[1:33,:] == Array(x)[1:33,:]
+            @test result[44:end,:] == Array(y)[11:end,:]
 
             ramped2 = Signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> ToChannels(nch) |>
-                Until(100ms) |> Ramp(identity) |> sink
+                Until(100ms) |> Ramp(identity) |> Array
             @test mean(abs,ramped2[1:5,:]) < mean(abs,ramped2[6:10,:])
             ramped2 = Signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> ToChannels(nch) |>
-                Until(100ms) |> RampOn(identity) |> sink
+                Until(100ms) |> RampOn(identity) |> Array
             @test mean(abs,ramped2[1:5,:]) < mean(abs,ramped2[6:10,:])
             ramped2 = Signal(sin,500Hz,ω=20Hz,ϕ=π/2) |> ToChannels(nch) |>
-                Until(100ms) |> RampOff(identity) |> sink
+                Until(100ms) |> RampOff(identity) |> Array
             @test mean(abs,ramped2[7:10,:]) < mean(abs,ramped2[1:6,:])
         end
     end
@@ -399,7 +405,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             downsamp = ToFramerate(tone,15Hz)
             @test framerate(downsamp) == 15
             @test nframes(downsamp) == 0.75nframes(tone)
-            @test sink(downsamp) |> nframes == nframes(downsamp)
+            @test Array(downsamp) |> nframes == nframes(downsamp)
 
             x = rand(10,nch) |> ToFramerate(2kHz) |> sink
             @test framerate(x) == 2000
@@ -415,17 +421,17 @@ progress = Progress(total_test_groups,desc="Running tests...")
             resamp = ToFramerate(toned,40Hz,blocksize=64)
             resampled2 = sink(resamp)
             @test nframes(resampled) == 2nframes(tone)
-            @test resampled ≈ resampled2
+            @test resampled[1] ≈ resampled2[1]
 
             # verify that the state of the filter is proplery reset
             # (so it should produce same output a second time)
             resampled3 = resamp |> sink
-            @test resampled2 ≈ resampled3
+            @test resampled2[1] ≈ resampled3[1]
 
             padded = tone |> Pad(one) |> Until(7s)
             resamp = ToFramerate(padded,40Hz)
             @test nframes(resamp) == 7*40
-            @test resamp |> sink |> size == (7*40,nch)
+            @test resamp |> Array |> size == (7*40,nch)
 
             @test ToFramerate(tone,20Hz) === tone
 
@@ -434,7 +440,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             cmplx = Mix(a,b)
             high = cmplx |> Filt(Highpass,8Hz,method=Chebyshev1(5,1))
             resamp_high = ToFramerate(high,24Hz)
-            @test resamp_high |> sink |> size == (72,nch)
+            @test resamp_high |> Array |> size == (72,nch)
 
             resamp_twice = ToFramerate(toned,15Hz) |> ToFramerate(50Hz)
             @test resamp_twice isa SignalOperators.FilteredSignal
@@ -457,12 +463,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
     @testset "Axis Arrays" begin
         x = AxisArray(ones(20),Axis{:time}(range(0s,2s,length=20)))
-        proc = Signal(x) |> Ramp |> sink
+        proc = Signal(x) |> Ramp |> AxisArray
         @test size(proc,1) == size(x,1)
         @test proc isa AxisArray
     end
     next!(progress)
-
 
     @testset "Operating over empty signals" begin
         for nch in 1:2
@@ -478,10 +483,10 @@ progress = Progress(total_test_groups,desc="Running tests...")
         for nch in 1:2
             tone = Signal(sin,10Hz,ω=2Hz) |> ToChannels(nch) |> Until(2s) |>
                 Ramp |> Normpower
-            @test all(sqrt.(mean(sink(tone).^2,dims=1)) .≈ 1)
+            @test all(sqrt.(mean(Array(tone).^2,dims=1)) .≈ 1)
 
-            resamp = tone |> ToFramerate(20Hz) |> sink
-            @test all(sqrt.(mean(sink(resamp).^2,dims=1)) .≈ 1)
+            resamp = tone |> ToFramerate(20Hz) |> Array
+            @test all(sqrt.(mean(Array(resamp).^2,dims=1)) .≈ 1)
         end
     end
     next!(progress)
@@ -489,33 +494,34 @@ progress = Progress(total_test_groups,desc="Running tests...")
     @testset "Handling of arrays/numbers" begin
         stereo = Signal([10.0.*(1:10) 5.0.*(1:10)],5Hz)
         @test stereo |> nchannels == 2
-        @test stereo |> sink |> size == (10,2)
-        @test stereo |> Until(5frames) |> sink |> size == (5,2)
-        @test stereo |> After(5frames) |> sink |> size == (5,2)
+        @test stereo |> sink(Array) |> size == (10,2)
+        @test stereo |> Until(5frames) |> Array |> size == (5,2)
+        @test stereo |> After(5frames) |> Array |> size == (5,2)
 
         for nch in 1:2
             # Numbers
             tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |> Mix(1.5) |>
-                Until(5s) |> sink
+                Until(5s) |> Array
             @test all(tone .>= 0.5)
-            x = Signal(1,5Hz) |> ToChannels(nch) |> Until(5s) |> sink
+            x = Signal(1,5Hz) |> ToChannels(nch) |> Until(5s) |> Array
             @test x isa AbstractArray{Int}
 
             @test all(10 |> ToChannels(nch) |> Until(1s) |>
-                sink(framerate=10Hz) .== 10)
+                ToFramerate(10Hz) |> Array .== 10)
 
             dc_off = Signal(1,10Hz) |> ToChannels(nch) |> Until(1s) |>
-                Amplify(20dB) |> sink
+                Amplify(20dB) |> Array
             @test all(dc_off .== 10)
             dc_off = Signal(1,10Hz) |> ToChannels(nch) |> Until(1s) |>
-                Amplify(40dB) |> sink
+                Amplify(40dB) |> Array
             @test all(dc_off .== 100)
 
             # AbstractArrays
             tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
-                Mix(10.0.*(1:10)) |> sink
+                Mix(10.0.*(1:10)) |> Array
             @test all(tone[1:10,:] .>= 10.0*(1:10))
-            x = Signal(10.0.*(1:10),5Hz) |> ToChannels(nch) |> Until(1s) |> sink
+            x = Signal(10.0.*(1:10),5Hz) |> ToChannels(nch) |> Until(1s) |>
+                Array
             @test x isa AbstractArray{Float64}
             @test Signal(10.0.*(1:10),5Hz) |> ToChannels(nch) |>
                 SignalOperators.channel_eltype == Float64
@@ -524,7 +530,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         # AxisArray
         x = AxisArray(rand(2,10),Axis{:channel}(1:2),
             Axis{:time}(range(0,1,length=10)))
-        @test x |> Until(500ms) |> sink |> size == (4,2)
+        @test x |> Until(500ms) |> Array |> size == (4,2)
 
         # poorly shaped arrays
         @test_throws ErrorException Signal(rand(2,2,2))
@@ -536,24 +542,25 @@ progress = Progress(total_test_groups,desc="Running tests...")
             tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
                 Until(10frames) |> After(5frames) |> After(2frames)
             @test nframes(tone) == 3
-            @test size(sink(tone)) == (3,nch)
+            @test size(Array(tone)) == (3,nch)
 
             tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
                 After(5frames) |> Until(5frames)
             @test nframes(tone) == 5
-            @test size(sink(tone)) == (5,nch)
-            @test sink(tone)[1] > 0.9
+            @test size(Array(tone)) == (5,nch)
+            @test Array(tone)[1] > 0.9
 
             tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
                 Until(10frames) |> After(5frames)
             @test nframes(tone) == 5
-            @test size(sink(tone)) == (5,nch)
-            @test sink(tone)[1] > 0.9
+            @test size(Array(tone)) == (5,nch)
+            @test Array(tone)[1] > 0.9
 
-            @test_throws ErrorException Signal(sin,200Hz) |> Normpower |> sink(duration=1s)
+            @test_throws ErrorException Signal(sin,200Hz) |> Normpower |>
+                Until(1s) |> Array
 
             @test_throws ErrorException Signal(sin,200Hz) |> ToChannels(nch) |>
-                sink
+                Array
         end
     end
     next!(progress)
@@ -561,7 +568,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
     @testset "Test that non-signals correctly error" begin
         x = r"nonsignal"
         @test_throws MethodError x |> framerate
-        @test_throws ErrorException x |> sink(framerate=10Hz)
+        @test_throws MethodError x |> ToFramerate(10Hz) |> sink
         @test_throws MethodError x |> duration
         @test_throws ErrorException x |> Until(5s)
         @test_throws ErrorException x |> After(2s)
@@ -636,7 +643,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             "100×2 Array{Float64,2}: … (10.0 Hz) |> ToFramerate(20 Hz)"
         @test x |> ToChannels(1) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> ToChannels(1)"
-        @test x[:,1] |> ToChannels(2) |> showstring ==
+        @test ( x[1][:,1],x[2] ) |> ToChannels(2) |> showstring ==
             "100-element Array{Float64,1}: … (10.0 Hz) |> ToChannels(2)"
         @test startswith(rand(5,2) |> Filt(fs -> Highpass(10,20,fs=fs)) |> showstring,
             "5×2 Array{Float64,2}: … |> Filt(")
@@ -651,8 +658,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
     next!(progress)
 
     @testset "Non-lazy operators" begin
-        x = Signal(rand(10,2),10Hz)
-        y = Signal(rand(10,2),10Hz)
+        x = Signal(rand(10,2),10Hz) |> sink(DimensionalArray)
+        y = Signal(rand(10,2),10Hz) |> sink(DimensionalArray)
 
         @test until(x,5frames) |> size == (5,2)
         @test after(x,5frames) |> size == (5,2)
@@ -668,7 +675,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test ramp(x) |> size == (10,2)
         @test fadeto(x,y,4frames) |> size == (10+10-4,2)
         # @test toframerate(x,5Hz) |> size == (5,2)
-        x_ = Signal(rand(40,2),20Hz)
+        x_ = Signal(rand(40,2),20Hz) |> sink(DimensionalArray)
         @test toframerate(x_,40Hz) |> size == (80,2)
         @test tochannels(x,1) |> size == (10,1)
         @test toeltype(x,Float32) |> eltype <: Float32
@@ -682,24 +689,24 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = Signal(rand(Float32,100,2),10Hz)
         y = Signal(rand(Float32,50,2),10Hz)
         @test x |> framerate == 10
-        @test x |> sink |> eltype == Float32
+        @test x |> sink(Array) |> eltype == Float32
         @test x |> duration == 10
-        @test x |> Until(5s) |> sink |> eltype == Float32
-        @test x |> After(2s) |> sink |> eltype == Float32
+        @test x |> Until(5s) |> Array |> eltype == Float32
+        @test x |> After(2s) |> Array |> eltype == Float32
         @test x |> nframes == 100
         @test x |> nchannels == 2
-        @test x |> Append(y) |> sink |> eltype == Float32
-        @test x |> Append(y) |> After(2s) |> sink |> eltype == Float32
-        @test x |> Append(y) |> Until(13s) |> sink |> eltype == Float32
-        @test x |> Pad(zero) |> Until(15s) |> sink |> eltype == Float32
-        @test x |> Filt(Lowpass,3Hz) |> sink |> eltype == Float32
-        @test x |> Normpower |> Amplify(-10f0*dB) |> sink |> eltype == Float32
-        @test x |> Mix(y) |> sink(framerate=10Hz) |> eltype == Float32
-        @test x |> AddChannel(y) |> sink(framerate=10Hz) |> eltype == Float32
-        @test x |> SelectChannel(1) |> sink(framerate=10Hz) |> eltype == Float32
-        @test x |> Ramp |> sink |> eltype == Float32
+        @test x |> Append(y) |> Array |> eltype == Float32
+        @test x |> Append(y) |> After(2s) |> Array |> eltype == Float32
+        @test x |> Append(y) |> Until(13s) |> Array |> eltype == Float32
+        @test x |> Pad(zero) |> Until(15s) |> Array |> eltype == Float32
+        @test x |> Filt(Lowpass,3Hz) |> Array |> eltype == Float32
+        @test x |> Normpower |> Amplify(-10f0*dB) |> Array |> eltype == Float32
+        @test x |> Mix(y) |> ToFramerate(10Hz) |> Array |> eltype == Float32
+        @test x |> AddChannel(y) |> ToFramerate(10Hz) |> Array |> eltype == Float32
+        @test x |> SelectChannel(1) |> ToFramerate(10Hz) |> Array |> eltype == Float32
+        @test x |> Ramp |> Array |> eltype == Float32
 
-        @test x |> FadeTo(y) |> sink |> eltype == Float32
+        @test x |> FadeTo(y) |> Array |> eltype == Float32
     end
     next!(progress)
 
@@ -733,31 +740,34 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = rand(100,2)
         y = rand(50,2)
         @test x |> framerate |> ismissing
-        @test x |> sink(framerate=10Hz) |> framerate == 10
+        @test x |> ToFramerate(10Hz) |> sink |> framerate == 10
         @test x |> ToFramerate(10Hz) |> framerate == 10
         @test x |> duration |> ismissing
         @test x |> Until(5s) |> duration |> ismissing
         @test x |> After(2s) |> duration |> ismissing
         @test x |> nframes == 100
         @test x |> nchannels == 2
-        @test x |> sink(framerate=10Hz) |> framerate == 10
-        @test x |> Until(3s) |> sink(framerate=10Hz) |> nframes == 30
-        @test x |> After(3s) |> sink(framerate=10Hz) |> nframes == 70
-        @test x |> Append(y) |> sink(framerate=10Hz) |> nframes == 150
-        @test x |> Append(y) |> After(2s) |> sink(framerate=10Hz) |>
+        @test x |> ToFramerate(10Hz) |> sink |> framerate == 10
+        @test x |> Until(3s) |> ToFramerate(10Hz) |> sink |> nframes == 30
+        @test x |> After(3s) |> ToFramerate(10Hz) |> sink |> nframes == 70
+        @test x |> Append(y) |> ToFramerate(10Hz) |> sink |> nframes == 150
+        @test x |> Append(y) |> After(2s) |> ToFramerate(10Hz) |> sink |>
             nframes == 130
-        @test x |> Append(y) |> Until(13s) |> sink(framerate=10Hz) |>
+        @test x |> Append(y) |> Until(13s) |> ToFramerate(10Hz) |> sink |>
             nframes == 130
-        @test x |> Pad(zero) |> Until(15s) |> sink(framerate=10Hz) |>
+        @test x |> Pad(zero) |> Until(15s) |> ToFramerate(10Hz) |> sink |>
             nframes == 150
-        @test x |> Filt(Lowpass,3Hz) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> Normpower |> Amplify(-10dB) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> Mix(y) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> AddChannel(y) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> SelectChannel(1) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> Ramp |> sink(framerate=10Hz) |> nframes == 100
+        @test x |> Filt(Lowpass,3Hz) |> ToFramerate(10Hz) |> sink |>
+            nframes == 100
+        @test x |> Normpower |> Amplify(-10dB) |> ToFramerate(10Hz) |> sink |>
+            nframes == 100
+        @test x |> Mix(y) |> ToFramerate(10Hz) |> sink |> nframes == 100
+        @test x |> AddChannel(y) |> ToFramerate(10Hz) |> sink |> nframes == 100
+        @test x |> SelectChannel(1) |> ToFramerate(10Hz) |> sink |>
+            nframes == 100
+        @test x |> Ramp |> ToFramerate(10Hz) |> sink |> nframes == 100
 
-        @test_throws ErrorException x |> FadeTo(y) |> sink(framerate=10Hz)
+        @test_throws ErrorException x |> FadeTo(y) |> ToFramerate(10Hz) |> sink
     end
     next!(progress)
 
@@ -790,7 +800,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
         # filtering in combination with `After`
         x = noise |> Filt(Lowpass,7Hz) |> Until(4s)
         afterx = noise |> Filt(Lowpass,7Hz) |> Until(4s) |> After(2s)
-        @test sink(x)[2s .. 4s] ≈ sink(afterx)
+        @test sink(x,DimensionalArray)[Time(Between(2s, 4s))] ≈
+            sink(afterx,DimensionalArray)
 
         # multiple frame rates
         x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
@@ -808,33 +819,33 @@ progress = Progress(total_test_groups,desc="Running tests...")
             Filt(Lowpass,9Hz) |>
             Mix(Signal(sin,ω=12Hz)) |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1)) |>
-            sink
+            Array
 
         y = noise |>
             Filt(Lowpass,9Hz) |>
             Mix(Signal(sin,ω=12Hz)) |>
             sink |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1)) |>
-            sink
+            Array
         @test x ≈ y
 
         y = noise |>
             Filt(Lowpass,9Hz,blocksize=11) |>
             Mix(Signal(sin,ω=12Hz)) |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1),blocksize=9) |>
-            sink
+            Array
         @test x ≈ y
 
         # multiple After and Until commands
         x = Signal(sin,ω=5Hz) |> After(2s) |> Until(20s) |> After(2s) |>
             Until(15s) |> After(2s) |> After(2s) |> Until(5s) |> Until(2s) |>
-            sink(framerate=12Hz)
+            ToFramerate(12Hz) |> sink
         @test duration(x) == 2
 
         # different offset appending summation
         x = Append(1 |> Until(1s),2 |> Until(2s))
         y = Append(3 |> Until(2s),4 |> Until(1s))
-        result = Mix(x,y) |> sink(framerate=10Hz)
+        result = Mix(x,y) |> ToFramerate(10Hz) |> Array
         @test all(result .== [fill(4,10);fill(5,10);fill(6,10)])
 
         # multiple operators with a Mix in the middle
@@ -844,19 +855,20 @@ progress = Progress(total_test_groups,desc="Running tests...")
             Filt(Highpass,2Hz) |>
             Append(rand(10,2)) |>
             Append(rand(5,2)) |>
-            sink(framerate=20Hz)
+            ToFramerate(20Hz) |> sink
         @test duration(x) == 4.25
     end
     next!(progress)
 
     @testset "README Examples" begin
-        randn |> Until(2s) |> Normpower |> sink(example_wav,framerate=44.1kHz)
+        randn |> Until(2s) |> Normpower |> ToFramerate(44.1kHz) |>
+            sink(example_wav)
 
         sound1 = Signal(sin,ω=1kHz) |> Until(5s) |> Ramp |> Normpower |>
             Amplify(-20dB)
-        result = sound1 |> sink(framerate=4kHz)
+        result = sound1 |> ToFramerate(4kHz) |> sink
         @test result |> nframes == 4000*5
-        @test mean(abs,result) > 0
+        @test mean(abs,result[1]) > 0
 
         sound2 = example_wav |> Normpower |> Amplify(-20dB)
 
@@ -886,7 +898,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
     @testset "Testing DimensionalData" begin
         x = rand(10,2)
         data = DimensionalArray(x,(Time(range(0s,1s,length=10)),X(1:2)))
-        @test all(sink(Mix(data,1)) .== data .+ 1)
+        @test all(Array(Mix(data,1)) .== data .+ 1)
         data2 = x |> Signal(10Hz) |> sink(DimensionalArray)
         @test data2 == data
         @test sink(Mix(data,1)) isa DimensionalArray
@@ -904,7 +916,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
             using LibSndFile
             using SampledSignals: SampleBuf
 
-            randn |> Until(2s) |> Normpower |> sink(example_ogg,framerate=4kHz)
+            randn |> Until(2s) |> Normpower |> ToFramerate(4kHz) |>
+                sink(example_ogg)
             x = example_ogg |> sink(SampleBuf)
             example_ogg |> sink(AxisArray)
             @test SignalOperators.framerate(x) == 4000
@@ -920,20 +933,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             data = SampleBuf(x,10)
             @test sink(Mix(1,data)) isa SampleBuf
 
-            SignalOperators.set_array_backend!(AxisArray)
-            data = Signal(rand(10,2),10Hz)
-            @test data isa AxisArray
-            @test sink(Mix(1,data)) isa AxisArray
-
-            SignalOperators.set_array_backend!(SampleBuf)
-            @test Signal(rand(10,2),10Hz) isa SampleBuf
-            SignalOperators.set_array_backend!(DimensionalArray)
-            @test Signal(rand(10,2),10Hz) isa DimensionalArray
-
-            SignalOperators.set_array_backend!(AxisArray)
-            data = Signal(rand(10,2),10Hz)
-            SignalOperators.set_array_backend!(Array)
-            @test sink(Mix(rand(10,2),data)) isa AxisArray
+            data = Signal(rand(10,2),10Hz) |> sink(AxisArray)
             data2 = SampleBuf(x,10)
             @test sink(Mix(rand(10,2),data2)) isa SampleBuf
             @test sink(Mix(data,data2)) isa AxisArray

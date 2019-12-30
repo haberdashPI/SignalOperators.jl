@@ -48,7 +48,9 @@ You can pass an amplification value as a unitless or a unitful value in `dB`; a 
 
 ### Lazy Evaluation
 
-To ensure efficient signal generation, signal operators are lazy: no computations are performed until the actual signal data is requested. This lazy quality is reflected in the captilization of the operators: conceptually the operators define some new signal object which can be used to generate frames of data based on the input signal or signals. To generate these frames you call [`sink`](@ref) or [`sink!`](@ref). Generally the result of `sink` is itself a (non-lazy) signal. You can always specify the return type of `sink`, by default it tries to maintain the same representation of the signal or signals used as input, favoring the earlier arguments over later arguments.
+To ensure efficient signal generation, signal operators are lazy: no computations are performed until the actual signal data is requested. This lazy quality is reflected in the captilization of the operators: conceptually the operators define some new signal object which can be used to generate frames of data based on the input signal or signals.
+
+To request evaluation of a lazy signal you can use an array constructor: `Array`, `AxisArray`, `DimensinoalArray` or `SampleBuf`, or you can call the more general methods [`sink`](@ref) or [`sink!`](@ref). The result of `sink` is itself a (non-lazy) signal. You can always specify the return type of `sink`, but by default it tries to maintain the same representation of the signal or signals used as input, favoring the earlier arguments over later arguments. For example `sink(SampleBuf(rand(10,2),10) |> Mix(1)) isa SampleBuf`.
 
 The function [`sink`](@ref) can also write data to a file. To store the five second signal in the above example to "example.wav" we could write the following.
 

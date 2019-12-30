@@ -40,5 +40,3 @@ end
 nextblock(x::NumberSignal,len,skip,block::NumberBlock=NumberBlock(0)) = NumberBlock(len)
 nframes(block::NumberBlock) = block.len
 frame(x,block::NumberBlock,i) = x.val
-
-mergerule(::Type{T},y::Type{<:NumberSignal}) where T<:AbstractArray = T

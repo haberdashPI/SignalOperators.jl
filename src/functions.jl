@@ -112,5 +112,3 @@ Signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG)
 
 frame(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =
     randn(x.fn.rng)
-
-mergerule(::Type{T},y::Type{<:SignalFunction}) where T<:AbstractArray = T

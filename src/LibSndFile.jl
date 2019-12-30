@@ -8,7 +8,7 @@ for fmt in LibSndFile.supported_formats
             Signal(load(filename),fs)
         end
         @eval function save_signal(::$fmt,filename,x,len)
-            data,sr = sink(x,Array,duration=len*frames)
+            data,sr = sink(x,Tuple,duration=len*frames)
             save(filename,data,samplerate=sr)
         end
     end

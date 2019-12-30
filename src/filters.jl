@@ -70,7 +70,20 @@ function DSP.filt(
     x::AbstractSignal,
     si::AbstractArray{S} = DSP._zerosi(b,a,T)) where {T,S}
 
-    arraysignal(filt(b,a,sink(x,Array),si),refineroot(root(x)),framerate(x))
+    R = promote_type(eltype(b), eltype(a), T, S)
+    data = initsink(ToEltype(x,R),refineroot(root(x)),nframes(x))
+    filt!(data,b,a,sink(x,Array),si)
+
+    data
+end
+
+function DSP.filt!(
+    data::AbstractArray,
+    b::Union{AbstractVector, Number}, a::Union{AbstractVector, Number},
+    x::AbstractSignal,
+    si::AbstractArray{S} = DSP._zerosi(b,a,T)) where {T,S}
+
+    filt!(data,b,a,sink(x,Array),si)
 end
 
 struct RawFilterFn{H}

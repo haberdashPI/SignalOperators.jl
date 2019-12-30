@@ -3,20 +3,6 @@ using .DimensionalData: Time, @dim
 @dim SigChannel "Signal Channel"
 export SigChannel, Time
 
-init_array_backend!(DimensionalArray)
-function arraysignal(x,::Type{<:DimensionalArray},fs)
-    if ndims(x) == 1
-        times = range(0s,length=size(x,1),step=float(s/inHz(fs)))
-        DimensionalArray(x,(Time(times),))
-    elseif ndims(x) == 2
-        times = range(0s,length=size(x,1),step=float(s/inHz(fs)))
-        channels = 1:size(x,2)
-        DimensionalArray(x,(Time(times),SigChannel(channels)))
-    else
-        errordim()
-    end
-end
-
 function Signal(x::AbstractDimensionalArray,::IsSignal,
     fs::Union{Missing,Number}=missing)
 
@@ -48,5 +34,6 @@ timeslice(x::AbstractDimensionalArray,indices) = view(x,Time(indices))
 function initsink(x,::Type{<:DimensionalArray},len)
     times = Time(range(0s,length=len,step=1s/framerate(x)))
     channels = SigChannel(1:nchannels(x))
-    DimensionalArray(initsink(x,Array,len)[1],(times,channels))
+    DimensionalArray(initsink(x,Array,len),(times,channels))
 end
+DimensionalArray(x::AbstractSignal) = sink(x,DimensionalArray)
