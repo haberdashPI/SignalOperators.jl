@@ -71,7 +71,7 @@ function DSP.filt(
     si::AbstractArray{S} = DSP._zerosi(b,a,T)) where {T,S}
 
     R = promote_type(eltype(b), eltype(a), T, S)
-    data = initsink(ToEltype(x,R),refineroot(root(x)),nframes(x))
+    data = initsink(ToEltype(x,R),refineroot(root(x)))
     filt!(data,b,a,sink(x,Array),si)
 
     data

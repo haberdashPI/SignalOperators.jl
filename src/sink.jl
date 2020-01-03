@@ -1,6 +1,6 @@
 
 """
-    sink([signal],[to];duration,framerate)
+    sink(signal,[to])
 
 Creates a given type of object (`to`) from a signal. By default the type of
 the resulting sink is determined by the type of the underlying data of the
@@ -8,32 +8,20 @@ signal: e.g. if `x` is a `SampleBuf` object then `sink(Mix(x,2))` is also a
 `SampleBuf` object. If there is no underlying data (`Signal(sin) |> sink`)
 then a Tuple of an array and the framerate is returned.
 
-# Keyword arguments
-
-## Frame Rate
-
-The frame rate does not need to be specified, it will use either the frame
-rate of `Signal` or a default frame rate (which raises a warning). If
-specified, the given frame rate is passed to [`Signal`](@ref) when coercing
-the input to a signal.
-
-## Duration
-
-You can limit the output of the given signal to the specified duration. If
-this duration exceedes the duration of the passed signal an error will be
-thrown.
-
 # Values for `to`
 
 ## Type
 
-If `to` is a type (e.g. `Array`) the signal is written to a value of that
-type.
+If `to` is an array type (e.g. `Array`, `DimensionalArray`) the signal is
+written to a value of that type.
+
+If `to` is a `Tuple` the result is an `Array` of samples and a number of
+indicating the sample rate in Hertz.
 
 """
-sink(;kwds...) = x -> sink(x,refineroot(root(x));kwds...)
-sink(to::Type;kwds...) = x -> sink(x,to;kwds...)
-sink(x;kwds...) = sink(x,refineroot(root(x));kwds...)
+sink() = x -> sink(x,refineroot(root(x)))
+sink(to::Type) = x -> sink(x,to)
+sink(x) = sink(x,refineroot(root(x)))
 root(x) = x
 refineroot(x::AbstractArray) = refineroot(x,SignalTrait(x))
 refineroot(x,::Nothing) = Tuple{<:AbstractArray,<:Number}
@@ -54,12 +42,33 @@ function mergeroot(x,y)
     end
 end
 
-function sink(x,::Type{T};kwds...) where T
-    x,n = process_sink_params(x;kwds...)
-    result = initsink(x,T,n)
+function sink(x,::Type{T}) where T
+    x = process_sink_params(x)
+    result = initsink(x,T)
     sink!(result,x)
     result
 end
+
+function process_sink_params(x)
+    x = Signal(x)
+
+    fr = if ismissing(framerate(x))
+        @warn("No frame rate was specified, defaulting to 44.1 kHz.")
+
+        44.1kHz
+    else
+        framerate(x)
+    end
+    x = Signal(x,fr)
+
+    if isinf(duration(x))
+        error("Cannot store infinite signal. Specify a finite duration when ",
+            "calling `sink`.")
+    end
+
+    x
+end
+
 
 """
 
@@ -73,39 +82,11 @@ implement this method. You should probably use [`nchannels`](@ref) and
 [`channel_eltype`](@ref) of `x` to determine how to initialize the object.
 
 """
-initsink(x,::Type{<:Array},len) =
-    Array{channel_eltype(x)}(undef,len,nchannels(x))
-initsink(x,::Type{<:Tuple},len) =
-    (Array{channel_eltype(x)}(undef,len,nchannels(x)),framerate(x))
+initsink(x,::Type{<:Array}) =
+    Array{channel_eltype(x)}(undef,nframes(x),nchannels(x))
+initsink(x,::Type{<:Tuple}) =
+    (Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)),framerate(x))
 Array(x::AbstractSignal) = sink(x,Array)
-
-function process_sink_params(x;duration=missing,
-    framerate=nothing)
-    x = Signal(x)
-
-    if isnothing(framerate)
-        framerate=SignalOperators.framerate(x)
-    end
-
-    if ismissing(framerate) && ismissing(SignalOperators.framerate(x))
-        @warn("No frame rate was specified, defaulting to 44.1 kHz.")
-        framerate = 44.1kHz
-    end
-    x = Signal(x,framerate)
-    duration = coalesce(duration,nframes(x)*frames)
-
-    if isinf(duration)
-        error("Cannot store infinite signal. Specify a finite duration when ",
-            "calling `sink`.")
-    end
-
-    n = inframes(Int,maybeseconds(duration),SignalOperators.framerate(x))
-    if n > nframes(x)
-        error("Requested signal duration is too long for passed signal: $x.")
-    end
-
-    x,n
-end
 
 """
 
@@ -121,11 +102,11 @@ Available backends include the following pacakges
 
 """
 sink(to::String;kwds...) = x -> sink(x,to;kwds...)
-function sink(x,to::String;kwds...)
-    x,n = process_sink_params(x;kwds...)
-    save_signal(filetype(to),to,x,n)
+function sink(x,to::String)
+    x = process_sink_params(x)
+    save_signal(filetype(to),to,x)
 end
-function save_signal(::Val{T},filename,x,len) where T
+function save_signal(::Val{T},filename,x) where T
     error("No backend loaded for file of type $T. Refer to the documentation ",
           "of `Signal` to find a list of available backends.")
 end

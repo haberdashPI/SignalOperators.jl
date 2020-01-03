@@ -108,16 +108,16 @@ progress = Progress(total_test_groups,desc="Running tests...")
     next!(progress)
 
     @testset "Function signals" begin
-        @test sink(Signal(sin,ω=5Hz,ϕ=π),duration=1s,framerate=20Hz) ==
-            sink(Signal(sin,ω=5Hz,ϕ=π*rad),duration=1s,framerate=20Hz)
-        @test sink(Signal(sin,ω=5Hz,ϕ=π),duration=1s,framerate=20Hz) ==
-            sink(Signal(sin,ω=5Hz,ϕ=100ms),duration=1s,framerate=20Hz)
-        @test sink(Signal(sin,ω=5Hz,ϕ=π),duration=1s,framerate=20Hz) ==
-            sink(Signal(sin,ω=5Hz,ϕ=180°),duration=1s,framerate=20Hz)
-        @test sink(Signal(sin,ϕ=1s),duration=1s,framerate=20Hz,Array) ≈
-            sink(Signal(sin,ω=1Hz,ϕ=0),duration=1s,framerate=20Hz,Array)
-        @test_throws ErrorException sink(Signal(sin,ϕ=2π*rad),duration=1s,
-            framerate=20Hz)
+        @test sink(Signal(sin,ω=5Hz,ϕ=π) |> Until(1s) |> ToFramerate(20Hz)) ==
+            sink(Signal(sin,ω=5Hz,ϕ=π*rad) |> Until(1s) |> ToFramerate(20Hz))
+        @test sink(Signal(sin,ω=5Hz,ϕ=π) |> Until(1s) |> ToFramerate(20Hz)) ==
+            sink(Signal(sin,ω=5Hz,ϕ=100ms) |> Until(1s) |> ToFramerate(20Hz))
+        @test sink(Signal(sin,ω=5Hz,ϕ=π) |> Until(1s) |> ToFramerate(20Hz)) ==
+            sink(Signal(sin,ω=5Hz,ϕ=180°) |> Until(1s) |> ToFramerate(20Hz))
+        @test sink(Signal(sin,ϕ=1s) |> Until(1s) |> ToFramerate(20Hz),Array) ≈
+            sink(Signal(sin,ω=1Hz,ϕ=0) |> Until(1s) |> ToFramerate(20Hz),Array)
+        @test_throws ErrorException Signal(sin,ϕ=2π*rad) |> Until(1s) |>
+            ToFramerate(20Hz) |> sink()
 
         @test Signal(identity,ω=2Hz,10Hz) |> Until(10frames) |> sink |>
             duration == 1.0
@@ -728,9 +728,9 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test x |> Pad(zero) |> Until(15s) |> sink |> nframes == 150
         @test x |> Filt(Lowpass,3Hz) |> sink |> nframes == 100
         @test x |> Normpower |> Amplify(-10dB) |> sink |> nframes == 100
-        @test x |> Mix(y) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> AddChannel(y) |> sink(framerate=10Hz) |> nframes == 100
-        @test x |> SelectChannel(1) |> sink(framerate=10Hz) |> nframes == 100
+        @test x |> Mix(y) |> sink() |> ToFramerate(10Hz) |> nframes == 100
+        @test x |> AddChannel(y) |> sink() |> ToFramerate(10Hz) |> nframes == 100
+        @test x |> SelectChannel(1) |> sink() |> ToFramerate(10Hz) |> nframes == 100
         @test x |> Ramp |> sink |> nframes == 100
         @test x |> FadeTo(y) |> sink |> nframes == 150
     end
@@ -793,7 +793,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
         a = Until(sin,2s)
         b = Until(cos,2s)
         x = Append(a,b) |> After(3s)
-        @test sink(x,framerate=20Hz) == b |> After(1s) |> sink(framerate=20Hz)
+        @test (x |> ToFramerate(20Hz) |> sink) ==
+            (b |> After(1s) |> ToFramerate(20Hz) |> sink())
 
         noise = Signal(randn,20Hz) |> Until(6s) |> sink
 

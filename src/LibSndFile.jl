@@ -7,8 +7,8 @@ for fmt in LibSndFile.supported_formats
         @eval function load_signal(::$fmt,filename,fs=missing)
             Signal(load(filename),fs)
         end
-        @eval function save_signal(::$fmt,filename,x,len)
-            data,sr = sink(x,Tuple,duration=len*frames)
+        @eval function save_signal(::$fmt,filename,x)
+            data,sr = sink(x,Tuple)
             save(filename,data,samplerate=sr)
         end
     end

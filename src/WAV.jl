@@ -1,7 +1,7 @@
 using .WAV
 
-function save_signal(::DataFormat{:WAV},filename,x,len)
-    data,fs = sink(x,Tuple,duration=len*frames)
+function save_signal(::DataFormat{:WAV},filename,x)
+    data,fs = sink(x,Tuple)
     wavwrite(data,filename,Fs=round(Int,fs))
 end
 

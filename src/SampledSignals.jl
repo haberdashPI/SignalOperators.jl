@@ -13,6 +13,6 @@ nchannels(x::SampleBuf) = size(x,2)
 framerate(x::SampleBuf) = SampledSignals.samplerate(x)
 
 timeslice(x::SampleBuf,indices) = view(x,indices,:)
-initsink(x,::Type{<:SampleBuf},len) =
-    SampleBuf(channel_eltype(x),framerate(x),len,nchannels(x))
+initsink(x,::Type{<:SampleBuf}) =
+    SampleBuf(channel_eltype(x),framerate(x),nframes(x),nchannels(x))
 SampleBuf(x::AbstractSignal) = sink(x,SampleBuf)
