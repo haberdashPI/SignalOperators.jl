@@ -51,21 +51,7 @@ end
 
 function process_sink_params(x)
     x = Signal(x)
-
-    fr = if ismissing(framerate(x))
-        @warn("No frame rate was specified, defaulting to 44.1 kHz.")
-
-        44.1kHz
-    else
-        framerate(x)
-    end
-    x = Signal(x,fr)
-
-    if isinf(duration(x))
-        error("Cannot store infinite signal. Specify a finite duration when ",
-            "calling `sink`.")
-    end
-
+    isinf(duration(x)) && error("Cannot store infinite signal.")
     x
 end
 
@@ -101,7 +87,7 @@ Available backends include the following pacakges
 - [LibSndFile](https://github.com/JuliaAudio/LibSndFile.jl)
 
 """
-sink(to::String;kwds...) = x -> sink(x,to;kwds...)
+sink(to::String) = x -> sink(x,to)
 function sink(x,to::String)
     x = process_sink_params(x)
     save_signal(filetype(to),to,x)
@@ -112,25 +98,17 @@ function save_signal(::Val{T},filename,x) where T
 end
 
 """
-    sink!(array,x;[framerate])
+    sink!(array,x)
 
-Write `size(array,1)` frames of signal `x` to `array`. If no frame rate has
-been specified for `x` you can specify it now, using `framerate` (it will
-default to 44.1kHz).
+Write `size(array,1)` frames of signal `x` to `array`.
 
 """
-sink!(result::Union{AbstractVector,AbstractMatrix};kwds...) =
-    x -> sink!(result,x;kwds...)
-sink!(result::Tuple{<:AbstractArray,<:Number},x;kwds...) =
-    (sink!(result[1],x;kwds...), result[2])
+sink!(result::Union{AbstractVector,AbstractMatrix}) =
+    x -> sink!(result,x)
+sink!(result::Tuple{<:AbstractArray,<:Number},x) =
+    (sink!(result[1],x), result[2])
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     framerate=SignalOperators.framerate(x))
-
-    if ismissing(framerate) && ismissing(SignalOperators.framerate(x))
-        @warn("No frame rate was specified, defaulting to 44.1 kHz.")
-        framerate = 44.1kHz
-    end
-    x = Signal(x,framerate)
 
     if nframes(x) < size(result,1)
         error("Signal is too short to fill buffer of length $(size(result,1)).")

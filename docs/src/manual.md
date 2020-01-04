@@ -55,12 +55,11 @@ To request evaluation of a lazy signal you can use an array constructor: `Array`
 The function [`sink`](@ref) can also write data to a file. To store the five second signal in the above example to "example.wav" we could write the following.
 
 ```julia
-sound1 |> sink("example.wav")
+sound1 |> ToFramerate(44.1kHz) |> sink("example.wav")
 ```
 
-In this case `sound1` had no defined frame rate, so the default frame rate
-of 44.1khz will be used. The absence of an explicit frame rate will raise a
-warning.
+In this case `sound1` had no defined frame rate, so we must specify one using
+[`ToFramerate`](@ref).
 
 #### Non-lazy operators
 
