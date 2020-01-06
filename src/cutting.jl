@@ -36,7 +36,7 @@ const AfterApply{S,T} = CutApply{S,T,Val{:After}}
 """
     Until(x,time)
 
-Create a signal of all frames of `x` up Until and including `time`.
+Create a signal of all frames of `x` up until and including `time`.
 """
 Until(time) = x -> Until(x,time)
 Until(x,time) = CutApply(Signal(x),time,Val{:Until}())
@@ -56,7 +56,7 @@ until(x,time) = sink(Until(x,time))
 """
     After(x,time)
 
-Create a signal of all frames of `x` After `time`.
+Create a signal of all frames of `x` after `time`.
 """
 After(time) = x -> After(x,time)
 After(x,time) = CutApply(Signal(x),time,Val{:After}())

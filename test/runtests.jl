@@ -262,7 +262,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test (Mix(x,y) |> ToFramerate(20Hz) |> Array) == (x .+ y)
 
         x = rand(20,2)
-        result = MapSignal(reverse,x,bychannel=false) |> ToFramerate(20Hz) |>
+        result = OperateOn(reverse,x,bychannel=false) |> ToFramerate(20Hz) |>
             Array
         @test result == [x[:,2] x[:,1]]
     end
@@ -474,7 +474,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
                 Until(10frames) |> Until(0frames)
             @test nframes(tone) == 0
-            @test MapSignal(-,tone) |> nframes == 0
+            @test tone |> Operate(-) |> nframes == 0
         end
     end
     next!(progress)
@@ -637,8 +637,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
             "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    AddChannel(50×2 Array{Float64,2}: … (10.0 Hz))"
         @test x |> SelectChannel(1) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> SelectChannel(1)"
-        @test MapSignal(identity,x) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> MapSignal(identity,)"
+        @test x |> Operate(identity) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> Operate(identity,)"
         @test x |> ToFramerate(20Hz) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> ToFramerate(20 Hz)"
         @test x |> ToChannels(1) |> showstring ==
@@ -665,7 +665,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test after(x,5frames) |> size == (5,2)
         @test append(x,y) |> size == (20,2)
         @test prepend(x,y) |> size == (20,2)
-        @test mapsignal(+,x,y) == x.+y
+        @test operate(+,x,y) == x.+y
         @test mix(x,y) == x.+y
         @test amplify(x,y) == x.*y
         @test addchannel(x,y) |> size == (10,4)

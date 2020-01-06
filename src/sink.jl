@@ -121,15 +121,25 @@ end
 
 """
 
-    SignalOperators.nextblock(x,maxlength,skip,[block])
+    SignalOperators.nextblock(x,maxlength,skip,[last_block])
 
-Retrieve the next block of frames for signal `x`. The final, fourth argument
-is optional. If it is left out, nextblock returns the first block of the
-signal. The resulting block must has no more than `maxlength` frames, but
-may have fewer frames than that; it should not have zero frames unless
-`maxlength == 0`. If `skip == true`, it is guaranted that [`frame`](@ref)
-will never be called on the returned block. The value of `skip` is `true`, for
-example, when skipping blocks during a call to [`After`](@ref)).
+Retrieve the next block of frames for signal `x`, or nothing, if no more
+blocks exist. Analogous to `Base.iterate`. The returned block must satisfy
+the interface for signal blocks as described in [custom signals](@ref
+custom_signals).
+
+## Arugments
+
+- `x`: the signal to retriev blocks from
+- `maxlength`: The resulting block must have no more than `maxlength` frames,
+    but may have fewer frames than that; it should not have zero frames unless
+    `maxlength == 0`.
+- `skip`: If `skip == true`, it is guaranted that [`frame`](@ref)
+    will never be called on the returned block. The value of `skip` is `true`
+    when skipping blocks during a call to [`After`](@ref)).
+- `last_block` The fourth argument is optional. If included, the block that
+    occurs after this block is returned. If it is left out, nextblock returns the
+    very first block of the signal.
 
 """
 function nextblock

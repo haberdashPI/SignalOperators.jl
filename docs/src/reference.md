@@ -3,7 +3,7 @@
 ## Signal Generation
 
 ```@docs
-signal
+Signal
 sink
 sink!
 ```
@@ -29,7 +29,7 @@ after
 Append
 append
 Prepend
-preprend
+prepend
 Pad
 mirror
 cycle
@@ -42,8 +42,10 @@ SignalOperators.valuefunction
 ```@docs
 Filt
 Normpower
-MapSignal
-mapsignal
+normpower
+OperateOn
+Operate
+operate
 Mix
 mix
 Amplify
@@ -98,6 +100,4 @@ SignalOperators.ArrayBlock
 ```@docs
 SignalOperators.initsink
 SignalOperators.sink_helper!
-```
-
 ```

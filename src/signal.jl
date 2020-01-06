@@ -12,7 +12,7 @@ Represents the Format of a signal type with three type parameters:
 * `Fs` - The type of the framerate. It should be either `Float64` or
     `Missing`.
 * `L` - The type of the length of the signal. It should be either
-`InfiniteLength`, `Missing` or `Int`.
+    `InfiniteLength`, `Missing` or `Int`.
 
 """
 struct IsSignal{T,Fs,L}
@@ -23,7 +23,7 @@ end
     SiganlOperators.SignalTrait(::Type{T}) where T
 
 Returns either `nothing` if the type T should not be considered a signal (the
-default) or [`IsSignal`](@ref) to indicate the signal Format for this signal.
+default) or [`IsSignal`](@ref) to indicate the signal format for this signal.
 
 """
 SignalTrait(x::T) where T = SignalTrait(T)
@@ -69,8 +69,8 @@ length.
     If your are implementing a [custom signal](@ref custom_signals), you need
     not normally define `duration` as it will be computed from `nframes` and
     `framerate`. However, if one or both of these is `missing` and you want
-    `duartion` to return a non-missing value, you can define custom method of
-    `duration`.
+    `duartion` to return a non-missing value, you can define a custom method
+    of `duration`.
 
 """
 duration(x) = nframes(x) / framerate(x)
@@ -85,7 +85,7 @@ length.
 !!! note
 
     The return value of `nframes` for a block (see [custom signals](@ref
-    custom_signals) must be a non-missing, finite value.
+    custom_signals)) must be a non-missing, finite value.
 
 """
 function nframes
@@ -120,8 +120,8 @@ Returns the element type of an individual channel of a signal (e.g. `Float64`).
 
 !!! note
 
-    `channel_eltype` and `eltype` are, in most cases, the same, but
-    not necesarilly so.
+    `channel_eltype` and `eltype` are, in most cases, the same. They are
+    distinct so that these two can diverge when appropriate.
 
 """
 channel_eltype(x) = channel_eltype(x,SignalTrait(x))
@@ -139,9 +139,9 @@ arguments to it.
 
 !!! note
 
-    If you pipe `Signal` and pass a frame rate, you must specify the units
-    of the frame rate (e.g. `x |> Signal(20Hz)`). A unitless number is
-    always interpreted as a constant, infinite-length signal (see below).
+    If you pipe `Signal` and pass a frame rate, you must specify the units of
+    the frame rate (e.g. `x |> Signal(20Hz)`). A unitless number is always
+    interpreted as a constant, infinite-length signal (see below).
 
 !!! note
 

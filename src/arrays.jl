@@ -8,25 +8,28 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 
 Any array can be interpreted as a signal. By default the first dimension is
 time, the second channels and their frame rate is a missing value. If you
-specify a frame rate with an array type that has a missing frame rate the
-return value will be a Tuple (see "Array & Number" section below). Some array
-types change this default behavior, as follows.
+pass a non-missin gframerate, and the array currently has a missing frame
+rate a `Tuple` value will be returned (see "Array & Number" below).
 
-!!! warn
+If you specify a non-missing frame rate to an array type with a missing frame
+rate the return value will be a Tuple (see Array & Number
+section below). Some array types change this default behavior, as follows.
+
+!!! warning
 
     Arrays of more than two dimensions are not currently supported.
 
 - [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
-axis labeled `time` and one or zero additional axes, can be treated as a
-signal. The time dimension must be represented using on object with the `step`
-function defined (e.g. any `AbstractRange` object).
+    axis labeled `time` and one or zero additional axes, can be treated as a
+    signal. The time dimension must be represented using on object with the `step`
+    function defined (e.g. any `AbstractRange` object).
 - [`SampleBuf`](https://github.com/JuliaAudio/SampledSignals.jl) objects are
-also properly interpreted as signals, as per the conventions employed for its
-package.
+    also properly interpreted as signals, as per the conventions employed for its
+    package.
 - [`DimensionalArrays`](https://github.com/rafaqz/DimensionalData.jl) can be
-treated as signals if there is a `Time` dimension, which must be represented
-using an object with the `step` function defined (e.g. `AbstractRange`) and
-zero or one additional dimensions (treated as channels)
+    treated as signals if there is a `Time` dimension, which must be represented
+    using an object with the `step` function defined (e.g. `AbstractRange`) and
+    zero or one additional dimensions (treated as channels)
 
 """
 function Signal(x::AbstractArray,fs::Union{Missing,Number}=missing)

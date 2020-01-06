@@ -1,6 +1,6 @@
 using Unitful
-export MapSignal, Mix, Amplify, AddChannel, SelectChannel,
-    mapsignal, mix, amplify, addchannel, selectchannel
+export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
+    operate, mix, amplify, addchannel, selectchannel
 
 ################################################################################
 # binary operators
@@ -44,10 +44,12 @@ function duration(x::MapSignal)
         any(ismissing,durs) ? missing :
         maximum(filter(!isinf,durs))
 end
-function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
+function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
+    c::ComputedSignal,fs;blocksize)
+
     if inHz(fs) < x.framerate
         # reframe input if we are downsampling
-        MapSignal(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
+        OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
             padding=x.padding,bychannel=x.bychannel,
             blocksize=x.blocksize)
     else
@@ -59,63 +61,74 @@ end
 root(x::MapSignal) = reduce(mergeroot,root.(x.signals))
 
 ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
-    MapSignal(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
-        padding=x.padding,bychannel=x.bychannel,
-        blocksize=x.blocksize)
+    OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
+        padding=x.padding,bychannel=x.bychannel,blocksize=x.blocksize)
 
 """
-    MapSignal(fn,arguments...;padding,bychannel)
 
-Apply `fn` across the frames of arguments, producing a signal of the output
-of `fn`. Shorter signals are padded to accommodate the longest finite-length
-signal. The function `fn` should treat each argument as a single number and
-return a single number. This operation is broadcast across all channels of
-the input. It is expected to be a type stable function.
+    OperateOn(fn,arguments...;padding,bychannel)
 
-Normally the signals are first promoted to have the same samle rate and the
-same number of channels using [`Uniform`](@ref) (with `channels=true`).
+Apply `fn` across the samples of the passed signals. Shorter signals are
+padded to accommodate the longest finite-length signal.
+
+!!! note
+
+    There is no piped version of `OperateOn`, use [`Operate`](@ref) instead.
+    The shorter name is used for what is intended as the more common use case
+    (piping).
+
+## Channel-by-channel functions
+
+When `bychannel == false` the function `fn` should treat each of its
+arguments as a single number and return a single number. This operation is
+broadcast across all channels of the input. It is expected to be a type
+stable function.
+
+The signals are first promoted to have the same sample rate and the same
+number of channels using [`Uniform`](@ref).
 
 ## Cross-channel functions
 
-The function `fn` is normally broadcast across channels, but if you wish to
-treat each channel separately you can set `bychannel=false`. In this case the
-inputs to `fn` will be indexable objects (tuples or arrays) of all channel
-values for a given frame, and `fn` should return a type-stable tuple value
-(for a multi-channel or single-channel result) or a number (for a
-single-channel result only). For example, the following would swap the left
-and right channels.
+When `bychannel=false`, rather than being applied to each channel seperately
+the function `fn` is applied to each frame, containing all channels. For
+example, for a two channel signal, the following would swap these two
+channels.
 
 ```julia
 x = rand(10,2)
-swapped = MapSignal(x,bychannel=false) do val
+swapped = OperateOn(x,bychannel=false) do val
     val[2],val[1]
 end
 ```
 
-When `bychannel=false` the channels of each signal are not promoted:
+The signals are first promoted to have the same sample rate, but the number of
+channels of each input signal remains unchanged.
 
 ## Padding
 
 Padding determines how frames past the end of shorter signals are reported.
-The value of `padding` is passd to [`Pad`](@ref). Its default value is
-determined by the value of `fn`. The default value for the four basic
-arithmetic operators is their identity (`one` for `*` and `zero` for `+`).
-These defaults are set on the basis of `fn` using `default_pad(fn)`. A
-fallback implementation of `default_pad` returns `zero`.
+The value of `padding` is given as the second argument to [`Pad`](@ref) these
+shorter signals. Its default value is determined by the value of `fn`. The
+default value for the four basic arithmetic operators is their identity
+(`one` for `*` and `zero` for `+`). These defaults are set on the basis of
+`fn` using `default_pad(fn)`. A fallback implementation of `default_pad`
+returns `zero`.
 
 To define a new default for a specific function, just create a new method of
 `default_pad(fn)`
 
 ```julia
+myfun(x,y) = x + 2y
+SignalOperators.default_pad(::typeof(myfun)) = zero
 
-myfun(x) = 2x + 3
-SignalOperators.default_pad(::typeof(myfun)) = one
-
+sink(Operate(myfun,Until(1,2frames),Until(2,4frames))) == [5,5,4,4]
 ```
 
 """
-function MapSignal(fn,xs...;padding = default_pad(fn),bychannel=true,
-    blocksize=default_blocksize)
+function OperateOn(fn,xs...;
+    padding = default_pad(fn),
+    bychannel = true,
+    blocksize = default_blocksize)
 
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
@@ -133,16 +146,31 @@ function MapSignal(fn,xs...;padding = default_pad(fn),bychannel=true,
 end
 
 """
-    mapsignal(fn,args...;padding,bychannel)
+    Operate(fn,rest...;padding,bychannel)
 
-Equivalent to `sink(MapSignal(fn,args...;padding,bychannel))`
+Equivalent to
+
+```julia
+(x) -> OperateOn(fn,x,rest...;padding=padding,bychannel=bychannel)
+````
 
 ## See also
 
-[`MapSignal`](@ref)
+[`OperateOn`](@ref)
+"""
+Operate(fn,xs...;kwds...) = x -> OperateOn(fn,x,xs...;kwds...)
 
 """
-mapsignal(fn,args...;kwds...) = sink(MapSignal(fn,args...;kwds...))
+    operate(fn,args...;padding,bychannel)
+
+Equivalent to `sink(OperateOn(fn,args...;padding,bychannel))`
+
+## See also
+
+[`OperateOn`](@ref)
+
+"""
+operate(fn,args...;kwds...) = sink(OperateOn(fn,args...;kwds...))
 
 struct FnBr{Fn}
     fn::Fn
@@ -256,18 +284,20 @@ function PrettyPrinting.tile(x::MapSignal)
     # values
 end
 signaltile(x::MapSignal) = PrettyPrinting.tile(x)
-mapstring(fn) = string("MapSignal(",fn,",")
-mapstring(x::FnBr) = string("MapSignal(",x.fn,",")
+mapstring(fn) = string("Operate(",fn,",")
+mapstring(x::FnBr) = string("Operate(",x.fn,",")
 
 """
 
     Mix(xs...)
 
-Sum all signals together, using [`MapSignal`](@ref)
+Sum all signals together, using [`OperateOn`](@ref). Unlike `OperateOn`,
+`Amplify` includes a piped version.
+
 
 """
 Mix(y) = x -> Mix(x,y)
-Mix(xs...) = MapSignal(+,xs...)
+Mix(xs...) = OperateOn(+,xs...)
 mapstring(::FnBr{<:typeof(+)}) = "Mix("
 
 """
@@ -287,11 +317,12 @@ mix(xs...) = sink(Mix(xs...))
     Amplify(xs...)
 
 Find the product, on a per-frame basis, for all signals `xs` using
-[`MapSignal`](@ref).
+[`OperateOn`](@ref). Unlike `OperateOn`, `Amplify` includes a piped
+version.
 
 """
 Amplify(y) = x -> Amplify(x,y)
-Amplify(xs...) = MapSignal(*,xs...)
+Amplify(xs...) = OperateOn(*,xs...)
 mapstring(::FnBr{<:typeof(*)}) = "Amplify("
 
 """
@@ -311,12 +342,14 @@ amplify(xs...) = sink(Amplify(xs...))
     AddChannel(xs...)
 
 Concatenate the channels of all signals into one signal, using
-[`MapSignal`](@ref). This will result in a signal with `sum(nchannels,xs)`
-channels.
+[`OperateOn`](@ref). This will result in a signal with `sum(nchannels,xs)`
+channels. Unlike `OperateOn`, `AddChannels` includes a piped
+version.
+
 
 """
 AddChannel(y) = x -> AddChannel(x,y)
-AddChannel(xs...) = MapSignal(tuplecat,xs...;bychannel=false)
+AddChannel(xs...) = OperateOn(tuplecat,xs...;bychannel=false)
 tuplecat(a,b) = (a...,b...)
 tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
 mapstring(::typeof(tuplecat)) = "AddChannel("
@@ -324,7 +357,7 @@ mapstring(::typeof(tuplecat)) = "AddChannel("
 """
     addchannel(xs...)
 
-Equivalent to `sink(AddChannel(xs...))`
+Equivalent to `sink(AddChannel(xs...))`.
 
 ## See also
 
@@ -339,11 +372,13 @@ addchannel(xs...) = sink(AddChannel(xs...))
     SelectChannel(x,n)
 
 Select channel `n` of signal `x`, as a single-channel signal, using
-[`MapSignal`](@ref).
+[`OperateOn`](@ref). Unlike `OperateOn`, `SelectChannel` includes a piped
+version.
+
 
 """
 SelectChannel(n) = x -> SelectChannel(x,n)
-SelectChannel(x,n) = MapSignal(GetChanFn(n),x,bychannel=false)
+SelectChannel(x,n) = OperateOn(GetChanFn(n),x,bychannel=false)
 struct GetChanFn; n::Int; end
 (fn::GetChanFn)(x) = x[fn.n]
 mapstring(fn::GetChanFn) = string("SelectChannel(",fn.n)

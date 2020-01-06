@@ -23,8 +23,8 @@ implementation.
 
 # Implementation
 
-You need only implement this function for custom signals for particular
-scenarios, described below.
+You need only implement this function for [custom signals](@ref
+custom_signals) for particular scenarios, described below.
 
 ## Custom Computed Signals
 
@@ -125,7 +125,7 @@ end
 
     ToChannels(x,ch)
 
-Force a signal to have `ch` number of channels, by Mixing channels together
+Force a signal to have `ch` number of channels, by mixing channels together
 or broadcasting a single channel over multiple channels.
 
 """
@@ -160,9 +160,9 @@ function ToChannels(x,::IsSignal,ch)
     if ch == nchannels(x)
         x
     elseif ch == 1
-        MapSignal(As1Channel(),x,bychannel=false)
+        OperateOn(As1Channel(),x,bychannel=false)
     elseif nchannels(x) == 1
-        MapSignal(AsNChannels(ch),x,bychannel=false)
+        OperateOn(AsNChannels(ch),x,bychannel=false)
     else
         error("No rule to convert signal with $(nchannels(x)) channels to",
             " a signal with $ch channels.")
@@ -178,10 +178,10 @@ mapstring(fn::ToEltypeFn{El}) where El = string("ToEltype(",El,")")
 """
     ToEltype(x,T)
 
-Converts individual frames in signal `x` to type `T`.
+Converts individual samples in signal `x` to type `T`.
 """
 ToEltype(::Type{T}) where T = x -> ToEltype(x,T)
-ToEltype(x,::Type{T}) where T = MapSignal(ToEltypeFn{T}(),x)
+ToEltype(x,::Type{T}) where T = OperateOn(ToEltypeFn{T}(),x)
 
 """
     toeltype(x,T)
@@ -235,7 +235,7 @@ highest frame rate (and optionally highest channel count) of the iterable of sig
 
     `Uniform` rarely needs to be called directly. It is called implicitly on
     all passed signals, within the body of operators such as
-    [`MapSignal`](@ref).
+    [`OperateOn`](@ref).
 
 """
 function Uniform(xs;channels=false)

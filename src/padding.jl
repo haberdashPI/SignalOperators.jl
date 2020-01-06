@@ -33,8 +33,8 @@ The value `padding` can be:
 If the signal is already infinitely long (e.g. a previoulsy padded signal),
 `Pad` has no effect.
 
-If `padding` is a number it is used as the value for all frames and channels
-past the end of `x`.
+If `padding` is a number it is used as the value for all samples past the end
+of `x`.
 
 If `padding` is a tuple or vector it is the value for all frames past the end
 of `x`.
@@ -43,10 +43,10 @@ If `padding` is a type function it is passed the [`channel_eltype`](@ref) of
 the signal and the resulting value is used as the value for all frames past
 the end of `x`. Examples include `zero` and `one`
 
-If `padding` is a value function it is passed `x` just before padding during
-`sink` begins and it should return a tuple of `channel_eltype(x)` values.
-This value is repeated for the remaining frames. It is generally only useful
-when x is an AbstractArray.
+If `padding` is a value function it is passed the signal `x` just before
+padding occurs during a call to `sink`; it should return a tuple of
+`channel_eltype(x)` values. The return value is repeated for all remaining
+frames of the signal. For example, [`lastframe`](@ref) is a value function.
 
 If `padding` is an indexing function (it accepts 3 arguments) it will be used
 to retrieve frames from the signal `x` assuming it conforms to the
@@ -56,6 +56,11 @@ transformed to an index within the range of that array. Note that such
 padding functions only work on signals that are also AbstractArray objects.
 You can always generate an array from a given signal by first passing it
 through `sink` or `sink!`.
+
+!!! info
+
+    A indexing function will also work on a signal represented as a tuple of
+    an array and number; it simply passed the array (leaving off the number).
 
 ## See also
 

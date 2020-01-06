@@ -121,7 +121,7 @@ A standard array is treated as a finite signal with unknown frame rate.
 rand(10,2) |> toframerate(10Hz) |> sink |> duration == 1
 ```
 
-An `AxisArray`, `DimesnionalArray` or `SampleBuf` (form [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl)) is treated as a finite signal with a known frame rate (and is the default output of [`sink`](@ref))
+An `AxisArray`, `DimesnionalArray` or `SampleBuf` (from [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl)) is treated as a finite signal with a known frame rate (and is the default output of [`sink`](@ref))
 
 ```julia
 using AxisArrays
@@ -224,21 +224,30 @@ Signal(sin,ω=2kHz) |> Until(5s) |> Ramp
 
 You can ramp only the start of a signal ([`RampOn`](@ref)), or the end of it ([`RampOff`](@ref)) and you can use ramps to create a smooth transition between two signals ([`FadeTo`](@ref)).
 
-### Mapping
+### General operators
 
-Probably the most powerful operator is [`MapSignal`](@ref). It works a lot like `map` but automatically promotes the signals, as with all operators, *and* it pads the end of the signal appropriately, so different length signals can be combined. The output is always the length of the longest *finite*-length signal.
+The most general operator is [`OperateOn`](@ref). It works a lot like `map` but automatically promotes the signals, as with all operators, *and* it pads the end of the signal appropriately, so different length signals can be combined. The output is always the length of the longest *finite*-length signal.
 
 ```julia
 a = Signal(sin,ω=2kHz) |> Until(2s)
 b = Signal(sin,ω=1kHz) |> Until(3s)
-a_minus_b = MapSignal(-,a,b)
+a_minus_b = OperateOn(-,a,b)
 ```
 
-The function [`MapSignal`](@ref) cannot itself be piped, due to ambiguity in the arguments, but shortcuts for this function have been provided for addition ([`Mix`](@ref)) and multiplication ([`Amplify`](@ref)), the two most common operations, and these two shortcuts have piped versions available.
+The function [`OperateOn`](@ref) cannot itself be piped, due to ambiguity in the arguments, but you can use the shorter [`Operate`](@ref) for these purposes.
+
+```julia
+a_minus_b = a |> Operate(-,b)
+```
+
+A number of shortcuts for `OperateOn` exist, and these can be piped normally. There are shortcuts for addition ([`Mix`](@ref)) and multiplication ([`Amplify`](@ref)).
 
 ```julia
 a_plus_b = a |> Mix(b)
 a_times_b = a |> Amplify(b)
 ```
 
-You can also add or select out channels using [`AddChannel`](@ref) and [`SelectChannel`](@ref), which are defined in terms of calls to [`MapSignal`](@ref). These use a variant of [`MapSignal`](@ref) where the keyword `bychannel` is set to `false` (see `MapSignal`'s documentation for details).
+There are shortcuts to add or isolate channels, [`AddChannel`](@ref) and
+[`SelectChannel`](@ref). These set the keyword argument `bychannel` of
+[`OperateOn`](@ref) to `false` (see [`OperateOn`](@ref)'s documentation for
+details).

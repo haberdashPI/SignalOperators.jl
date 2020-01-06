@@ -40,15 +40,46 @@ Append(sound1,sound2,sound3,sound4,scene) |> ToFramerate(44.1kHz) |> sink("examp
 
 ```
 
-Read more in the [documentation](https://haberdashPI.github.io/SignalOperators.jl/stable).
+The interface is relatively generic and can be used to operate on or produce
+a number of different signal representations, including
+[`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl),
+[`DimensionalData`](https://github.com/rafaqz/DimensionalData.jl) and
+`SampleBuf` objects from
+[`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl). It
+should also be straightforward to extend the operators to [new signal
+representations](https://haberdashpi.github.io/SignalOperators.jl/stable/custom_signals/).
+Operators generally produce signals that match the type input values, when these are uniform.
+
+In many cases, operators are designed to create efficient, lazy
+representations of signals, and will only generate data on a call to `sink`;
+however, there are non-lazy versions of the operators as well, for quick,
+one-off usage.
+
+```julia
+using SampledSignals: SampleBuf
+
+a = SampleBuf(rand(100,2),100)
+b = SampleBuf(ones(100,2),100)
+
+using SignalOperators
+
+c = mix(a,b)
+c == sink(Mix(a,b))
+```
+
+Because of the smarts in the operators, the resulting value `c` will also be a `SampleBuf` object.
+
+Read more about how to use the operators in the [documentation](https://haberdashPI.github.io/SignalOperators.jl/stable).
 
 ## Status
 
-The functions are relatively stable and thoroughly documented.
+The functions are relatively bug-free and thoroughly documented.
 
-Everything here will run pretty fast. All calls should fall within the same order of magnitude of equivalent "raw" julia code performing the same operations.
+Everything here will run pretty fast. All calls should fall within the same
+order of magnitude of equivalent "raw" julia code (e.g. loops and
+broadcasting over arrays).
 
-I'm the only person I know who has made thorough use of this package: so it's obviously possible there are still some bugs or performance issues lurking about. (Please feel free to submit issues!!)
+I'm the only person I know who has made thorough use of this package: it's obviously possible there are still some bugs or performance issues lurking about. (I welcome new issues or PRs!!!)
 
 ## Acknowledgements
 
