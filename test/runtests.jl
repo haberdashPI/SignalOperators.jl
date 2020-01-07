@@ -737,6 +737,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
             sink(x |> rampon(7samples) |> lowpass(3Hz))
         @test sink(x |> ramp(3samples) |> lowpass(3Hz,blocksize=5)) ==
             sink(x |> ramp(3samples) |> lowpass(3Hz))
+
+        @test tosamplerate(y,40Hz) |> sink |> size == (40,2)
+        @test tosamplerate(y,5Hz) |> sink |> size == (5,2)
+        @test_throws ErrorException sink(tosamplerate(y,40Hz,blocksize=5))
+        @test_throws ErrorException sink(tosamplerate(y,5Hz,blocksize=5))
     end
 
     # try out more complicated combinations of various features
