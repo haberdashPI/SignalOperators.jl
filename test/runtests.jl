@@ -785,6 +785,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
             sink(x |> RampOn(7frames) |> Filt(Lowpass,3Hz))
         @test sink(x |> Ramp(3frames) |> Filt(Lowpass,3Hz,blocksize=5)) ==
             sink(x |> Ramp(3frames) |> Filt(Lowpass,3Hz))
+
+        @test toframerate(y,40Hz) |> first |> size == (40,2)
+        @test toframerate(y,5Hz) |> first |> size == (5,2)
+        @test_throws ErrorException toframerate(y,40Hz,blocksize=5)
+        @test_throws ErrorException toframerate(y,5Hz,blocksize=5)
     end
 
     # try out more complicated combinations of various features

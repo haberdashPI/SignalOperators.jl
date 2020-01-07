@@ -181,16 +181,29 @@ struct FilterBlock{H,S,T,C}
     child::C
 end
 child(x::FilterBlock) = x.child
-init_length(x::FilteredSignal) = min(nframes(x),x.blocksize)
-init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn}) =
-    trunc(Int,min(nframes(x),x.blocksize) / x.fn.ratio)
+init_length(x::FilteredSignal,h) = min(nframes(x),x.blocksize)
+function init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn},h)
+    n = trunc(Int,max(1,min(nframes(x),x.blocksize) / x.fn.ratio))
+    out = DSP.outputlength(h,n)
+    if out > 0
+        n
+    else
+        n = trunc(Int,max(1,x.blocksize / x.fn.ratio))
+        out = DSP.outputlength(h,n)
+        if out > 0
+            n
+        else
+            error("Blocksize is too small for this resampling filter.")
+        end
+    end
+end
 
 struct UndefChild
 end
 const undef_child = UndefChild()
 function FilterBlock(x::FilteredSignal)
     hs = [resolve_filter(x.fn(framerate(x))) for _ in 1:nchannels(x.signal)]
-    len = init_length(x)
+    len = init_length(x,hs[1])
     input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
     output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
 
@@ -233,6 +246,9 @@ function nextblock(x::FilteredSignal,maxlen,skip,
 
         # filter the input into the output buffer
         out_len = outputlength(block.hs[1],size(block.input,1))
+        if out_len ≤ 0
+            error("Unexpected non-positive output length!")
+        end
         for ch in 1:size(block.output,2)
             filt!(view(block.output,1:out_len,ch),block.hs[ch],
                     view(block.input,:,ch))
