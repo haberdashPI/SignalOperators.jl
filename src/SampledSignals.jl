@@ -11,11 +11,8 @@ SignalTrait(::Type{<:SampleBuf{T}}) where T = IsSignal{T,Float64,Int}()
 nframes(x::SampleBuf) = size(x,1)
 nchannels(x::SampleBuf) = size(x,2)
 framerate(x::SampleBuf) = SampledSignals.samplerate(x)
+sampletype(x::SampleBuf) = eltype(x)
 
 timeslice(x::SampleBuf,indices) = view(x,indices,:)
-function initsink(x,::Type{<:SampleBuf},
-    data=Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)))
-
-    SampleBuf(data,framerate(x))
-end
+initsink(x,::Type{<:SampleBuf}) = SampleBuf(initsink(x,Array),framerate(x))
 SampledSignals.SampleBuf(x::AbstractSignal) = sink(x,SampleBuf)

@@ -3,6 +3,16 @@ using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting, FillArrays,
     FileIO
 
 using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
+using SignalBase
+import SignalBase: nframes, nchannels, sampletype, framerate, duration
+using SignalBase.Units: FrameQuant
+export nframes, nchannels, sampletype, framerate, duration
+
+module Units
+    using SignalBase.Units
+    export kframes, frames, Hz, s, kHz, ms, dB, °, rad
+end
+using .Units
 
 @static if VERSION ≤ v"1.3"
     # patch in fix for clamp from Julia 1.3
@@ -10,13 +20,12 @@ using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
     clamp(::Missing,l,h) = missing
 end
 
+include("inflen.jl")
 include("util.jl")
 
 # signal definition
 include("signal.jl")
-include("inflen.jl")
 include("sink.jl")
-include("units.jl")
 include("wrapping.jl")
 
 # types of signals

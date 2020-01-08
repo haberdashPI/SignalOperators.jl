@@ -102,7 +102,7 @@ struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
     framerate::Fs
 end
 function FilteredSignal(signal::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,Fs}
-    T = float(channel_eltype(signal))
+    T = float(sampletype(signal))
     FilteredSignal{T,Si,Fn,Fs}(signal,fn,Int(blocksize),newfs)
 end
 SignalTrait(x::Type{T}) where {S,T <: FilteredSignal{<:Any,S}} =
@@ -204,8 +204,8 @@ const undef_child = UndefChild()
 function FilterBlock(x::FilteredSignal)
     hs = [resolve_filter(x.fn(framerate(x))) for _ in 1:nchannels(x.signal)]
     len = init_length(x,hs[1])
-    input = Array{channel_eltype(x.signal)}(undef,len,nchannels(x))
-    output = Array{channel_eltype(x)}(undef,x.blocksize,nchannels(x))
+    input = Array{sampletype(x.signal)}(undef,len,nchannels(x))
+    output = Array{sampletype(x)}(undef,x.blocksize,nchannels(x))
 
     FilterBlock(0,0,0, 0,0, hs,input,output,undef_child)
 end
@@ -268,7 +268,7 @@ struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
 end
 child(x::NormedSignal) = x.signal
 nframes(x::NormedSignal) = nframes(x.signal)
-NormedSignal(x::Si) where Si = NormedSignal{Si,float(channel_eltype(Si))}(x)
+NormedSignal(x::Si) where Si = NormedSignal{Si,float(sampletype(x))}(x)
 SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:NormedSignal{<:Any,T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
@@ -294,11 +294,11 @@ nframes(x::NormedBlock) = x.len
     view(x.vals,i,:)
 
 function initblock(x::NormedSignal)
-    if isinf(nframes(x))
+    if isknowninf(nframes(x))
         error("Cannot normalize an infinite-length signal. Please ",
               "use `Until` to take a prefix of the signal")
     end
-    vals = Array{channel_eltype(x)}(undef,nframes(x),nchannels(x))
+    vals = Array{sampletype(x)}(undef,nframes(x),nchannels(x))
     sink!(vals, x.signal)
 
     rms = sqrt(mean(x -> float(x)^2,vals))
@@ -322,7 +322,7 @@ root-mean-squared value of the entire signal.
 """
 function Normpower(x)
     x = Signal(x)
-    NormedSignal{typeof(x),float(channel_eltype(typeof(x)))}(Signal(x))
+    NormedSignal{typeof(x),float(sampletype(x))}(Signal(x))
 end
 
 

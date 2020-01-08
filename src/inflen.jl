@@ -10,20 +10,15 @@ end
 Represents an infinite length. Proper overloads are defined to handle
 arithmetic and ordering for the infinite value.
 
-## Missing values
-
-For the purposes of `SignalOperators` missing values are considered
-to be unknown, but of finite length. For example: `inflen * missing == inflen`.
-
 """
 const inflen = InfiniteLength()
 Base.show(io::IO,::MIME"text/plain",::InfiniteLength) =
     write(io,"inflen")
 
 Base.isinf(::InfiniteLength) = true
-isinf(x) = Base.isinf(x)
-# for our purposes, missing values always denote an unknown finite value
-isinf(::Missing) = false
+isknowninf(x) = isinf(x)
+isknowninf(::Missing) = false
+
 Base.ismissing(::InfiniteLength) = false
 Base.:(+)(::InfiniteLength,::Number) = inflen
 Base.:(+)(::Number,::InfiniteLength) = inflen

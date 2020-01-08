@@ -40,9 +40,9 @@ nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 function duration(x::MapSignal)
     durs = duration.(x.signals) |> collect
-    all(isinf,durs) ? inflen :
+    all(isknowninf,durs) ? inflen :
         any(ismissing,durs) ? missing :
-        maximum(filter(!isinf,durs))
+        maximum(filter(!isknowninf,durs))
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -133,9 +133,9 @@ function OperateOn(fn,xs...;
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
     lens = nframes.(xs) |> collect
-    len = all(isinf,lens) ? inflen :
+    len = all(isknowninf,lens) ? inflen :
             any(ismissing,lens) ? missing :
-            maximum(filter(!isinf,lens))
+            maximum(filter(!isknowninf,lens))
 
     vals = testvalue.(xs)
     if bychannel
@@ -179,7 +179,7 @@ end
 cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
-testvalue(x) = Tuple(zero(channel_eltype(x)) for _ in 1:nchannels(x))
+testvalue(x) = Tuple(zero(sampletype(x)) for _ in 1:nchannels(x))
 
 const MAX_CHANNEL_STACK = 64
 
@@ -195,7 +195,7 @@ nframes(x::MapSignalBlock) = x.len
 function prepare_channels(x::MapSignal)
     nch = ntuple_N(typeof(x.val))
     (nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)) ?
-        Array{channel_eltype(x)}(undef,nch) :
+        Array{sampletype(x)}(undef,nch) :
         nothing
 end
 

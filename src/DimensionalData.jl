@@ -23,6 +23,8 @@ function SignalTrait(::Type{<:AbstractDimensionalArray{T,N,Dim}}) where {T,N,Dim
 end
 
 nframes(x::AbstractDimensionalArray) = length(dims(x,Time))
+sampletype(x::AbstractDimensionalArray) = eltype(x)
+AbstractVecOrMat
 nchannels(x::AbstractDimensionalArray) =
     prod(length,setdiff(dims(x),(dims(x,Time),)))
 
@@ -31,11 +33,10 @@ framerate(x::AbstractDimensionalArray) =
 
 timeslice(x::AbstractDimensionalArray,indices) = view(x,Time(indices))
 
-function initsink(x,::Type{<:DimensionalArray},
-    data=Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)))
-
-    times = Time(range(0s,length=nframes(x),step=1s/framerate(x)))
+function initsink(x,::Type{<:DimensionalArray})
+    times = Time(range(0s,length=nframes(x),
+        step=1s/convert(Float64,framerate(x))))
     channels = SigChannel(1:nchannels(x))
-    DimensionalArray(initsink(x,Array,data),(times,channels))
+    DimensionalArray(initsink(x,Array),(times,channels))
 end
 DimensionalData.DimensionalArray(x::AbstractSignal) = sink(x,DimensionalArray)

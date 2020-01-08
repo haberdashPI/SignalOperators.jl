@@ -24,7 +24,7 @@ The value `padding` can be:
 
 - a number
 - a tuple or vector
-- a type function: a one argument function of the `channel_eltype` of `x`
+- a type function: a one argument function of the `sampletype` of `x`
 - a value function: a one argument function of the signal `x` for which
     `SignalOperators.valuefunction(padding) == true`.
 - an indexing function: a three argument function following the same type
@@ -39,13 +39,13 @@ of `x`.
 If `padding` is a tuple or vector it is the value for all frames past the end
 of `x`.
 
-If `padding` is a type function it is passed the [`channel_eltype`](@ref) of
+If `padding` is a type function it is passed the [`sampletype`](@ref) of
 the signal and the resulting value is used as the value for all frames past
 the end of `x`. Examples include `zero` and `one`
 
 If `padding` is a value function it is passed the signal `x` just before
 padding occurs during a call to `sink`; it should return a tuple of
-`channel_eltype(x)` values. The return value is repeated for all remaining
+`sampletype(x)` values. The return value is repeated for all remaining
 frames of the signal. For example, [`lastframe`](@ref) is a value function.
 
 If `padding` is an indexing function (it accepts 3 arguments) it will be used
@@ -72,7 +72,7 @@ through `sink` or `sink!`.
 Pad(p) = x -> Pad(x,p)
 function Pad(x,p)
     x = Signal(x)
-    isinf(nframes(x)) ? x : PaddedSignal(x,p)
+    isknowninf(nframes(x)) ? x : PaddedSignal(x,p)
 end
 
 """
@@ -162,7 +162,7 @@ function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
         end
     else
         error("Pad function ($fn) must take 1 or 3 arguments. ",
-              "Refering `Pad` help.")
+              "Refer to `Pad` documentation.")
     end
 end
 

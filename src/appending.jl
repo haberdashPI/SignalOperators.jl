@@ -58,20 +58,20 @@ prepend(xs...) = sink(Prepend(xs...))
 
 function Append(xs...)
     xs = Uniform(xs,channels=true)
-    if any(isinf ∘ nframes,xs[1:end-1])
+    if any(isknowninf ∘ nframes,xs[1:end-1])
         error("Cannot Append to the end of an infinite signal")
     end
 
-    El = promote_type(channel_eltype.(xs)...)
+    El = promote_type(sampletype.(xs)...)
     xs = map(xs) do x
-        if channel_eltype(x) != El
+        if sampletype(x) != El
             ToEltype(x,El)
         else
             x
         end
     end
 
-    len = sum(nframes,xs)
+    len = any(isknowninf ∘ nframes,xs) ? inflen : sum(nframes,xs)
     AppendSignals{typeof(xs[1]),typeof(xs),El,typeof(len)}(xs, len)
 end
 ToFramerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =

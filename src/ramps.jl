@@ -10,7 +10,7 @@ struct RampSignal{D,S,Tm,Fn,T} <: WrappedSignal{S,T}
 end
 function RampSignal(D,signal::S,time::Tm,fn::Fn) where {S,Tm,Fn}
 
-    T = channel_eltype(signal)
+    T = sampletype(signal)
     RampSignal{D,S,Tm,Fn,float(T)}(signal,time,fn)
 end
 
@@ -48,7 +48,7 @@ struct RampBlock{Fn,T}
     len::Int
 end
 RampBlock(x,fn,marker,stop,offset,len) =
-    RampBlock{typeof(fn),float(channel_eltype(x))}(fn,marker,stop,offset,len)
+    RampBlock{typeof(fn),float(sampletype(x))}(fn,marker,stop,offset,len)
 nframes(x::RampBlock) = x.len
 
 frame(x::RampSignal{:on},block::RampBlock{Nothing,T},i) where T =
@@ -265,7 +265,7 @@ function FadeTo(x,y,len::Number=10ms,fun::Function=sinramp)
         error("Unknown frame rate is not supported by `FadeTo`.")
     end
     n = inframes(Int,maybeseconds(len),framerate(x))
-    silence = Signal(zero(channel_eltype(y))) |> Until((nframes(x) - n)*frames)
+    silence = Signal(zero(sampletype(y))) |> Until((nframes(x) - n)*frames)
     x |> RampOff(len,fun) |> Mix(
         y |> RampOn(len,fun) |> Prepend(silence))
 end

@@ -1,4 +1,4 @@
-export duration, nframes, framerate, nchannels, Signal, sink, sink!, channel_eltype
+export duration, nframes, framerate, nchannels, Signal, sink, sink!, sampletype
 using FileIO
 
 # Signals have a frame rate and some iterator element type
@@ -8,14 +8,22 @@ using FileIO
 
 Represents the Format of a signal type with three type parameters:
 
-* `T` - The [`channel_eltype`](@ref) of the signal.
+* `T` - The [`sampletype`](@ref) of the signal.
 * `Fs` - The type of the framerate. It should be either `Float64` or
     `Missing`.
 * `L` - The type of the length of the signal. It should be either
-    `InfiniteLength`, `Missing` or `Int`.
+    `Infinity`, `Missing` or `Int`.
 
 """
 struct IsSignal{T,Fs,L}
+end
+
+# not everything that's a signal belongs to this package, (hence the use of
+# trait-based dispatch), but everything that is in this package is a child of
+# `AbstractSignal`. This allows for easy dispatch to convert such signals to
+# another object type (e.g. Array or AxisArray). The value T refers to the
+# sampletype
+abstract type AbstractSignal{T}
 end
 
 """
@@ -28,6 +36,9 @@ default) or [`IsSignal`](@ref) to indicate the signal format for this signal.
 """
 SignalTrait(x::T) where T = SignalTrait(T)
 SignalTrait(::Type{T}) where T = nothing
+
+sampletype(x::AbstractSignal) = sampletype(x,SignalTrait(x))
+sampletype(x,::IsSignal{T}) where T = T
 
 IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 
@@ -45,87 +56,8 @@ function tilepipe(child,operate)
     single | breaking
 end
 
-# not everything that's a signal belongs to this package, (hence the use of
-# trait-based dispatch), but everything that is in this package is a child of
-# `AbstractSignal`. This allows for easy dispatch to convert such signals to
-# another object type (e.g. Array or AxisArray)
-abstract type AbstractSignal{T}
-end
-
-
 nosignal(::Nothing) = error("Value is not a signal: nothing")
 nosignal(x) = error("Value is not a signal: $x")
-
-"""
-
-    duration(x)
-
-Return the duration of the signal in seconds, if known. May return `missing`
-or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
-length.
-
-!!! note
-
-    If your are implementing a [custom signal](@ref custom_signals), you need
-    not normally define `duration` as it will be computed from `nframes` and
-    `framerate`. However, if one or both of these is `missing` and you want
-    `duartion` to return a non-missing value, you can define a custom method
-    of `duration`.
-
-"""
-duration(x) = nframes(x) / framerate(x)
-"""
-
-    nframes(x)
-
-Returns the number of frames in the signal, if known. May return `missing`
-or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
-length.
-
-!!! note
-
-    The return value of `nframes` for a block (see [custom signals](@ref
-    custom_signals)) must be a non-missing, finite value.
-
-"""
-function nframes
-end
-
-"""
-
-    framerate(x)
-
-Returns the frame rate of the signal (in Hertz). May return `missing` if the
-frame rate is unknown.
-
-"""
-function framerate
-end
-
-"""
-
-    nchannels(x)
-
-Returns the number of channels in the signal.
-
-"""
-function nchannels
-end
-
-"""
-
-    channel_eltype(x)
-
-Returns the element type of an individual channel of a signal (e.g. `Float64`).
-
-!!! note
-
-    `channel_eltype` and `eltype` are, in most cases, the same. They are
-    distinct so that these two can diverge when appropriate.
-
-"""
-channel_eltype(x) = channel_eltype(x,SignalTrait(x))
-channel_eltype(x,::IsSignal{T}) where T = T
 
 isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 
