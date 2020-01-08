@@ -15,7 +15,7 @@ duration
 nframes
 nchannels
 framerate
-channel_eltype
+sampletype
 ```
 ## Signal Operators
 

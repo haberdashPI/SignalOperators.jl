@@ -93,7 +93,8 @@ end
 
 function process_sink_params(x)
     x = Signal(x)
-    isinf(duration(x)) && error("Cannot store infinite signal.")
+    ismissing(nframes(x)) && error("Unknown number of frames in signal.")
+    isinf(nframes(x)) && error("Cannot store infinite signal.")
     x
 end
 
@@ -112,14 +113,15 @@ be defined for sinks that are `AbstractArray` objects.
 
 If you wish an object to serve as a [custom sink](@ref custom_sinks) you can
 implement this method. You can use [`nchannels`](@ref) and
-[`channel_eltype`](@ref) of `x` to determine how to initialize the object for
+[`sampletype`](@ref) of `x` to determine how to initialize the object for
 the first method.
 
 """
-initsink(x,::Type{<:Array}) =
-    Array{channel_eltype(x)}(undef,nframes(x),nchannels(x))
+function initsink(x,::Type{<:Array})
+    Array{sampletype(x),2}(undef,nframes(x),nchannels(x))
+end
 initsink(x,::Type{<:Tuple}) =
-    (Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)),framerate(x))
+    (Array{sampletype(x)}(undef,nframes(x),nchannels(x)),framerate(x))
 initsink(x,::Type{<:Array},data) = data
 initsink(x,::Type{<:Tuple},data) = (data,framerate(x))
 Base.Array(x::AbstractSignal) = sink(x,Array)
@@ -215,7 +217,7 @@ end
     SignalOperators.frame(x,block,i)
 
 Retrieves the frame at index `i` of the given block of signal `x`. A frame
-is one or more channels of `channel_eltype(x)` values. The return value
+is one or more channels of `sampletype(x)` values. The return value
 should be an indexable object (e.g. a number, tuple or array) of these
 channel values. This method should be implemented by blocks of [custom
 signals](@ref custom_signals).

@@ -1,7 +1,7 @@
-using Documenter, SignalOperators
+using Documenter, SignalOperators, SignalBase
 
 makedocs(;
-    modules=[SignalOperators],
+    modules=[SignalOperators, SignalBase],
     format=Documenter.HTML(),
     pages=[
         "Home" => "index.md",

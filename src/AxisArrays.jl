@@ -25,6 +25,7 @@ function nchannels(x::AxisArray)
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
 end
+sampletype(x::AxisArray) = eltype(x)
 
 function Signal(x::AxisArray,fs::Union{Missing,Number}=missing)
     if !isconsistent(fs,framerate(x))
@@ -37,11 +38,9 @@ end
 timeslice(x::AxTimeD1,indices) = view(x,indices,:)
 timeslice(x::AxTimeD2,indices) = PermutedDimsArray(view(x,:,indices),(2,1))
 
-function initsink(x,::Type{<:AxisArray},
-    data=Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)))
-
+function initsink(x,::Type{<:AxisArray})
     times = Axis{:time}(range(0s,length=nframes(x),step=float(s/framerate(x))))
     channels = Axis{:channel}(1:nchannels(x))
-    AxisArray(initsink(x,Array,data),times,channels)
+    AxisArray(initsink(x,Array),times,channels)
 end
 AxisArrays.AxisArray(x::AbstractSignal) = sink(x,AxisArray)
