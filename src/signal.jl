@@ -29,6 +29,9 @@ default) or [`IsSignal`](@ref) to indicate the signal format for this signal.
 SignalTrait(x::T) where T = SignalTrait(T)
 SignalTrait(::Type{T}) where T = nothing
 
+channeltype(x::AbstractSignal) = channeltype(x,SignalTrait(x))
+channeltype(x,::IsSignal{T}) where T = T
+
 IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
 
 function show_fs(io,x)
@@ -55,77 +58,6 @@ end
 
 nosignal(::Nothing) = error("Value is not a signal: nothing")
 nosignal(x) = error("Value is not a signal: $x")
-
-"""
-
-    duration(x)
-
-Return the duration of the signal in seconds, if known. May return `missing`
-or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
-length.
-
-!!! note
-
-    If your are implementing a [custom signal](@ref custom_signals), you need
-    not normally define `duration` as it will be computed from `nframes` and
-    `framerate`. However, if one or both of these is `missing` and you want
-    `duartion` to return a non-missing value, you can define a custom method
-    of `duration`.
-
-"""
-duration(x) = nframes(x) / framerate(x)
-"""
-
-    nframes(x)
-
-Returns the number of frames in the signal, if known. May return `missing`
-or [`inflen`](@ref). The value `missing` always denotes a finite but unknown
-length.
-
-!!! note
-
-    The return value of `nframes` for a block (see [custom signals](@ref
-    custom_signals)) must be a non-missing, finite value.
-
-"""
-function nframes
-end
-
-"""
-
-    framerate(x)
-
-Returns the frame rate of the signal (in Hertz). May return `missing` if the
-frame rate is unknown.
-
-"""
-function framerate
-end
-
-"""
-
-    nchannels(x)
-
-Returns the number of channels in the signal.
-
-"""
-function nchannels
-end
-
-"""
-
-    channel_eltype(x)
-
-Returns the element type of an individual channel of a signal (e.g. `Float64`).
-
-!!! note
-
-    `channel_eltype` and `eltype` are, in most cases, the same. They are
-    distinct so that these two can diverge when appropriate.
-
-"""
-channel_eltype(x) = channel_eltype(x,SignalTrait(x))
-channel_eltype(x,::IsSignal{T}) where T = T
 
 isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 

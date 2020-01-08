@@ -59,6 +59,7 @@ end
 
 nframes(x::AbstractVecOrMat) = size(x,1)
 nchannels(x::AbstractVecOrMat) = size(x,2)
+channeltype(x::AbstractVecOrMat) = eltype(x)
 framerate(x::AbstractVecOrMat) = missing
 
 timeslice(x::AbstractArray,indices) = view(x,indices,:)
@@ -93,6 +94,7 @@ end
 nframes(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],1)
 nchannels(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],2)
 framerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
+channeltype(x::Tuple{<:AbstractVecOrMat,<:Number}) = eltype(x[1])
 timeslice(x::Tuple{<:AbstractVecOrMat,<:Number}) = view(x[1],indices,:)
 function nextblock(x::Tuple{<:AbstractVecOrMat,<:Number},maxlen,skip,
     block=ArrayBlock([],0))

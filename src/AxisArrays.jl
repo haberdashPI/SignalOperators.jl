@@ -25,6 +25,7 @@ function nchannels(x::AxisArray)
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
 end
+channeltype(x::AxisArray) = eltype(x)
 
 function Signal(x::AxisArray,fs::Union{Missing,Number}=missing)
     if !isconsistent(fs,framerate(x))

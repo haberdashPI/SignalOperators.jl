@@ -3,14 +3,22 @@ using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting, FillArrays,
     FileIO
 
 using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
+using SignalBase
+
+module Units
+    using SignalBase.Units
+    import SignalBase.Units: FrameQuant
+
+    export kframes, frames, Hz, s, kHz, ms, dB, °, rad
+end
+using .Units
+using .Units: FrameQuant
 
 include("util.jl")
 
 # signal definition
 include("signal.jl")
-include("inflen.jl")
 include("sink.jl")
-include("units.jl")
 include("wrapping.jl")
 
 # types of signals

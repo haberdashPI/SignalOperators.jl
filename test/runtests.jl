@@ -23,47 +23,10 @@ example_ogg = "example.ogg"
 examples_wav = "examples.wav"
 test_files = [test_wav,example_wav,example_ogg,examples_wav]
 
-const total_test_groups = 34
+const total_test_groups = 33
 progress = Progress(total_test_groups,desc="Running tests...")
 
 @testset "SignalOperators.jl" begin
-
-    @testset "Unit Conversions" begin
-        @test SignalOperators.inframes(1s,44.1kHz) == 44100
-        @test SignalOperators.inframes(Int,0.5s,44.1kHz) == 22050
-        @test SignalOperators.inframes(Int,5frames) == 5
-        @test SignalOperators.inframes(Int,5) == 5
-        @test SignalOperators.inframes(5) == 5
-        @test SignalOperators.inframes(1.0s,44.1kHz) isa Float64
-        @test ismissing(SignalOperators.inframes(missing))
-        @test ismissing(SignalOperators.inframes(Int,missing))
-        @test ismissing(SignalOperators.inframes(Int,missing,5))
-        @test ismissing(SignalOperators.inframes(missing,5))
-        @test ismissing(SignalOperators.inframes(10s))
-
-        @test SignalOperators.inHz(10) === 10
-        @test SignalOperators.inHz(10Hz) === 10
-        @test SignalOperators.inHz(Float64,10Hz) === 10.0
-        @test SignalOperators.inHz(Int,10.5Hz) === 10
-        @test ismissing(SignalOperators.inHz(missing))
-
-        @test SignalOperators.inseconds(50ms) == 1//20
-        @test SignalOperators.inseconds(50ms,10Hz) == 1//20
-        @test SignalOperators.inseconds(10frames,10Hz) == 1
-        @test SignalOperators.inseconds(1s,44.1kHz) == 1
-        @test SignalOperators.inseconds(1,44.1kHz) == 1
-        @test SignalOperators.inseconds(1) == 1
-        @test ismissing(SignalOperators.inseconds(missing))
-        @test SignalOperators.maybeseconds(2) == 2s
-        @test SignalOperators.maybeseconds(5frames) == 5frames
-
-
-        @test SignalOperators.inradians(15) == 15
-        @test_throws Unitful.DimensionError SignalOperators.inradians(15frames)
-        @test SignalOperators.inradians(180°) ≈ π
-        @test ismissing(SignalOperators.inseconds(2frames))
-    end
-    next!(progress)
 
     @testset "Function Currying" begin
         x = Signal(1,10Hz)
