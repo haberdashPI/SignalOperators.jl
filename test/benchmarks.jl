@@ -23,38 +23,38 @@ Signal(x,1000Hz) |> ToFramerate(500Hz) |> sink
 suite["signal"]["sinking"] = @benchmarkable Signal(x,1000Hz) |> sink
 suite["baseline"]["sinking"] = @benchmarkable copy(x)
 suite["signal"]["functions"] = @benchmarkable begin
-    Signal(sin,ω=10Hz) |> sink(duration=10_000frames,framerate=1000Hz)
+    Signal(sin,ω=10Hz) |> Until(10kframes) |> ToFramerate(1000Hz) |> sink
 end
 suite["baseline"]["functions"] = @benchmarkable begin
     sinpi.(range(0,step=1/1000,length=10^4) .* (2*10))
 end
 suite["signal"]["numbers"] = @benchmarkable begin
-    1 |> sink(duration=10_000frames,framerate=1000Hz)
+    1 |> Until(10_000frames) |> ToFramerate(1000Hz) |> sink
 end
 suite["baseline"]["numbers"] = @benchmarkable begin
     ones(10_000)
 end
 
 suite["signal"]["cutting"] = @benchmarkable begin
-    x |> Until(5*10^3*frames) |> sink(framerate=1000Hz)
+    x |> Until(5*10^3*frames) |> ToFramerate(1000Hz) |> sink
 end
 suite["baseline"]["cutting"] = @benchmarkable x[1:(5*10^3)]
 suite["signal"]["padding"] = @benchmarkable begin
-    Pad($x,zero) |> Until(20_000frames) |> sink(framerate=1000Hz)
+    Pad($x,zero) |> Until(20_000frames) |> ToFramerate(1000Hz) |> sink
 end
 suite["baseline"]["padding"] = @benchmarkable vcat($x,zero($x))
-suite["signal"]["appending"] = @benchmarkable sink(Append($x,$y),framerate=1000Hz)
+suite["signal"]["appending"] = @benchmarkable sink(ToFramerate(Append($x,$y),1000Hz))
 suite["baseline"]["appending"] = @benchmarkable vcat($x,$y)
 
-suite["signal"]["mapping"] = @benchmarkable sink(Mix($x,$y),framerate=1000Hz)
+suite["signal"]["mapping"] = @benchmarkable sink(ToFramerate(Mix($x,$y),1000Hz))
 suite["baseline"]["mapping"] = @benchmarkable $x .+ $y
 
 suite["signal"]["filtering"] = @benchmarkable begin
-    Filt($x,Lowpass,20Hz) |> sink(framerate=1000Hz)
+    Filt($x,Lowpass,20Hz) |> ToFramerate(1000Hz) |> sink
 end
 suite["baseline"]["filtering"] = @benchmarkable begin
     Filt($x,digitalfilter(Lowpass(20,fs=1000),Butterworth(5))) |>
-        sink(framerate=1000Hz)
+        ToFramerate(1000Hz) |> sink
 end
 
 suite["signal"]["resampling"]  = @benchmarkable begin
@@ -83,7 +83,7 @@ suite["signal"]["overall"] = @benchmarkable begin
         ToFramerate(2000Hz) |>
         Until(0.5*N*frames) |> After(0.25*N*frames) |>
         Append(sin) |> Until(N*frames) |>
-        lowpass(20Hz) |>
+        Filt(Lowpass,20Hz) |>
         Normpower |> Amplify(-10dB) |>
         sink
 end
