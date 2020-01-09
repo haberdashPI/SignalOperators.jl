@@ -292,7 +292,7 @@ mapstring(x::FnBr) = string("Operate(",x.fn,",")
     Mix(xs...)
 
 Sum all signals together, using [`OperateOn`](@ref). Unlike `OperateOn`,
-`Amplify` includes a piped version.
+`Mix` includes a piped version.
 
 
 """
