@@ -15,7 +15,7 @@ then a Tuple of an array and the framerate is returned.
 If `to` is an array type (e.g. `Array`, `DimensionalArray`) the signal is
 written to a value of that type.
 
-If `to` is a `Tuple` the result is an `Array` of samples and a number of
+If `to` is a `Tuple` the result is an `Array` of samples and a number
 indicating the sample rate in Hertz.
 
 """
