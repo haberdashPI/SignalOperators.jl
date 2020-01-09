@@ -4,11 +4,11 @@ using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting, FillArrays,
 
 using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
 using SignalBase
+using SignalBase: FrameQuant
+export nframes, nchannels, channeltype, framerate, duration
 
 module Units
     using SignalBase.Units
-    import SignalBase.Units: FrameQuant
-
     export kframes, frames, Hz, s, kHz, ms, dB, °, rad
 end
 using .Units
