@@ -47,7 +47,6 @@ function __init__()
 
     @require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"  begin
         include("DimensionalData.jl")
-        current_backend[] = DimensionalData
     end
 end
 
