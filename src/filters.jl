@@ -1,4 +1,4 @@
-export Normpower, Filt, normpower, filt
+export Normpower, Filt, normpower, filt, Lowpass, Bandpass, Bandstop, Highpass
 
 const default_blocksize = 2^12
 
