@@ -68,7 +68,8 @@ Equivalent to `sink(Window(...))`.
 """
 window(x;kwds...) = sink(Window(x;kwds...))
 
-struct WindowIter{S,T,To}
+struct WindowIter{U,S,T,To}
+    unsafe::Val{U}
     x::S
     times::T
     N::Int
@@ -76,34 +77,61 @@ struct WindowIter{S,T,To}
 end
 
 """
-    windows(x,[to];times,width)
+    windows!(x,[to];times,width)
 
 Equivalent to (sink(Window(x,at=t,width=width),to) for t in times)
-but more efficient.
+but more efficient, using the same in-place buffer for each window.
 
 !!! warning
 
-    The sink source used to provide the iterated values is re-used, each time
-    with a different set of samples. You should copy the result of `iterate` if
-    you plan to modify the result or work with multiple iterates at once.
+    Because the returned buffer is reused, you should not modify it or try to
+    access multiple iterates at the same time. Use [`windows`](@ref) instead
+    if you plan to access values from multiple windows at the same time or
+    modify a window.
 
 ## See also
 
 [`Window`](@ref)
 
 """
-function windows(x,to=nothing;times,width)
+windows!(x,to=nothing;kwds...) =
+    windows_helper(Val(:unsafe),x,to;kwds...)
+
+"""
+    windows(x,[to];times,width)
+
+Equivalent to (sink(Window(x,at=t,width=width),to) for t in times)
+but more efficient.
+
+!!! note
+
+    Consider using [`windows!`](@ref) for greater efficency.
+
+"""
+windows(x,to=nothing;kwds...) =
+    windows_helper(Val(:safe),x,to;kwds...)
+
+function windows_helper(safety,x,to;times,width)
     x = Signal(x)
     to = isnothing(to) ? refineroot(root(x)) : to
     N = inframes(Int,maybeseconds(width)/2,framerate(x))
 
-    WindowIter(x,times,N,to)
+    WindowIter(safety,x,times,N,to)
 end
 
 sinkview(x::Tuple,args...) = (view(x[1],args...),x[2])
 sinkview(x,args...) = view(x,args...)
 
-function iterate(itr::WindowIter,state=nothing)
+iterate(itr::WindowIter{:unsafe},state=nothing) =
+    unsafe_iterate(itr,state)
+function iterate(itr::WindowIter{:safe},state=nothing)
+    result = unsafe_iterate(itr,state)
+    isnothing(result) && return nothing
+    buffer, state = result
+    copy(buffer), state
+end
+
+function unsafe_iterate(itr,state)
     len = min(nframes(x),1+2N)
     oldframe, sinkstate, buffer, time, state = if isnothing(state)
         result = iterate(itr.times)
