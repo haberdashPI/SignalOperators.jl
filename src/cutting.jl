@@ -81,6 +81,10 @@ end
 Equivalent  to (sink(Window(x,at=t,width=width),to) for t in times)
 but more efficient.
 
+!!! warning
+
+    The returned array
+
 ## See also
 
 [`Window`](@ref)
@@ -93,6 +97,9 @@ function windows(x,to=nothing;times,width)
 
     WindowIter(x,times,N,to)
 end
+
+sinkview(x::Tuple,args...) = (view(x[1],args...),x[2])
+sinkview(x,args...) = view(x,args...)
 
 function iterate(itr::WindowIter,state=nothing)
     len = min(nframes(x),1+2N)
@@ -124,14 +131,14 @@ function iterate(itr::WindowIter,state=nothing)
         1, len, 0
     end
 
-    maxlen = min(len,nframes(x)-frame-itr.N)
+    maxlen = min(len,nframes(itr.x)-frame-itr.N)
     sinkstate = if isnothing(sinkstate)
-        sink!(view(buffer,start:maxlen,:),x,SignalTrait(x))
+        sink!(sinkview(buffer,start:maxlen,:),itr.x,SignalTrait(itr.x))
     else
-        sink!(view(buffer,start:maxlen,:),x,SignalTrait(x),sinkstate)
+        sink!(sinkview(buffer,start:maxlen,:),itr.x,SignalTrait(itr.x),sinkstate)
     end
 
-    buffer, (frame, sinkstate, state)
+    buffer, (frame, sinkstate, buffer, state)
 end
 
 # TOOD: apply to data signals differently
