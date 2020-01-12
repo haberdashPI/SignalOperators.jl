@@ -68,11 +68,11 @@ Equivalent to `sink(Window(...))`.
 """
 window(x;kwds...) = sink(Window(x;kwds...))
 
-struct WindowIter{Sig,Sink,T}
-    x::Sig
-    buffer::Sink
+struct WindowIter{S,T,To}
+    x::S
     times::T
     N::Int
+    to::Type{To}
 end
 
 """
@@ -90,19 +90,19 @@ function windows(x,to=nothing;times,width)
     x = Signal(x)
     to = isnothing(to) ? refineroot(root(x)) : to
     N = inframes(Int,maybeseconds(width)/2,framerate(x))
-    len = min(nframes(x),1+2N)
-    buffer = initsink(Until(x,len),to)
 
-    WindowIter(x,buffer,times,N)
+    WindowIter(x,times,N,to)
 end
 
 function iterate(itr::WindowIter,state=nothing)
-    oldframe, sinkstate, time, state = if isnothing(state)
+    len = min(nframes(x),1+2N)
+    oldframe, sinkstate, buffer, time, state = if isnothing(state)
         result = iterate(itr.times)
+        buffer = initsink(Until(itr.x,itr.len),itr.to)
         isnothing(result) && return nothing
-        0, nothing, result...
+        0, nothing, buffer, result...
     else
-        oldframe, sinkstate, oldstate = state
+        oldframe, sinkstate, buffer, oldstate = state
         result = iterate(oldstate)
         isnothing(result) && return nothing
         oldframe, sinkstate, result...
@@ -115,7 +115,7 @@ function iterate(itr::WindowIter,state=nothing)
         offset = frame - oldframe - 1
         tocopy = offset - len
         @simd  @inbounds for i in 1:tocopy
-            itr.buffer[i] = itr.buffer[offset + i]
+            buffer[i] = buffer[offset + i]
         end
         tocopy+1, len - tocopy, 0
     elseif frame - oldframe > len
@@ -126,12 +126,12 @@ function iterate(itr::WindowIter,state=nothing)
 
     maxlen = min(len,nframes(x)-frame-itr.N)
     sinkstate = if isnothing(sinkstate)
-        sink!(view(itr.buffer,start:maxlen,:),x,SignalTrait(x))
+        sink!(view(buffer,start:maxlen,:),x,SignalTrait(x))
     else
-        sink!(view(itr.buffer,start:maxlen,:),x,SignalTrait(x),sinkstate)
+        sink!(view(buffer,start:maxlen,:),x,SignalTrait(x),sinkstate)
     end
 
-    itr.buffer, (frame, sinkstate, state)
+    buffer, (frame, sinkstate, state)
 end
 
 # TOOD: apply to data signals differently
