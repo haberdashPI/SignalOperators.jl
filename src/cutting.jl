@@ -78,12 +78,14 @@ end
 """
     windows(x,[to];times,width)
 
-Equivalent  to (sink(Window(x,at=t,width=width),to) for t in times)
+Equivalent to (sink(Window(x,at=t,width=width),to) for t in times)
 but more efficient.
 
 !!! warning
 
-    The returned array
+    The sink source used to provide the iterated values is re-used, each time
+    with a different set of samples. You should copy the result of `iterate` if
+    you plan to modify the result or work with multiple iterates at once.
 
 ## See also
 
