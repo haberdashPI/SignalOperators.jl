@@ -62,12 +62,79 @@ end
 Equivalent to `sink(Window(...))`.
 
 ## See also
+
 [`Window`](@ref)
 
 """
 window(x;kwds...) = sink(Window(x;kwds...))
 
-## TODO: efficeint access to do multiple windows?
+struct WindowIter{Sig,Sink,T}
+    x::Sig
+    buffer::Sink
+    times::T
+    N::Int
+end
+
+"""
+    windows(x,[to];times,width)
+
+Equivalent  to (sink(Window(x,at=t,width=width),to) for t in times)
+but more efficient.
+
+## See also
+
+[`Window`](@ref)
+
+"""
+function windows(x,to=nothing;times,width)
+    x = Signal(x)
+    to = isnothing(to) ? refineroot(root(x)) : to
+    N = inframes(Int,maybeseconds(width)/2,framerate(x))
+    len = min(nframes(x),1+2N)
+    buffer = initsink(Until(x,len),to)
+
+    WindowIter(x,buffer,times,N)
+end
+
+function iterate(itr::WindowIter,state=nothing)
+    oldframe, sinkstate, time, state = if isnothing(state)
+        result = iterate(itr.times)
+        isnothing(result) && return nothing
+        0, nothing, result...
+    else
+        oldframe, sinkstate, oldstate = state
+        result = iterate(oldstate)
+        isnothing(result) && return nothing
+        oldframe, sinkstate, result...
+    end
+
+    frame = inframes(Int,maybeseconds(time),framerate(itr.x))
+    # do not recalculate frames that overlap with the old window
+    len = 1+2itr.N
+    start, C, skip = if frame - oldframe < len
+        offset = frame - oldframe - 1
+        tocopy = offset - len
+        @simd  @inbounds for i in 1:tocopy
+            itr.buffer[i] = itr.buffer[offset + i]
+        end
+        tocopy+1, len - tocopy, 0
+    elseif frame - oldframe > len
+        1, len, len - (frame-oldframe)
+    else
+        1, len, 0
+    end
+
+    maxlen = min(len,nframes(x)-frame-itr.N)
+    sinkstate = if isnothing(sinkstate)
+        sink!(view(itr.buffer,start:maxlen,:),x,SignalTrait(x))
+    else
+        sink!(view(itr.buffer,start:maxlen,:),x,SignalTrait(x),sinkstate)
+    end
+
+    itr.buffer, (frame, sinkstate, state)
+end
+
+# TOOD: apply to data signals differently
 
 """
     Until(x,time)
