@@ -1,4 +1,4 @@
-export Until, After, until, after
+export Until, After, until, after, Window, window
 
 ################################################################################
 # cutting signals
@@ -34,6 +34,41 @@ const UntilApply{S,T} = CutApply{S,T,Val{:Until}}
 const AfterApply{S,T} = CutApply{S,T,Val{:After}}
 
 """
+    Window(x;from,to)
+    Window(x;at,width)
+
+Extract a window of time from a signal by specifying either the start and stop
+point of the window (`from` and `to`) or the center and width (`at` and `wdith`)
+of the window.
+"""
+Window(;kwds...) = x -> Window(x;kwds...)
+function Window(x;at=nothing,width=nothing,from=nothing,to=nothing)
+    if isnothing(at) != isnothing(width) ||
+       isnothing(from) != isnothing(to) ||
+       isnothing(at) == isnothing(from)
+
+       error("`Window` must either use the two keywords `at` and `width` OR",
+              "the two keywords `from` and `to`.")
+    end
+
+    after,until = isnothing(from) ? (at-width/2,width) : from,to-from
+    x |> After(after) |> Until(until)
+end
+
+"""
+    window(x;from,to)
+    window(x;at,width)
+
+Equivalent to `sink(Window(...))`.
+
+## See also
+
+[`Window`](@ref)
+
+"""
+window(x;kwds...) = sink(Window(x;kwds...))
+
+"""
     Until(x,time)
 
 Create a signal of all frames of `x` up until and including `time`.
@@ -57,6 +92,7 @@ until(x,time) = sink(Until(x,time))
     After(x,time)
 
 Create a signal of all frames of `x` after `time`.
+
 """
 After(time) = x -> After(x,time)
 After(x,time) = CutApply(Signal(x),time,Val{:After}())

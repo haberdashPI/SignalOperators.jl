@@ -168,6 +168,10 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
             @test_throws ErrorException Signal(1:10,5Hz) |> After(3s) |> sink
 
+            x = rand(20,nch)
+            @test window(x,from=0frames, to=5frames) == x[1:5,:]
+            @test window(x,from=15frames, to=25frames) == x[16:20,:]
+
             x = rand(12,nch) |> Signal(6Hz)
             @test Append(Until(x,1s),After(x,1s)) |> nframes == 12
 
