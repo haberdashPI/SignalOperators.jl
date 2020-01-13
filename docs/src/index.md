@@ -32,7 +32,7 @@ sound4 = randn |>
 # a 1kHz tone surrounded by a notch noise
 SNR = 5dB
 x = Signal(sin,ω=1kHz) |> Until(1s) |> Ramp |> Normpower |> Amplify(-20dB + SNR)
-y = Signal(randn) |> Until(1s) |> bandstop(0.5kHz,2kHz) |> Normpower |>
+y = Signal(randn) |> Until(1s) |> Filt(Bandstop,0.5kHz,2kHz) |> Normpower |>
   Amplify(-20dB)
 scene = Mix(x,y)
 
