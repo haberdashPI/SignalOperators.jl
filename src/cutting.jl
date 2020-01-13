@@ -44,7 +44,7 @@ of the window.
 Window(;kwds...) = x -> Window(x;kwds...)
 function Window(x;at=nothing,width=nothing,from=nothing,to=nothing)
     if isnothing(at) != isnothing(width) ||
-       isnothing(from) !=  isnothing(to) ||
+       isnothing(from) != isnothing(to) ||
        isnothing(at) == isnothing(from)
 
        error("`Window` must either use the two keywords `at` and `width` OR",
@@ -131,44 +131,74 @@ function iterate(itr::WindowIter{:safe},state=nothing)
     copy(buffer), state
 end
 
-function unsafe_iterate(itr,state)
-    len = min(nframes(x),1+2N)
-    oldframe, sinkstate, buffer, time, state = if isnothing(state)
-        result = iterate(itr.times)
-        buffer = initsink(Until(itr.x,itr.len),itr.to)
-        isnothing(result) && return nothing
-        0, nothing, buffer, result...
+function itrsink(itr,buffer,sinkstate)
+    if isnothing(sinkstate)
+        sink!(buffer,itr.x,SignalTrait(itr.x))
     else
-        oldframe, sinkstate, buffer, oldstate = state
-        result = iterate(oldstate)
+        sink!(buffer,itr.x,SignalTrait(itr.x),sinkstate)
+    end
+end
+
+function unsafe_iterate(itr,state)
+    len = min(nframes(itr.x),1+2itr.N)
+    local oldframe, sinkstate, buffer, buffer_start, time, tstate
+
+    # initialize state
+    if isnothing(state)
+        result = iterate(itr.times)
         isnothing(result) && return nothing
-        oldframe, sinkstate, result...
+
+        buffer = initsink(Until(itr.x,len),itr.to)
+        buffer_start = 0
+        oldframe = 0, sinkstate = nothing,
+        time,tstate = result
+    else
+        oldframe, sinkstate, buffer, buffer_start, oldstate = state
+        result = iterate(itr.times,oldstate)
+        isnothing(result) && return nothing
+
+        time,tstate = result
     end
 
     frame = inframes(Int,maybeseconds(time),framerate(itr.x))
-    # do not recalculate frames that overlap with the old window
-    len = 1+2itr.N
-    start, C, skip = if frame - oldframe < len
-        offset = frame - oldframe - 1
-        tocopy = offset - len
-        @simd  @inbounds for i in 1:tocopy
-            buffer[i] = buffer[offset + i]
+    start = max(0,frame - 2iter.N)
+    stop = min(nframes(x),frame + 2iter.N)
+    oldstop = min(nframes(x),oldframe + 2iter.N)
+
+    if oldstop > stop
+        error("Window times must be non-decreaing")
+    end
+
+    if start < oldstop+1
+        # if the times overlap, initialize more memory if needed
+        if nframes(buffer) < min(nframes(itr.x),2len)
+            newbuffer = initsink(Until(itr.x,2len),itr.to)
+            newbuffer[1:nframes(buffer),:] .= buffer
+            buffer = newbuffer
         end
-        tocopy+1, len - tocopy, 0
-    elseif frame - oldframe > len
-        1, len, len - (frame-oldframe)
+
+        # if the new window doesn't overlap with enough of the oldest samples
+        # obliterate these old samples
+        if buffer_start + 2len > stop
+            buffer[1:len,:] .= buffer[(len+1):end,:]
+            buffer_start = start
+        end
+
+        # read in the new samples
+        ixs = min(1,oldstop-buffer_start+1):max(stop-buffer_start+1,2len)
+        if !isempty(ixs)
+            sinkstate = itrsink(itr,sinkview(buffer,ixs),sinkstate)
+        end
     else
-        1, len, 0
+        if start > oldstop+1
+            # TODO: skip the appropriate number of samples
+            # (ala After's `nextblock`)
+        end
+        sinkstate = itrsink(itr,buffer,sinkstate)
     end
 
-    maxlen = min(len,nframes(itr.x)-frame-itr.N)
-    sinkstate = if isnothing(sinkstate)
-        sink!(sinkview(buffer,start:maxlen,:),itr.x,SignalTrait(itr.x))
-    else
-        sink!(sinkview(buffer,start:maxlen,:),itr.x,SignalTrait(itr.x),sinkstate)
-    end
-
-    buffer, (frame, sinkstate, buffer, state)
+    ixs = (start-buffer_start+1):(stop-buffer_start+1)
+    sinkview(buffer, ixs), (frame, sinkstate, buffer, buffer_start, tstate)
 end
 
 # TOOD: apply to data signals differently
