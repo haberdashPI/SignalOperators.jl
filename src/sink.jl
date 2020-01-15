@@ -8,6 +8,12 @@ signal: e.g. if `x` is a `SampleBuf` object then `sink(Mix(x,2))` is also a
 `SampleBuf` object. If there is no underlying data (`Signal(sin) |> sink`)
 then a Tuple of an array and the framerate is returned.
 
+!!! warning
+
+    Though `sink` often makes a copy of an input array, it is not guaranteed
+    to do so. For instance `sink(Until(rand(10),5frames))` will simply take a view
+    of the first 5 frames of the input.
+
 # Values for `to`
 
 ## Type
@@ -43,7 +49,42 @@ function mergeroot(x,y)
     end
 end
 
-function sink(x,::Type{T}) where T
+abstract type CutMethod
+end
+struct DataCut <: CutMethod
+end
+struct SinkCut <: CutMethod
+end
+CutMethod(x) = CutMethod(x,EvalTrait(x))
+CutMethod(x,::DataSignal) = SinkCut()
+CutMethod(x::AbstractArray,::DataSignal) = DataCut()
+CutMethod(x::Tuple{<:AbstractArray,<:Number},::DataSignal) = DataCut()
+CutMethod(x,::ComputedSignal) = SinkCut()
+
+sink(x,::Type{T}) where T = sink(x,T,CutMethod(x))
+function sink(x,::Type{T},::DataCut) where T
+    x = process_sink_params(x)
+    data = timeslice(x,:)
+    if parent(data) isa T
+        data
+    else # if the sink type is new, we have to copy the data
+        # because it could be in a different memory layout
+        result = initsink(x,T)
+        sink!(result,x)
+        result
+    end
+end
+rawdata(x::SubArray) = x
+function rawdata(x::AbstractArray)
+    p = parent(x)
+    if p === x
+        return p
+    else
+        return rawdata(p)
+    end
+end
+
+function sink(x,::Type{T},::SinkCut) where T
     x = process_sink_params(x)
     result = initsink(x,T)
     sink!(result,x)
@@ -59,21 +100,30 @@ end
 
 """
 
-    SignalOperators.initsink(x,::Type{T},len)
+    SignalOperators.initsink(x,::Type{T})
 
-Initialize an object of type T so that it can store the first `len` frames
-of signal `x`.
+Initialize an object of type T so that it can store all frames of signal `x`.
+
+    SignalOperators.initsink(x,::Type{T},data::Array)
+
+Initialize an object of type T so that it can store all frames of signal `x`, using
+the already initialized `Array` as the data as storage. This version needs only
+be defined for sinks that are `AbstractArray` objects.
 
 If you wish an object to serve as a [custom sink](@ref custom_sinks) you can
-implement this method. You should probably use [`nchannels`](@ref) and
-[`channel_eltype`](@ref) of `x` to determine how to initialize the object.
+implement this method. You can use [`nchannels`](@ref) and
+[`channel_eltype`](@ref) of `x` to determine how to initialize the object for
+the first method.
 
 """
 initsink(x,::Type{<:Array}) =
     Array{channel_eltype(x)}(undef,nframes(x),nchannels(x))
 initsink(x,::Type{<:Tuple}) =
     (Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)),framerate(x))
-Array(x::AbstractSignal) = sink(x,Array)
+initsink(x,::Type{<:Array},data) = data
+initsink(x,::Type{<:Tuple},data) = (data,framerate(x))
+Base.Array(x::AbstractSignal) = sink(x,Array)
+Base.Tuple(x::AbstractSignal) = sink(x,Tuple)
 
 """
 
@@ -192,7 +242,6 @@ function sink!(result,x,::IsSignal,block)
 
     block
 end
-
 
 """
 

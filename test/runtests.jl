@@ -183,6 +183,27 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
             aftered = tone |> After(2s)
             @test nframes(aftered) == 44100*3
+
+            x = rand(12,nch)
+            xv = until(x,5frames)
+            xv .= 0
+            @test all(x[1:5] .== 0)
+
+            x = rand(12,nch)
+            xv = after(x,5frames)
+            xv .= 0
+            @test all(x[6:12] .== 0)
+
+            x = rand(12,nch)
+            xv = window(x,from=2frames,to=5frames)
+            xv .= 0
+            @test all(x[3:5] .== 0)
+
+            x = rand(12,nch)
+            y = copy(x)
+            xv = x |> Amplify(2) |> Until(5frames) |> sink
+            xv .= 0
+            @test x == y
         end
     end
     next!(progress)

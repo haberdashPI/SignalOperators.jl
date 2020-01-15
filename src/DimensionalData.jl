@@ -31,9 +31,11 @@ framerate(x::AbstractDimensionalArray) =
 
 timeslice(x::AbstractDimensionalArray,indices) = view(x,Time(indices))
 
-function initsink(x,::Type{<:DimensionalArray})
+function initsink(x,::Type{<:DimensionalArray},
+    data=Array{channel_eltype(x)}(undef,nframes(x),nchannels(x)))
+
     times = Time(range(0s,length=nframes(x),step=1s/framerate(x)))
     channels = SigChannel(1:nchannels(x))
-    DimensionalArray(initsink(x,Array),(times,channels))
+    DimensionalArray(initsink(x,Array,data),(times,channels))
 end
-DimensionalArray(x::AbstractSignal) = sink(x,DimensionalArray)
+DimensionalData.DimensionalArray(x::AbstractSignal) = sink(x,DimensionalArray)

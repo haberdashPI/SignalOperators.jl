@@ -10,6 +10,7 @@ end
 CutApply(signal::T,time,fn) where T = CutApply(signal,SignalTrait(T),time,fn)
 CutApply(signal::Si,::IsSignal{T},time::Tm,kind::K) where {Si,Tm,K,T} =
     CutApply{Si,Tm,K,T}(signal,time)
+CutMethod(x::CutApply) = CutMethod(x.signal)
 
 SignalTrait(::Type{T}) where {Si,T <: CutApply{Si}} =
     SignalTrait(T,SignalTrait(Si))
@@ -184,6 +185,11 @@ function nextblock(x::AfterApply,maxlen,skip,block::CutBlock)
     end
 end
 nextblock(x::AfterApply,maxlen,skip,block::CutBlock{Nothing}) = nothing
+function timeslice(x::AfterApply,indices)
+    from = clamp(resolvelen(x),0,nframes(x.signal))+1
+    to = nframes(x.signal)
+    timeslice(x.signal,(from:to)[indices])
+end
 
 initblock(x::UntilApply) = CutBlock(resolvelen(x),nothing)
 function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
@@ -196,6 +202,10 @@ function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
             CutBlock(nextlen,childblock)
         end
     end
+end
+function timeslice(x::UntilApply,indices)
+    to = clamp(resolvelen(x),0,nframes(x.signal))
+    timeslice(x.signal,(1:to)[indices])
 end
 
 nframes(x::CutBlock) = nframes(child(x))
