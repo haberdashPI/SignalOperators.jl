@@ -1,4 +1,4 @@
-export Until, After, until, after
+export Until, After, until, after, Window, window
 
 ################################################################################
 # cutting signals
@@ -51,7 +51,7 @@ function Window(x;at=nothing,width=nothing,from=nothing,to=nothing)
               "the two keywords `from` and `to`.")
     end
 
-    after,until = isnothign(from) ? (at-width/2,width) : from,to-from
+    after,until = isnothing(from) ? (at-width/2,width) : from,to-from
     x |> After(after) |> Until(until)
 end
 
@@ -92,6 +92,14 @@ until(x,time) = sink(Until(x,time))
     After(x,time)
 
 Create a signal of all frames of `x` after `time`.
+
+!!! note
+
+    If you use `frames` as the unit here, keep in mind that
+    because this returns all frames *after* the given index,
+    the result is effectively zero indexed:
+    i.e. `all(sink(After(1:10,1frames)) .== 2:10)`
+
 """
 After(time) = x -> After(x,time)
 After(x,time) = CutApply(Signal(x),time,Val{:After}())
