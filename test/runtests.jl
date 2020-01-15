@@ -157,6 +157,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test !isinf(nframes(tone))
             @test nframes(tone) == 44100*5
 
+            @test all(until(1:10,5frames) .== 1:5)
+
             x = rand(12,nch)
             cutarray = Signal(x,6Hz) |> After(0.5s) |> Until(1s)
             @test nframes(cutarray) == 6

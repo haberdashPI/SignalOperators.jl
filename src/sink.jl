@@ -25,6 +25,7 @@ sink(x) = sink(x,refineroot(root(x)))
 root(x) = x
 refineroot(x::AbstractArray) = refineroot(x,SignalTrait(x))
 refineroot(x,::Nothing) = Tuple{<:AbstractArray,<:Number}
+refineroot(x,::IsSignal{<:Any,Missing}) = Array
 refineroot(x,::IsSignal) = typeof(x)
 refineroot(x) = Tuple{<:AbstractArray,<:Number}
 refineroot(x::T) where T <: Tuple{<:AbstractArray,<:Number} = T
