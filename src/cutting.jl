@@ -126,13 +126,13 @@ signaltile(x::CutApply) = PrettyPrinting.tile(x)
 cutname(x::UntilApply) = "Until"
 cutname(x::AfterApply) = "After"
 
-nframes(x::UntilApply) = min(nframes(x.signal),resolvelen(x))
+nframes(x::UntilApply) = min(nframes(x.signal),max(0,resolvelen(x)))
 duration(x::UntilApply) =
-    min(duration(x.signal),inseconds(Float64,maybeseconds(x.time),framerate(x)))
+    min(duration(x.signal),max(0,inseconds(Float64,maybeseconds(x.time),framerate(x))))
 
-nframes(x::AfterApply) = max(0,nframes(x.signal) - resolvelen(x))
+nframes(x::AfterApply) = clamp(nframes(x.signal) - resolvelen(x),0,nframes(x.signal))
 duration(x::AfterApply) =
-    max(0,duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)))
+    clamp(duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)),0,duration(x.signal))
 
 EvalTrait(x::AfterApply) = DataSignal()
 function ToFramerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
@@ -152,7 +152,7 @@ end
 child(x::CutBlock) = x.child
 
 function nextblock(x::AfterApply,maxlen,skip)
-    len = resolvelen(x)
+    len = max(0,resolvelen(x))
     childblock = nextblock(child(x),len,true)
     skipped = nframes(childblock)
     while !isnothing(childblock) && skipped < len
