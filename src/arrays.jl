@@ -93,7 +93,7 @@ end
 nframes(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],1)
 nchannels(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],2)
 framerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
-timeslice(x::Tuple{<:AbstractVecOrMat,<:Number}) = view(x[1],indices,:)
+timeslice(x::Tuple{<:AbstractVecOrMat,<:Number},indices) = view(x[1],indices,:)
 function nextblock(x::Tuple{<:AbstractVecOrMat,<:Number},maxlen,skip,
     block=ArrayBlock([],0))
 
