@@ -4,6 +4,12 @@ using Requires, DSP, LambdaFn, Unitful, Compat, PrettyPrinting, FillArrays,
 
 using PrettyPrinting: best_fit, indent, list_layout, literal, pair_layout
 
+@static if VERSION ≤ v"1.3"
+    # patch in fix for clamp from Julia 1.3
+    clamp(x,l,h) = Base.clamp(x,l,h)
+    clamp(::Missing,l,h) = missing
+end
+
 include("util.jl")
 
 # signal definition
