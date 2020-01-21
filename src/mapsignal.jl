@@ -121,7 +121,7 @@ To define a new default for a specific function, just create a new method of
 myfun(x,y) = x + 2y
 SignalOperators.default_pad(::typeof(myfun)) = zero
 
-sink(Operate(myfun,Until(1,2frames),Until(2,4frames))) == [5,5,4,4]
+sink(OperateOn(myfun,Until(1,2frames),Until(2,4frames))) == [5,5,4,4]
 ```
 
 """
