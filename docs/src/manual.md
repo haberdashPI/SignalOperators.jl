@@ -110,7 +110,7 @@ signal should be interpreted to have.
 A number is treated as an infinite length signal, with unknown frame rate.
 
 ```julia
-1 |> Until(1s) |> toframerate(10Hz) |> sink == ones(10)
+1 |> Until(1s) |> ToFramerate(10Hz) |> sink == ones(10)
 ```
 
 ### Arrays
@@ -118,7 +118,7 @@ A number is treated as an infinite length signal, with unknown frame rate.
 A standard array is treated as a finite signal with unknown frame rate.
 
 ```julia
-rand(10,2) |> toframerate(10Hz) |> sink |> duration == 1
+rand(10,2) |> ToFramerate(10Hz) |> sink |> duration == 1
 ```
 
 An `AxisArray`, `DimesnionalArray` or `SampleBuf` (from [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl)) is treated as a finite signal with a known frame rate (and is the default output of [`sink`](@ref))
