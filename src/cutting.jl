@@ -152,25 +152,30 @@ end
 child(x::CutBlock) = x.child
 
 function nextblock(x::AfterApply,maxlen,skip)
-    len = max(0,resolvelen(x))
-    childblock = nextblock(child(x),len,true)
-    skipped = nframes(childblock)
-    while !isnothing(childblock) && skipped < len
-        childblock = nextblock(child(x),min(maxlen,len - skipped),true,
-            childblock)
-        isnothing(childblock) && break
-        skipped += nframes(childblock)
-    end
-    if skipped < len
-        io = IOBuffer()
-        signalshow(io,child(x))
-        sig_string = String(take!(io))
+    if resolvelen(x) == 0
+        childblock = nextblock(child(x),maxlen,false)
+        CutBlock(0,childblock)
+    else
+        len = max(0,resolvelen(x))
+        childblock = nextblock(child(x),len,true)
+        skipped = nframes(childblock)
+        while !isnothing(childblock) && skipped < len
+            childblock = nextblock(child(x),min(maxlen,len - skipped),true,
+                childblock)
+            isnothing(childblock) && break
+            skipped += nframes(childblock)
+        end
+        if skipped < len
+            io = IOBuffer()
+            signalshow(io,child(x))
+            sig_string = String(take!(io))
 
-        error("Signal is too short to skip $(maybeseconds(x.time)): ",
-            sig_string)
+            error("Signal is too short to skip $(maybeseconds(x.time)): ",
+                sig_string)
+        end
+        @assert skipped == len
+        nextblock(x,maxlen,skip,CutBlock(0,childblock))
     end
-    @assert skipped == len
-    nextblock(x,maxlen,skip,CutBlock(0,childblock))
 end
 function nextblock(x::AfterApply,maxlen,skip,block::CutBlock)
     childblock = nextblock(child(x),maxlen,skip,child(block))

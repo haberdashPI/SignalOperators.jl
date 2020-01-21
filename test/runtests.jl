@@ -157,6 +157,9 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test !isinf(nframes(tone))
             @test nframes(tone) == 44100*5
 
+            @test after(rand(10,nch),0frames) |> nframes == 10
+            @test after(rand(10,nch) |> Amplify(2),0frames) |> nframes == 10
+
             @test all(until(1:10,5frames) .== 1:5)
             @test length(until(1:10,-5frames)) == 0
 
