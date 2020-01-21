@@ -47,7 +47,7 @@ a number of different signal representations, including
 `SampleBuf` objects from
 [`SampledSignals`](https://github.com/JuliaAudio/SampledSignals.jl). It
 should also be straightforward to extend the operators to [new signal
-representations](https://haberdashpi.github.io/SignalOperators.jl/stable/custom_signals/).
+representations](https://haberdashpi.github.io/SignalOperators.jl/stable/custom_signal/).
 Operators generally produce signals that match the type input values, when these are uniform.
 
 In many cases, operators are designed to create efficient, lazy
