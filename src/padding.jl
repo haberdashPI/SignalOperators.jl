@@ -2,6 +2,7 @@ export Pad, cycle, mirror, lastframe
 
 struct PaddedSignal{S,T} <: WrappedSignal{S,T}
     signal::S
+    weak::Bool
     Pad::T
 end
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
@@ -11,13 +12,14 @@ SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
 nframes(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
-    PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.Pad)
+    PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.weak,x.Pad)
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
-    blocksize) = PaddedSignal(ToFramerate(x.signal,fs;blocksize=blocksize),x.Pad)
+    blocksize) = PaddedSignal(ToFramerate(x.signal,fs;blocksize=blocksize),
+        x.weak,x.Pad)
 
 """
 
-    Pad(x,padding)
+    Pad(x,padding;[weak=false])
 
 Create a signal that appends an infinite number of values, `padding`, to `x`.
 The value `padding` can be:
@@ -62,17 +64,37 @@ through `sink` or `sink!`.
     A indexing function will also work on a signal represented as a tuple of
     an array and number; it simply passed the array (leaving off the number).
 
+
+## Weak padding
+
+You can optionally specify that the padding is weak. Weak padding is only
+applied inside a call to `OperateOn` (and those methods that call it, such as
+`mix` and `Operate`) after the length of the signal is determined.
+
+For example
+
+```juia
+x = rand(10,2)
+y = rand(15,2)
+
+Mix(Pad(x,one,weak=true),y) |> nframes == 15
+Mix(Pad(x,one),y) |> nframes |> isinf == true
+```
+
+The default padding applied in `OperateOn` uses this weak padding.
+
 ## See also
 
 [`cycle`](@ref)
 [`mirror`](@ref)
 [`lastframe`](@ref)
 [`valuefunction`](@ref)
+
 """
-Pad(p) = x -> Pad(x,p)
-function Pad(x,p)
+Pad(p;kwds...) = x -> Pad(x,p;kwds...)
+function Pad(x,p;weak=false)
     x = Signal(x)
-    isinf(nframes(x)) ? x : PaddedSignal(x,p)
+    isinf(nframes(x)) ? x : PaddedSignal(x,weak,p)
 end
 
 """
