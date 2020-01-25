@@ -24,7 +24,7 @@ function MapSignal(fn::Fn,val::El,len::L,signals::Si,
     T = El == NoValues ? Nothing : ntuple_T(El)
     N = El == NoValues ? 0 : length(signals)
     C = El == NoValues ? 1 : nchannels(signals[1])
-    padded_signals = Pad.(signals,Ref(padding))
+    padded_signals = InvokePad.(signals,Ref(padding))
     PSi = typeof(padded_signals)
     MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,framerate,padding,
         padded_signals,blocksize,bychannel)
@@ -69,7 +69,7 @@ ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     OperateOn(fn,arguments...;padding,bychannel)
 
 Apply `fn` across the samples of the passed signals. Shorter signals are
-padded to accommodate the longest finite-length signal.
+padded to accommodate the longest signal.
 
 !!! note
 
@@ -107,12 +107,11 @@ channels of each input signal remains unchanged.
 ## Padding
 
 Padding determines how frames past the end of shorter signals are reported.
-The value of `padding` is given as the second argument to [`Pad`](@ref) these
-shorter signals. Its default value is determined by the value of `fn`. The
-default value for the four basic arithmetic operators is their identity
-(`one` for `*` and `zero` for `+`). These defaults are set on the basis of
-`fn` using `default_pad(fn)`. A fallback implementation of `default_pad`
-returns `zero`.
+The value of `padding` is given as the second argument to [`InvokePad`](@ref).
+Its default value is determined by the value of `fn`. The default value for
+the four basic arithmetic operators is their identity (`one` for `*` and
+`zero` for `+`). These defaults are set on the basis of `fn` using
+`default_pad(fn)`. A fallback implementation of `default_pad` returns `zero`.
 
 To define a new default for a specific function, just create a new method of
 `default_pad(fn)`
@@ -133,9 +132,7 @@ function OperateOn(fn,xs...;
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
     lens = nframes.(xs) |> collect
-    len = all(isinf,lens) ? inflen :
-            any(ismissing,lens) ? missing :
-            maximum(filter(!isinf,lens))
+    len = any(ismissing,lens) ? missing : maximum(lens)
 
     vals = testvalue.(xs)
     if bychannel

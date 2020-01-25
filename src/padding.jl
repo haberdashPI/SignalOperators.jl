@@ -1,27 +1,31 @@
 export Pad, cycle, mirror, lastframe
 
-struct PaddedSignal{S,T} <: WrappedSignal{S,T}
+struct PaddedSignal{S,T,W} <: WrappedSignal{S,T}
     signal::S
-    weak::Bool
     Pad::T
 end
+PaddedSignal(s::S,p::T,W=:strong) where {S,T} = PaddedSignal{S,T,W}(s,p)
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nframes(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
+nframes(x::PaddedSignal{<:Any,<:Any,:weak}) = nframes(x.signal)
+duration(x::PaddedSignal{<:any,<:Any,:weak}) = duration(x.signal)
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
-    PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.weak,x.Pad)
+    PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.Pad)
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
-    blocksize) = PaddedSignal(ToFramerate(x.signal,fs;blocksize=blocksize),
-        x.weak,x.Pad)
+    blocksize) = PaddedSignal(ToFramerate(x.signal,fs;blocksize=blocksize),x.Pad)
+
 
 """
 
-    Pad(x,padding;[weak=false])
+    Pad(x,padding)
 
 Create a signal that appends an infinite number of values, `padding`, to `x`.
+If `x` is already an infinite signal, no change to the signal occurs.
+
 The value `padding` can be:
 
 - a number
@@ -64,25 +68,6 @@ through `sink` or `sink!`.
     A indexing function will also work on a signal represented as a tuple of
     an array and number; it simply passed the array (leaving off the number).
 
-
-## Weak padding
-
-You can optionally specify that the padding is weak. Weak padding is only
-applied inside a call to `OperateOn` (and those methods that call it, such as
-`mix` and `Operate`) after the length of the signal is determined.
-
-For example
-
-```juia
-x = rand(10,2)
-y = rand(15,2)
-
-Mix(Pad(x,one,weak=true),y) |> nframes == 15
-Mix(Pad(x,one),y) |> nframes |> isinf == true
-```
-
-The default padding applied in `OperateOn` uses this weak padding.
-
 ## See also
 
 [`cycle`](@ref)
@@ -92,10 +77,66 @@ The default padding applied in `OperateOn` uses this weak padding.
 
 """
 Pad(p;kwds...) = x -> Pad(x,p;kwds...)
-function Pad(x,p;weak=false)
+function Pad(x,p)
     x = Signal(x)
-    isinf(nframes(x)) ? x : PaddedSignal(x,weak,p)
+    isinf(nframes(x)) ? x : PaddedSignal(x,p)
 end
+
+"""
+    InvokePad(x,default)
+
+If `x` is not already padded, calls `Pad(x,default)`. If it has been
+padded using `WillPad`, applies the padding specified there to the signal now.
+
+## See Also
+
+[`WillPad`](@ref)
+[`Pad`](@ref)
+"""
+InvokePad(x::PaddedSignal{<:Any,<:Any,:weak},p) = Pad(x.signal,x.Pad)
+InvokePad(x::PaddedSignal,p) = x
+InvokePad(x,p) = Pad(x,p)
+
+"""
+
+    WillPad(x,padding)
+
+Like `Pad` but the padding is delayed. It is only applied on a subsequent
+call to `InvokePad(x,default)`. This allows you to specificy the padding
+for each signal passed to `OperateOn` separately.
+
+Applying `WillPad` to an already padded signal has no effect on that signal.
+
+## Example
+
+For example
+
+```juia
+x = rand(10,2)
+y = rand(15,2)
+
+# without any other operations, the signal appears unchanged...
+WillPad(x,one) |> nframes == 10
+# ...but on a call to `InvokePad`, it is as if `x` has already been padded with ones
+all(WillPad(x,one) |> InvokePad(x,zero) |> Window(from=10frames,to=15frames) |> sink .== 1)
+
+# now we can pad `x` with ones when adding it to `y`
+Mix(WillPad(x,one),y) |> nframes == 15
+
+# if you just pad the signal before operating on it the result would beinfinite
+Mix(Pad(x,one),y) |> nframes |> isinf == true
+```
+
+## See also
+[`Pad`](@ref)
+[`InvokePad`](@ref)
+
+"""
+function WillPad(x,p)
+    x = Signal(x)
+    isinf(nframes(x)) ? x : PaddedSignal(x,p,:weak)
+end
+WillPad(x::PaddedSignal,p) = x
 
 """
     lastframe
@@ -210,6 +251,11 @@ nframes(x::PadBlock) = x.child_or_len
     block.Pad(i + block.offset)
 @Base.propagate_inbounds frame(x,block::PadBlock,i) = block.Pad
 
+nextblock(x::PaddedSignal{<:Any,<:Any,:weak},maxlen,skip) =
+    nextblock(x.signal,maxlen,skip)
+nextblock(x::PaddedSignal{<:Any,<:Any,:weak},maxlen,skip,block) =
+    nextblock(x.signal,maxlen,skip,block)
+
 function nextblock(x::PaddedSignal,maxlen,skip)
     block = nextblock(child(x),maxlen,skip)
     if isnothing(block)
@@ -238,3 +284,9 @@ function PrettyPrinting.tile(x::PaddedSignal)
     tilepipe(child,operate)
 end
 signaltile(x::PaddedSignal) = PrettyPrinting.tile(x)
+
+function PrettyPrinting.tile(x::PaddedSignal{<:Any,<:Any,:weak})
+    child = signaltile(x.signal)
+    operate = literal(string("WillPad(",x.Pad,")"))
+    tilepipe(child,operate)
+end
