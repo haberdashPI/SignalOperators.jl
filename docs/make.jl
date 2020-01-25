@@ -1,5 +1,7 @@
 using Documenter, SignalOperators, SignalBase
 
+DocMeta.setdocmeta!(SignalBase, :DocTestSetup, :(using SignalBase; using SignalBase.Units); recursive=true)
+
 makedocs(;
     modules=[SignalOperators, SignalBase],
     format=Documenter.HTML(),
