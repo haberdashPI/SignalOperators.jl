@@ -24,7 +24,7 @@ function MapSignal(fn::Fn,val::El,len::L,signals::Si,
     T = El == NoValues ? Nothing : ntuple_T(El)
     N = El == NoValues ? 0 : length(signals)
     C = El == NoValues ? 1 : nchannels(signals[1])
-    padded_signals = Pad.(signals,Ref(padding))
+    padded_signals = Extend.(signals,Ref(padding))
     PSi = typeof(padded_signals)
     MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,framerate,padding,
         padded_signals,blocksize,bychannel)
@@ -39,10 +39,11 @@ nframes(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 function duration(x::MapSignal)
-    durs = duration.(x.signals) |> collect
-    all(isknowninf,durs) ? inflen :
-        any(ismissing,durs) ? missing :
-        maximum(filter(!isknowninf,durs))
+    ddurs = duration.(x.signals)
+    cdurs = unextended_nframes.(x.signals)./samplerate(x.signals)
+    durs = coalesce.(cdurs,ddurs)
+
+    maximum(unextended_nframes)
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -68,8 +69,14 @@ ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
 
     OperateOn(fn,arguments...;padding,bychannel)
 
-Apply `fn` across the samples of the passed signals. Shorter signals are
-padded to accommodate the longest finite-length signal.
+Apply `fn` across the samples of the passed signals.
+
+The signals are first all extended using `Extend(x,padding)`. If you wish to
+specify distinct padding values across the inputs, you can first call
+`Extend` on the arguments.
+
+The length of the output signal is the maximum [`unextended_nframes`](@ref) of
+the arguments.
 
 !!! note
 
@@ -107,8 +114,8 @@ channels of each input signal remains unchanged.
 ## Padding
 
 Padding determines how frames past the end of shorter signals are reported.
-The value of `padding` is given as the second argument to [`Pad`](@ref) these
-shorter signals. Its default value is determined by the value of `fn`. The
+The value of `padding` is given as the second argument to [`Extend`](@ref).
+The default value for `padding` is determined by the value of `fn`. The
 default value for the four basic arithmetic operators is their identity
 (`one` for `*` and `zero` for `+`). These defaults are set on the basis of
 `fn` using `default_pad(fn)`. A fallback implementation of `default_pad`
@@ -132,10 +139,7 @@ function OperateOn(fn,xs...;
 
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
-    lens = nframes.(xs) |> collect
-    len = all(isknowninf,lens) ? inflen :
-            any(ismissing,lens) ? missing :
-            maximum(filter(!isknowninf,lens))
+    len = maximum(unextended_nframes.(xs))
 
     vals = testvalue.(xs)
     if bychannel

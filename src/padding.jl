@@ -1,9 +1,29 @@
-export Pad, cycle, mirror, lastframe
+export Pad, cycle, mirror, lastframe, unextended_nframes
 
-struct PaddedSignal{S,T} <: WrappedSignal{S,T}
+"""
+
+    unextended_nframes(x)
+
+Normally equal to `nframes(x)`. However, a few signals override this method
+to make it a different value, for use with `OperateOn` (e.g. numbers and
+extended signals).
+
+## See Also
+
+[`OperateOn`](@ref)
+[`Extend`](@ref)
+[`Signal`](@ref)
+
+"""
+unextended_nframes(x) = nframes(x)
+
+struct PaddedSignal{S,T,E} <: WrappedSignal{S,T}
     signal::S
     Pad::T
 end
+PaddedSignal(x::S,pad::T,extending=false) where {S,T} =
+    PaddedSignal{S,T,extending}(x,pad)
+unextended_nframes(x::PaddedSignal{<:Any,<:Any,true}) = nframes(x.signal)
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
@@ -73,6 +93,26 @@ Pad(p) = x -> Pad(x,p)
 function Pad(x,p)
     x = Signal(x)
     isknowninf(nframes(x)) ? x : PaddedSignal(x,p)
+end
+
+
+"""
+
+    Extend(x,padding)
+
+Like `Pad` but this signal has an [`unextended_nframes`](@ref) value equal to
+the `nframes` of the input signal `x`.
+
+## See Also
+
+[`OperateOn`](@ref)
+[`Pad`](@ref)
+
+"""
+Extend(p) = x -> Extend(x,p)
+function Extend(x,p)
+    x = Signal(x)
+    isknowninf(nframes(x)) ? x : PaddedSignal(x,p,true)
 end
 
 """

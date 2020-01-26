@@ -2,6 +2,7 @@ struct NumberSignal{T,S,DB} <: AbstractSignal{T}
     val::T
     framerate::S
 end
+unextended_nframes(x::NumberSignal) = 0
 
 NumberSignal(x::T,sr::Fs;dB=false) where {T,Fs} = NumberSignal{T,Fs,dB}(x,sr)
 function Base.show(io::IO, ::MIME"text/plain", x::NumberSignal{<:Any,<:Any,true})
@@ -19,6 +20,16 @@ end
 
 Numbers can be treated as infinite length, constant signals of unknown
 frame rate.
+
+This infinite length will not generate infinite length results when combined
+with other signals becuase they have an [`unextended_nframes`](@ref) length
+of 0.
+
+### Example
+
+```julia
+rand(10,2) |> Amplify(20dB) |> nframes == 10
+```
 
 """
 Signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))
