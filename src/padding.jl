@@ -12,7 +12,7 @@ SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
 nframes(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
 nframes(x::PaddedSignal{<:Any,<:Any,:weak}) = nframes(x.signal)
-duration(x::PaddedSignal{<:any,<:Any,:weak}) = duration(x.signal)
+duration(x::PaddedSignal{<:Any,<:Any,:weak}) = duration(x.signal)
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
     PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.Pad)
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
