@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+SignalBase = "00c44e92-20f5-44bc-8f45-a1dcef76ba38"
 SignalOperators = "4d633899-0529-4c96-b1ed-a77d049c39ef"
