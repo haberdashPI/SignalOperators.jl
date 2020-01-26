@@ -23,7 +23,7 @@ end
 SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,<:Any,T,Fs}}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
-nframes(x::SignalFunction) = inflen
+nframes_helper(x::SignalFunction) = inflen
 framerate(x::SignalFunction) = x.framerate
 EvalTrait(x::SignalFunction) = ComputedSignal()
 

@@ -1,14 +1,33 @@
 export Pad, cycle, mirror, lastframe
 
-struct PaddedSignal{S,T} <: WrappedSignal{S,T}
+"""
+
+    unextended_nframes(x)
+
+Normally equal to `nframes(x)`. However, a few signals override this method
+to make it a different value, for use with `OperateOn` (e.g. numbers and
+extended signals).
+
+## See Also
+
+[`OperateOn`](@ref)
+[`Extend`](@ref)
+[`Signal`](@ref)
+
+"""
+
+struct PaddedSignal{S,T,E} <: WrappedSignal{S,T}
     signal::S
     Pad::T
 end
+PaddedSignal(x::S,pad::T,extending=false) where {S,T} =
+    PaddedSignal{S,T,extending}(x,pad)
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
-nframes(x::PaddedSignal) = inflen
+nframes_helper(x::PaddedSignal) = inflen
+nframes_helper(x::PaddedSignal{<:Any,<:Any,true}) = Extended(nframes(x.signal))
 duration(x::PaddedSignal) = inflen
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
     PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.Pad)
@@ -73,6 +92,27 @@ Pad(p) = x -> Pad(x,p)
 function Pad(x,p)
     x = Signal(x)
     isknowninf(nframes(x)) ? x : PaddedSignal(x,p)
+end
+
+
+"""
+
+    Extend(x,padding)
+
+Behaves like [`Pad`](@ref), except when passed directly to
+[`OperateOn`](@ref); in that case, the signal `x` will only be padded up to
+the length of the longest signal input to `OperateOn`
+
+## See Also
+
+[`OperateOn`](@ref)
+[`Pad`](@ref)
+
+"""
+Extend(p) = x -> Extend(x,p)
+function Extend(x,p)
+    x = Signal(x)
+    isknowninf(nframes(x)) ? x : PaddedSignal(x,p,true)
 end
 
 """
@@ -213,6 +253,11 @@ Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)
 function PrettyPrinting.tile(x::PaddedSignal)
     child = signaltile(x.signal)
     operate = literal(string("Pad(",x.Pad,")"))
+    tilepipe(child,operate)
+end
+function PrettyPrinting.tile(x::PaddedSignal{<:Any,<:Any,true})
+    child = signaltile(x.signal)
+    operate = literal(string("Extend(",x.Pad,")"))
     tilepipe(child,operate)
 end
 signaltile(x::PaddedSignal) = PrettyPrinting.tile(x)

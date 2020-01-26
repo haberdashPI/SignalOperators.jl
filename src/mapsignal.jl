@@ -1,14 +1,13 @@
 using Unitful
 export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
-    operate, mix, amplify, addchannel, selectchannel
+    operate, mix, amplify, addchannel, selectchannel, Extend
 
 ################################################################################
 # binary operators
 
-struct MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
+struct MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi} <: AbstractSignal{T}
     fn::Fn
     val::El
-    len::L
     signals::Si
     framerate::Fs
     padding::Pd
@@ -17,16 +16,16 @@ struct MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     bychannel::Bool
 end
 
-function MapSignal(fn::Fn,val::El,len::L,signals::Si,
+function MapSignal(fn::Fn,val::El,signals::Si,
     framerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where
         {Fn,El,L,Si,Fs,Pd}
 
     T = El == NoValues ? Nothing : ntuple_T(El)
     N = El == NoValues ? 0 : length(signals)
     C = El == NoValues ? 1 : nchannels(signals[1])
-    padded_signals = Pad.(signals,Ref(padding))
+    padded_signals = Extend.(signals,Ref(padding))
     PSi = typeof(padded_signals)
-    MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,framerate,padding,
+    MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi}(fn,val,signals,framerate,padding,
         padded_signals,blocksize,bychannel)
 end
 
@@ -35,14 +34,16 @@ end
 novalues = NoValues()
 SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
     IsSignal{T,Fs,L}()
-nframes(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
+
+isnumbers(::Tuple{<:Number}) = true
+isnumbers(xs) = false
 function duration(x::MapSignal)
-    durs = duration.(x.signals) |> collect
-    all(isknowninf,durs) ? inflen :
-        any(ismissing,durs) ? missing :
-        maximum(filter(!isknowninf,durs))
+    durs = duration.(x.padded_signals)
+    Ns = nframes_helper.(x.padded_signals)
+    durlen = ifelse.(isknowninf.(durs),Ns ./ framerate(x),durs)
+    reduce(maxlen,durlen)
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -66,18 +67,19 @@ ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
 
 """
 
-    OperateOn(fn,arguments...;padding,bychannel)
+    OperateOn(fn,arguments...;padding=default_pad(fn),bychannel=false)
 
-Apply `fn` across the samples of the passed signals. Shorter signals are
-padded to accommodate the longest finite-length signal.
+Apply `fn` across the samples of the passed signals. The output length is the
+maximum length of the arguments. Shorter signals are extended using
+`Extend(x,padding)`.
 
 !!! note
 
-    There is no piped version of `OperateOn`, use [`Operate`](@ref) instead.
-    The shorter name is used for what is intended as the more common use case
-    (piping).
+    There is no piped version of `OperateOn`, use [`Operate`](@ref) to pipe.
+    The shorter name is used to pipe because it is expected to be the more
+    common use case.
 
-## Channel-by-channel functions
+## Channel-by-channel functions (default)
 
 When `bychannel == false` the function `fn` should treat each of its
 arguments as a single number and return a single number. This operation is
@@ -107,21 +109,24 @@ channels of each input signal remains unchanged.
 ## Padding
 
 Padding determines how frames past the end of shorter signals are reported.
-The value of `padding` is given as the second argument to [`Pad`](@ref) these
-shorter signals. Its default value is determined by the value of `fn`. The
-default value for the four basic arithmetic operators is their identity
-(`one` for `*` and `zero` for `+`). These defaults are set on the basis of
-`fn` using `default_pad(fn)`. A fallback implementation of `default_pad`
-returns `zero`.
+If you wish to change the padding for all signals you can set the value of
+the keyword argument `padding`. If you wish to specify distinct padding
+values for some of the inputs, you can first call [`Extend`](@ref) on those
+arguments.
+
+The default value for `padding` is determined by the `fn` passed. A fallback
+implementation of `default_pad` returns `zero`. The default value for the
+four basic arithmetic operators is their identity (`one` for `*` and `zero`
+for `+`).
 
 To define a new default for a specific function, just create a new method of
 `default_pad(fn)`
 
 ```julia
 myfun(x,y) = x + 2y
-SignalOperators.default_pad(::typeof(myfun)) = zero
+SignalOperators.default_pad(::typeof(myfun)) = one
 
-sink(OperateOn(myfun,Until(1,2frames),Until(2,4frames))) == [5,5,4,4]
+sink(OperateOn(myfun,Until(5,2frames),Until(2,4frames))) == [9,9,5,5]
 ```
 
 """
@@ -132,18 +137,24 @@ function OperateOn(fn,xs...;
 
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
-    lens = nframes.(xs) |> collect
-    len = all(isknowninf,lens) ? inflen :
-            any(ismissing,lens) ? missing :
-            maximum(filter(!isknowninf,lens))
 
     vals = testvalue.(xs)
     if bychannel
         fn = FnBr(fn)
     end
-    MapSignal(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
+    MapSignal(fn,astuple(fn(vals...)),xs,fs,padding,blocksize,
         bychannel)
 end
+
+maxlen(x::Extended,y::Number) = max(x.len,y)
+maxlen(x::Extended,y::Extended) = max(x.len,y.len)
+maxlen(x::Extended,y::Infinite) = x.len
+maxlen(x::NumberExtended,y) = y
+maxlen(x::NumberExtended,y::Extended) = y.len
+maxlen(x,y) = max(x,y)
+maxlen(x,y::Extended) = max(x,y.len)
+maxlen(x,y::NumberExtended) = x
+nframes_helper(x::MapSignal) = reduce(maxlen,nframes_helper.(x.signals))
 
 """
     Operate(fn,rest...;padding,bychannel)

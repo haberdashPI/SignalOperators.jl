@@ -30,8 +30,10 @@ function ToFramerate(
     s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize) where D
 
+    t = stretchtime(x.time,fs/framerate(x))
     RampSignal(D,ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
+
 function ToFramerate(
     x::RampSignal{D},
     s::IsSignal{<:Any,Missing},

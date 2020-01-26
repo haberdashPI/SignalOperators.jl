@@ -127,23 +127,28 @@ signaltile(x::CutApply) = PrettyPrinting.tile(x)
 cutname(x::UntilApply) = "Until"
 cutname(x::AfterApply) = "After"
 
-nframes(x::UntilApply) = min(nframes(x.signal),max(0,resolvelen(x)))
+nframes_helper(x::UntilApply) = min(nframes_helper(x.signal),max(0,resolvelen(x)))
 duration(x::UntilApply) =
     min(duration(x.signal),max(0,inseconds(Float64,maybeseconds(x.time),framerate(x))))
 
-nframes(x::AfterApply) = clamp(nframes(x.signal) - resolvelen(x),0,nframes(x.signal))
+nframes_helper(x::AfterApply) = clamp(nframes_helper(x.signal) - resolvelen(x),0,nframes_helper(x.signal))
 duration(x::AfterApply) =
     clamp(duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)),0,duration(x.signal))
 
 EvalTrait(x::AfterApply) = DataSignal()
+
+stretchtime(t,scale) = t
+stretchtime(t::FrameQuant,scale::Number) = inframes(Int,t*scale)*frames
 function ToFramerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
-    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),x.time,
+    t = stretchtime(x.time,fs/framerate(x))
+    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),t,
         Val{:Until}())
 end
 function ToFramerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     __ignore__,fs; blocksize) where K
 
-    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),x.time,K())
+    t = stretchtime(x.time,fs/framerate(x))
+    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),t,K())
 end
 
 struct CutBlock{C}

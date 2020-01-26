@@ -25,6 +25,16 @@ end
 # sampletype
 abstract type AbstractSignal{T}
 end
+nframes_helper(x) = nframes(x)
+nframes_helper(x::AbstractSignal) =
+    error("Undefined `nframes_helper` for $(typeof(x))")
+nframes(x::AbstractSignal) = cleanextend(nframes_helper(x))
+cleanextend(x) = x
+struct Extended{T} <:Infinite
+    len::T
+end
+cleanextend(x::Extended) = inflen
+Base.:(/)(x::Extended,y::Number) = Extended(x.len / y)
 
 """
 

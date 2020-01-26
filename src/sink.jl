@@ -65,7 +65,7 @@ sink(x,::Type{T}) where T = sink(x,T,CutMethod(x))
 function sink(x,::Type{T},::DataCut) where T
     x = process_sink_params(x)
     data = timeslice(x,:)
-    if parent(data) isa T
+    if Base.typename(typeof(parent(data))) == Base.typename(T)
         data
     else # if the sink type is new, we have to copy the data
         # because it could be in a different memory layout
@@ -105,16 +105,11 @@ end
 
 Initialize an object of type T so that it can store all frames of signal `x`.
 
-    SignalOperators.initsink(x,::Type{T},data::Array)
-
-Initialize an object of type T so that it can store all frames of signal `x`, using
-the already initialized `Array` as the data as storage. This version needs only
-be defined for sinks that are `AbstractArray` objects.
-
 If you wish an object to serve as a [custom sink](@ref custom_sinks) you can
 implement this method. You can use [`nchannels`](@ref) and
-[`sampletype`](@ref) of `x` to determine how to initialize the object for
-the first method.
+[`sampletype`](@ref) of `x` to determine how to initialize the object for the
+first method, or you can just use `initsink(x,Array)` and wrap the return
+value with your custom type.
 
 """
 function initsink(x,::Type{<:Array})
@@ -240,7 +235,7 @@ function sink!(result,x,::IsSignal,block)
             block = nextblock(x,maxlen,false,block)
         end
     end
-    @assert written == size(result,1)
+    @assert written == nframes(result)
 
     block
 end

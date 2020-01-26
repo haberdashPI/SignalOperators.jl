@@ -212,6 +212,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
                 Until(2s) |> ToFramerate(10Hz) |> sink
             @test_throws ErrorException sin |> Until(1s) |> Pad((a,b) -> a+b) |>
                 Until(2s) |> ToFramerate(10Hz) |> sink
+
+            x = rand(10,nch)
+            y = rand(15,nch)
+
+            @test Extend(x,one) |> nframes == inflen
+            @test Mix(Extend(x,one),y) |> nframes == 15
+            @test Mix(Pad(x,one),y) |> nframes |> isinf
+            @test Mix(1,rand(10,2)) |> nframes == 10
+            @test Mix(sin,1,rand(10,2)) |> nframes |> isinf
         end
     end
     next!(progress)
@@ -511,7 +520,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test all(dc_off .== 100)
 
             # AbstractArrays
-            tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
+            tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |> Until(10frames) |>
                 Mix(10.0.*(1:10)) |> Array
             @test all(tone[1:10,:] .>= 10.0*(1:10))
             x = Signal(10.0.*(1:10),5Hz) |> ToChannels(nch) |> Until(1s) |>
@@ -525,6 +534,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = AxisArray(rand(2,10),Axis{:channel}(1:2),
             Axis{:time}(range(0,1,length=10)))
         @test x |> Until(500ms) |> Array |> size == (4,2)
+        @test x |> Until(500ms) |> sink |> size == (4,2)
 
         # poorly shaped arrays
         @test_throws ErrorException Signal(rand(2,2,2))
@@ -805,25 +815,29 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
         # multiple frame rates
         x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
-            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |> FadeTo(Signal(sin,ω=5Hz)) |>
-            ToFramerate(20Hz)
-        @test framerate(x) == 20
+            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |>
+            FadeTo(Signal(sin,ω=5Hz) |> Until(4s),500ms) |>
+            ToFramerate(22Hz)
+        @test framerate(x) == 22
+        @test duration(x) == 7.5
 
-        x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
-            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |> FadeTo(Signal(sin,ω=5Hz)) |>
-            ToFramerate(25Hz) |> sink
-        @test framerate(x) == 25
+        x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |>
+            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |>
+            FadeTo(Signal(sin,ω=5Hz) |> Until(4s),500ms) |>
+            ToFramerate(22Hz) |> sink
+        @test framerate(x) == 22
+        @test duration(x) == 7.5
 
         # multiple filters
         x = noise |>
             Filt(Lowpass,9Hz) |>
-            Mix(Signal(sin,ω=12Hz)) |>
+            Mix(Signal(sin,ω=12Hz) |> Until(6s)) |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1)) |>
             Array
 
         y = noise |>
             Filt(Lowpass,9Hz) |>
-            Mix(Signal(sin,ω=12Hz)) |>
+            Mix(Signal(sin,ω=12Hz) |> Until(6s)) |>
             sink |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1)) |>
             Array
@@ -831,7 +845,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
         y = noise |>
             Filt(Lowpass,9Hz,blocksize=11) |>
-            Mix(Signal(sin,ω=12Hz)) |>
+            Mix(Signal(sin,ω=12Hz) |> Until(6s)) |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1),blocksize=9) |>
             Array
         @test x ≈ y
