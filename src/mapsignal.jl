@@ -1,6 +1,6 @@
 using Unitful
 export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
-    operate, mix, amplify, addchannel, selectchannel
+    operate, mix, amplify, addchannel, selectchannel, Extend
 
 ################################################################################
 # binary operators

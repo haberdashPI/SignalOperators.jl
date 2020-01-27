@@ -255,4 +255,9 @@ function PrettyPrinting.tile(x::PaddedSignal)
     operate = literal(string("Pad(",x.Pad,")"))
     tilepipe(child,operate)
 end
+function PrettyPrinting.tile(x::PaddedSignal{<:Any,<:Any,true})
+    child = signaltile(x.signal)
+    operate = literal(string("Extend(",x.Pad,")"))
+    tilepipe(child,operate)
+end
 signaltile(x::PaddedSignal) = PrettyPrinting.tile(x)

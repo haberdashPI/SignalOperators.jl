@@ -212,6 +212,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
                 Until(2s) |> ToFramerate(10Hz) |> sink
             @test_throws ErrorException sin |> Until(1s) |> Pad((a,b) -> a+b) |>
                 Until(2s) |> ToFramerate(10Hz) |> sink
+
+            x = rand(10,nch)
+            y = rand(15,nch)
+
+            @test Extend(x,one) |> inflen
+            @test Mix(Extend(x,one),y) |> nframes == 15
+            @test Mix(Pad(x,one),y) |> nframes |> isinf
+            @test Mix(1,rand(10,2)) |> nframes == 10
+            @test Mix(sin,1,rand(10,2)) |> nframes |> isinf
         end
     end
     next!(progress)
