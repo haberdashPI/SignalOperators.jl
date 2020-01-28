@@ -7,6 +7,7 @@ struct CutApply{Si,Tm,K,T} <: WrappedSignal{Si,T}
     signal::Si
     time::Tm
 end
+unextended_nframes(x::CutApply) = nframes(x)
 CutApply(signal::T,time,fn) where T = CutApply(signal,SignalTrait(T),time,fn)
 CutApply(signal::Si,::IsSignal{T},time::Tm,kind::K) where {Si,Tm,K,T} =
     CutApply{Si,Tm,K,T}(signal,time)

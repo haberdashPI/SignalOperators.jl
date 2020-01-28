@@ -21,9 +21,16 @@ end
 Numbers can be treated as infinite length, constant signals of unknown
 frame rate.
 
-This infinite length will not generate infinite length results when combined
-with other signals becuase they have an [`unextended_nframes`](@ref) length
-of 0.
+!!! note
+
+    The length of numbers are treated specially when passed to
+    [`OperateOn`](@ref): if there are other types of signal passed as input,
+    the number signals are ignore when computing the length of the output.
+
+    ```julia
+    nframes(Mix(1,2)) == inflen
+    nframes(Mix(1,rand(10,2))) == 10
+    ```
 
 ### Example
 

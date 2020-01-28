@@ -39,8 +39,8 @@ nframes(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 function duration(x::MapSignal)
-    ddurs = duration.(x.signals)
-    cdurs = unextended_nframes.(x.signals)./samplerate(x.signals)
+    ddurs = duration.(x.padded_signals)
+    cdurs = unextended_nframes.(x.padded_signals)./samplerate(x.padded_signals)
     durs = coalesce.(cdurs,ddurs)
 
     maximum(unextended_nframes)
@@ -139,7 +139,7 @@ function OperateOn(fn,xs...;
 
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
-    len = maximum(unextended_nframes.(xs))
+    len = operate_nframes(xs)
 
     vals = testvalue.(xs)
     if bychannel
@@ -148,6 +148,8 @@ function OperateOn(fn,xs...;
     MapSignal(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
         bychannel)
 end
+
+operate_nframes(xs) = maximum(unextended_nframes.(xs))
 
 """
     Operate(fn,rest...;padding,bychannel)

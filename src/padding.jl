@@ -100,8 +100,8 @@ end
 
     Extend(x,padding)
 
-Like `Pad` but this signal has an [`unextended_nframes`](@ref) value equal to
-the `nframes` of the input signal `x`.
+Like [`Pad`](@ref), but when passed to [`OperateOn`](@ref), the signal `x` will
+only be padded up to the length of the longest input signal.
 
 ## See Also
 
