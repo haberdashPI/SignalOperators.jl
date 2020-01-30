@@ -2,7 +2,11 @@ struct NumberSignal{T,S,DB} <: AbstractSignal{T}
     val::T
     framerate::S
 end
-unextended_nframes(x::NumberSignal) = 0
+struct NumberExtended <: Infinite
+end
+const numextend = NumberExtended()
+nframes_helper(x::NumberSignal) = numextend
+cleanextend(x::NumberExtended) = inflen
 
 NumberSignal(x::T,sr::Fs;dB=false) where {T,Fs} = NumberSignal{T,Fs,dB}(x,sr)
 function Base.show(io::IO, ::MIME"text/plain", x::NumberSignal{<:Any,<:Any,true})
@@ -25,11 +29,11 @@ frame rate.
 
     The length of numbers are treated specially when passed to
     [`OperateOn`](@ref): if there are other types of signal passed as input,
-    the number signals are considered to be as long as the longest
+    the number signals are considered to be as long as the longest signal.
 
     ```julia
-    nframes(Mix(1,2)) == inflen
-    nframes(Mix(1,rand(10,2))) == 10
+    nframes_helper(Mix(1,2)) == inflen
+    nframes_helper(Mix(1,rand(10,2))) == 10
     ```
 
 ### Example
@@ -46,7 +50,6 @@ Signal(val::Unitful.Gain{<:Any,<:Any,T},::Nothing,fs) where T =
 SignalTrait(::Type{<:NumberSignal{T,S}}) where {T,S} = IsSignal{T,S,InfiniteLength}()
 
 nchannels(x::NumberSignal) = 1
-nframes(x::NumberSignal) = inflen
 framerate(x::NumberSignal) = x.framerate
 
 ToFramerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,

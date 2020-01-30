@@ -15,7 +15,6 @@ extended signals).
 [`Signal`](@ref)
 
 """
-unextended_nframes(x) = nframes(x)
 
 struct PaddedSignal{S,T,E} <: WrappedSignal{S,T}
     signal::S
@@ -23,12 +22,11 @@ struct PaddedSignal{S,T,E} <: WrappedSignal{S,T}
 end
 PaddedSignal(x::S,pad::T,extending=false) where {S,T} =
     PaddedSignal{S,T,extending}(x,pad)
-unextended_nframes(x::PaddedSignal{<:Any,<:Any,true}) = nframes(x.signal)
 SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
     SignalTrait(x,SignalTrait(S))
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
-nframes(x::PaddedSignal) = inflen
+nframes_helper(x::PaddedSignal) = inflen
 duration(x::PaddedSignal) = inflen
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
     PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.Pad)

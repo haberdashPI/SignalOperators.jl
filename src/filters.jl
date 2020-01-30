@@ -156,13 +156,13 @@ function ToFramerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
         x.fn,x.blocksize,fs)
 end
 
-function nframes(x::FilteredSignal)
+function nframes_helper(x::FilteredSignal)
     if ismissing(framerate(x.signal))
         missing
     elseif framerate(x) == framerate(x.signal)
-        nframes(x.signal)
+        nframes_helper(x.signal)
     else
-        ceil(Int,nframes(x.signal)*framerate(x)/framerate(x.signal))
+        ceil(Int,nframes_helper(x.signal)*framerate(x)/framerate(x.signal))
     end
 end
 
@@ -222,7 +222,7 @@ function nextblock(x::FilteredSignal,maxlen,skip,
     block::FilterBlock=FilterBlock(x))
 
     last_output_index = block.last_output_index + block.len
-    if nframes(x) == last_output_index
+    if nframes_helper(x) == last_output_index
         return nothing
     end
 
@@ -267,7 +267,7 @@ struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
     signal::Si
 end
 child(x::NormedSignal) = x.signal
-nframes(x::NormedSignal) = nframes(x.signal)
+nframes_helper(x::NormedSignal) = nframes_helper(x.signal)
 NormedSignal(x::Si) where Si = NormedSignal{Si,float(sampletype(x))}(x)
 SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))

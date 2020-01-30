@@ -1,6 +1,8 @@
 export inflen
 
-struct InfiniteLength
+abstract type Infinite
+end
+struct InfiniteLength <: Infinite
 end
 
 @doc """
@@ -15,22 +17,22 @@ const inflen = InfiniteLength()
 Base.show(io::IO,::MIME"text/plain",::InfiniteLength) =
     write(io,"inflen")
 
-Base.isinf(::InfiniteLength) = true
+Base.isinf(::Infinite) = true
 isknowninf(x) = isinf(x)
 isknowninf(::Missing) = false
 
-Base.ismissing(::InfiniteLength) = false
+Base.ismissing(::Infinite) = false
 Base.:(+)(::InfiniteLength,::Number) = inflen
 Base.:(+)(::Number,::InfiniteLength) = inflen
 Base.:(-)(::InfiniteLength,::Number) = inflen
 Base.:(+)(::InfiniteLength,::Missing) = inflen
 Base.:(+)(::Missing,::InfiniteLength) = inflen
 Base.:(-)(::InfiniteLength,::Missing) = inflen
-Base.isless(::Number,::InfiniteLength) = true
-Base.isless(::InfiniteLength,::Number) = false
-Base.isless(::InfiniteLength,::Missing) = false
-Base.isless(::Missing,::InfiniteLength) = true
-Base.isless(::InfiniteLength,::InfiniteLength) = false
+Base.isless(::Number,::Infinite) = true
+Base.isless(::Infinite,::Number) = false
+Base.isless(::Infinite,::Missing) = false
+Base.isless(::Missing,::Infinite) = true
+Base.isless(::Infinite,::Infinite) = false
 Base.:(*)(::InfiniteLength,::Number) = inflen
 Base.:(*)(::Number,::InfiniteLength) = inflen
 Base.:(*)(::InfiniteLength,::Missing) = inflen
@@ -45,9 +47,9 @@ Base.ceil(::InfiniteLength) = inflen
 Base.floor(::T,::InfiniteLength) where T = inflen
 Base.floor(::InfiniteLength) = inflen
 
-Base.length(::InfiniteLength) = 1
-Base.iterate(::InfiniteLength) = inflen, nothing
-Base.iterate(::InfiniteLength,::Nothing) = nothing
+Base.length(::Infinite) = 1
+Base.iterate(::Infinite) = inflen, nothing
+Base.iterate(::Infinite,::Nothing) = nothing
 
 struct LowerBoundedRange{T}
     val::T

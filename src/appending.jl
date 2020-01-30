@@ -11,8 +11,7 @@ function SignalTrait(x::Type{<:AppendSignals{Si,Rst,T,L}},
     IsSignal{T,Fs,L}()
 end
 child(x::AppendSignals) = x.signals[1]
-nframes(x::AppendSignals) = x.len
-unextended_nframes(x::AppendSignals) = x.len
+nframes_helper(x::AppendSignals) = x.len
 duration(x::AppendSignals) = sum(duration.(x.signals))
 
 root(x::AppendSignals) = reduce(mergeroot,root.(x.signals))

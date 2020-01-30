@@ -35,22 +35,17 @@ end
 novalues = NoValues()
 SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
     IsSignal{T,Fs,L}()
-nframes(x::MapSignal) = x.len
+nframes_helper(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 
 isnumbers(::Tuple{<:Number}) = true
 isnumbers(xs) = false
 function duration(x::MapSignal)
-    if isnumbers(x.padded_signals)
-        inflen
-    else
-        ddurs = duration.(x.padded_signals)
-        cdurs = unextended_nframes.(x.padded_signals)./samplerate(x.padded_signals)
-        durs = coalesce.(cdurs,ddurs)
-
-        maximum(durs)
-    end
+    durs = duration.(x.padded_signals)
+    durlen = ifelse.(isknowninf.(nframes_helper.(x.padded_signals)),
+        nframes_helper.(x.padded_signals),durs)
+    operate_len(durlen)
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -144,7 +139,7 @@ function OperateOn(fn,xs...;
 
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
-    len = operate_nframes(xs)
+    len = operatelen(nframes_helper.(xs))
 
     vals = testvalue.(xs)
     if bychannel
@@ -154,7 +149,14 @@ function OperateOn(fn,xs...;
         bychannel)
 end
 
-operate_nframes(xs) = maximum(unextended_nframes.(xs))
+maxlen(x,y::Number) = max(x,y)
+maxlen(x,y::Extended) = max(x,y.len)
+maxlen(x,y::NumberExtended) = x
+function operatelen(lens)
+    clean(x) = x
+    clean(x::NumberExtended) = inflen
+    clean(reduce(maxlen,lens,init=0))
+end
 
 """
     Operate(fn,rest...;padding,bychannel)

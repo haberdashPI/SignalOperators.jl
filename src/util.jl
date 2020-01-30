@@ -14,7 +14,7 @@ struct ResamplerFn{T,Fs}
     fs::Fs
 end
 
-SignalBase.inframes(::InfiniteLength,fs=missing) = inflen
+SignalBase.inframes_helper(::InfiniteLength,fs=missing) = inflen
 SignalBase.inframes(::Type{T}, ::InfiniteLength,fs=missing) where T = inflen
 
 SignalBase.inseconds(::InfiniteLength,r=missing) = inflen

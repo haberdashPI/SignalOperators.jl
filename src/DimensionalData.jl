@@ -22,7 +22,7 @@ function SignalTrait(::Type{<:AbstractDimensionalArray{T,N,Dim}}) where {T,N,Dim
     end
 end
 
-nframes(x::AbstractDimensionalArray) = length(dims(x,Time))
+nframes_helper(x::AbstractDimensionalArray) = length(dims(x,Time))
 sampletype(x::AbstractDimensionalArray) = eltype(x)
 AbstractVecOrMat
 nchannels(x::AbstractDimensionalArray) =

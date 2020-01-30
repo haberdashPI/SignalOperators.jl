@@ -7,7 +7,6 @@ struct CutApply{Si,Tm,K,T} <: WrappedSignal{Si,T}
     signal::Si
     time::Tm
 end
-unextended_nframes(x::CutApply) = nframes(x)
 CutApply(signal::T,time,fn) where T = CutApply(signal,SignalTrait(T),time,fn)
 CutApply(signal::Si,::IsSignal{T},time::Tm,kind::K) where {Si,Tm,K,T} =
     CutApply{Si,Tm,K,T}(signal,time)
@@ -128,11 +127,11 @@ signaltile(x::CutApply) = PrettyPrinting.tile(x)
 cutname(x::UntilApply) = "Until"
 cutname(x::AfterApply) = "After"
 
-nframes(x::UntilApply) = min(nframes(x.signal),max(0,resolvelen(x)))
+nframes_helper(x::UntilApply) = min(nframes_helper(x.signal),max(0,resolvelen(x)))
 duration(x::UntilApply) =
     min(duration(x.signal),max(0,inseconds(Float64,maybeseconds(x.time),framerate(x))))
 
-nframes(x::AfterApply) = clamp(nframes(x.signal) - resolvelen(x),0,nframes(x.signal))
+nframes_helper(x::AfterApply) = clamp(nframes_helper(x.signal) - resolvelen(x),0,nframes_helper(x.signal))
 duration(x::AfterApply) =
     clamp(duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)),0,duration(x.signal))
 
