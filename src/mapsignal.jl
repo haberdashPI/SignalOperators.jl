@@ -38,12 +38,19 @@ SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
 nframes(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
-function duration(x::MapSignal)
-    ddurs = duration.(x.padded_signals)
-    cdurs = unextended_nframes.(x.padded_signals)./samplerate(x.padded_signals)
-    durs = coalesce.(cdurs,ddurs)
 
-    maximum(unextended_nframes)
+isnumbers(::Tuple{<:Number}) = true
+isnumbers(xs) = false
+function duration(x::MapSignal)
+    if isnumbers(x.padded_signals)
+        inflen
+    else
+        ddurs = duration.(x.padded_signals)
+        cdurs = unextended_nframes.(x.padded_signals)./samplerate(x.padded_signals)
+        durs = coalesce.(cdurs,ddurs)
+
+        maximum(durs)
+    end
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -67,16 +74,10 @@ ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
 
 """
 
-    OperateOn(fn,arguments...;padding,bychannel)
+    OperateOn(fn,arguments...;padding=default_pad(fn),bychannel=false)
 
-Apply `fn` across the samples of the passed signals.
-
-The signals are first all extended using `Extend(x,padding)`. If you wish to
-specify distinct padding values across the inputs, you can first call
-`Extend` on the arguments.
-
-The length of the output signal is the maximum [`unextended_nframes`](@ref) of
-the arguments.
+Apply `fn` across the samples of the passed signals. The output length is the
+maximum length of the arguments. Signals are extende using `Extend(x,padding)`.
 
 !!! note
 
@@ -114,8 +115,12 @@ channels of each input signal remains unchanged.
 ## Padding
 
 Padding determines how frames past the end of shorter signals are reported.
-The value of `padding` is given as the second argument to [`Extend`](@ref).
-The default value for `padding` is determined by the value of `fn`. The
+If you wish to change the padding for all signals you can set the value of
+the keyword argument `padding`. If you wish to specify distinct padding
+values for some of the inputs, you can first call `Extend` on those
+arguments.
+
+The default value for `padding` is determined by the `fn` passed. The
 default value for the four basic arithmetic operators is their identity
 (`one` for `*` and `zero` for `+`). These defaults are set on the basis of
 `fn` using `default_pad(fn)`. A fallback implementation of `default_pad`
@@ -126,9 +131,9 @@ To define a new default for a specific function, just create a new method of
 
 ```julia
 myfun(x,y) = x + 2y
-SignalOperators.default_pad(::typeof(myfun)) = zero
+SignalOperators.default_pad(::typeof(myfun)) = one
 
-sink(OperateOn(myfun,Until(1,2frames),Until(2,4frames))) == [5,5,4,4]
+sink(OperateOn(myfun,Until(5,2frames),Until(2,4frames))) == [9,9,5,5]
 ```
 
 """

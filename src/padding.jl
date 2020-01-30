@@ -100,8 +100,9 @@ end
 
     Extend(x,padding)
 
-Like [`Pad`](@ref), but when passed to [`OperateOn`](@ref), the signal `x` will
-only be padded up to the length of the longest input signal.
+Behaves like [`Pad`](@ref), except when passed directly to
+[`OperateOn`](@ref), the signal `x` will only be padded up to the length of
+the longest input signal.
 
 ## See Also
 

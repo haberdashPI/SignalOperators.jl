@@ -16,7 +16,6 @@ nframes
 nchannels
 framerate
 sampletype
-unextended_nframes
 ```
 ## Signal Operators
 
