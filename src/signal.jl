@@ -27,10 +27,11 @@ abstract type AbstractSignal{T}
 end
 nframes(x::AbstractSignal) = cleanextend(nframes_helper(x))
 cleanextend(x) = x
-struct Extended <:Infinite
-    len::Int
+struct Extended{T} <:Infinite
+    len::T
 end
 cleanextend(x::Extended) = inflen
+Base.:(/)(x::Extended,y::Number) = Extended(x.len)
 
 """
 

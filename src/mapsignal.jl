@@ -43,8 +43,8 @@ isnumbers(::Tuple{<:Number}) = true
 isnumbers(xs) = false
 function duration(x::MapSignal)
     durs = duration.(x.padded_signals)
-    durlen = ifelse.(isknowninf.(nframes_helper.(x.padded_signals)),
-        nframes_helper.(x.padded_signals),durs)
+    Ns = nframes_helper.(x.padded_signals)
+    durlen = ifelse.(isknowninf.(Ns),Ns ./ framerate(x),durs)
     operate_len(durlen)
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
@@ -152,6 +152,7 @@ end
 maxlen(x,y::Number) = max(x,y)
 maxlen(x,y::Extended) = max(x,y.len)
 maxlen(x,y::NumberExtended) = x
+maxlen(x,y::InfiniteLength) = y
 function operatelen(lens)
     clean(x) = x
     clean(x::NumberExtended) = inflen

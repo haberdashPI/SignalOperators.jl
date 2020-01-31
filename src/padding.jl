@@ -1,4 +1,4 @@
-export Pad, cycle, mirror, lastframe, unextended_nframes
+export Pad, cycle, mirror, lastframe
 
 """
 
