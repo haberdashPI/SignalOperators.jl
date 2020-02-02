@@ -5,10 +5,9 @@ export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
 ################################################################################
 # binary operators
 
-struct MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
+struct MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi} <: AbstractSignal{T}
     fn::Fn
     val::El
-    len::L
     signals::Si
     framerate::Fs
     padding::Pd
@@ -17,7 +16,7 @@ struct MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi} <: AbstractSignal{T}
     bychannel::Bool
 end
 
-function MapSignal(fn::Fn,val::El,len::L,signals::Si,
+function MapSignal(fn::Fn,val::El,signals::Si,
     framerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where
         {Fn,El,L,Si,Fs,Pd}
 
@@ -26,7 +25,7 @@ function MapSignal(fn::Fn,val::El,len::L,signals::Si,
     C = El == NoValues ? 1 : nchannels(signals[1])
     padded_signals = Extend.(signals,Ref(padding))
     PSi = typeof(padded_signals)
-    MapSignal{Fn,N,C,T,Fs,El,L,Si,Pd,PSi}(fn,val,len,signals,framerate,padding,
+    MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi}(fn,val,signals,framerate,padding,
         padded_signals,blocksize,bychannel)
 end
 
@@ -35,7 +34,6 @@ end
 novalues = NoValues()
 SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
     IsSignal{T,Fs,L}()
-nframes_helper(x::MapSignal) = x.len
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 
@@ -45,7 +43,7 @@ function duration(x::MapSignal)
     durs = duration.(x.padded_signals)
     Ns = nframes_helper.(x.padded_signals)
     durlen = ifelse.(isknowninf.(Ns),Ns ./ framerate(x),durs)
-    operate_len(durlen)
+    operatelen(durlen)
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -72,13 +70,14 @@ ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     OperateOn(fn,arguments...;padding=default_pad(fn),bychannel=false)
 
 Apply `fn` across the samples of the passed signals. The output length is the
-maximum length of the arguments. Signals are extende using `Extend(x,padding)`.
+maximum length of the arguments. Shorter signals are extended using
+`Extend(x,padding)`.
 
 !!! note
 
-    There is no piped version of `OperateOn`, use [`Operate`](@ref) instead.
-    The shorter name is used for what is intended as the more common use case
-    (piping).
+    There is no piped version of `OperateOn`, use [`Operate`](@ref) to pipe.
+    The shorter name is used because it is expected to be the more common use
+    case (piping).
 
 ## Channel-by-channel functions
 
@@ -139,13 +138,12 @@ function OperateOn(fn,xs...;
 
     xs = Uniform(xs,channels=bychannel)
     fs = framerate(xs[1])
-    len = operatelen(nframes_helper.(xs))
 
     vals = testvalue.(xs)
     if bychannel
         fn = FnBr(fn)
     end
-    MapSignal(fn,astuple(fn(vals...)),len,xs,fs,padding,blocksize,
+    MapSignal(fn,astuple(fn(vals...)),xs,fs,padding,blocksize,
         bychannel)
 end
 
@@ -153,11 +151,8 @@ maxlen(x,y::Number) = max(x,y)
 maxlen(x,y::Extended) = max(x,y.len)
 maxlen(x,y::NumberExtended) = x
 maxlen(x,y::InfiniteLength) = y
-function operatelen(lens)
-    clean(x) = x
-    clean(x::NumberExtended) = inflen
-    clean(reduce(maxlen,lens,init=0))
-end
+maxlen(x) = x
+nframes_helper(x::MapSignal) = reduce(maxlen,nframes_helper.(x.signals))
 
 """
     Operate(fn,rest...;padding,bychannel)
