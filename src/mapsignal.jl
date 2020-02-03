@@ -37,8 +37,6 @@ SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 
-isnumbers(::Tuple{<:Number}) = true
-isnumbers(xs) = false
 function duration(x::MapSignal)
     durs = duration.(x.padded_signals)
     Ns = nframes_helper.(x.padded_signals)
@@ -146,14 +144,13 @@ function OperateOn(fn,xs...;
         bychannel)
 end
 
-maxlen(x::Extended,y::Number) = max(x.len,y)
-maxlen(x::Extended,y::Extended) = max(x.len,y.len)
-maxlen(x::Extended,y::Infinite) = x.len
-maxlen(x::NumberExtended,y) = y
-maxlen(x::NumberExtended,y::Extended) = y.len
-maxlen(x,y) = max(x,y)
-maxlen(x,y::Extended) = max(x,y.len)
-maxlen(x,y::NumberExtended) = x
+tolen(x::Extended) = x.len
+tolen(x::Number) = x
+tolen(x::NumberExtended) = 0
+tolen(x::InfiniteLength) = inflen
+tolen(x::Missing) = missing
+maxlen(x,y) = max(tolen(x),tolen(y))
+maxlen(x::NumberExtended,y::NumberExtended) = x
 nframes_helper(x::MapSignal) = reduce(maxlen,nframes_helper.(x.signals))
 
 """

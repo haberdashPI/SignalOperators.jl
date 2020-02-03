@@ -218,9 +218,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
             @test Extend(x,one) |> nframes == inflen
             @test Mix(Extend(x,one),y) |> nframes == 15
+            @test Mix(y,Extend(x,one)) |> nframes == 15
             @test Mix(Pad(x,one),y) |> nframes |> isinf
             @test Mix(1,rand(10,2)) |> nframes == 10
+            @test Mix(1,Extend(rand(10,2),zero)) |> nframes == 10
+            @test Mix(rand(10,2),1) |> nframes == 10
+            @test Mix(Extend(rand(10,2),zero),1) |> nframes == 10
             @test Mix(sin,1,rand(10,2)) |> nframes |> isinf
+            @test Mix(1,sin,rand(10,2)) |> nframes |> isinf
+            @test Mix(1,rand(10,2),sin) |> nframes |> isinf
         end
     end
     next!(progress)
@@ -629,6 +635,8 @@ progress = Progress(total_test_groups,desc="Running tests...")
             "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    Append(50×2 Array{Float64,2}: … (10.0 Hz))"
         @test x |> Pad(zero) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> Pad(zero)"
+        @test x |> Extend(zero) |> showstring ==
+            "100×2 Array{Float64,2}: … (10.0 Hz) |> Extend(zero)"
         @test x |> Filt(Lowpass,3Hz) |> showstring ==
             "100×2 Array{Float64,2}: … (10.0 Hz) |> Filt(Lowpass,3 Hz)"
         @test x |> Normpower |> showstring ==
