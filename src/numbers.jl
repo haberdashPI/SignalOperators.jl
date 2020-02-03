@@ -25,6 +25,11 @@ end
 Numbers can be treated as infinite length, constant signals of unknown
 frame rate.
 
+### Example
+
+```julia
+rand(10,2) |> Amplify(20dB) |> nframes == 10
+
 !!! note
 
     The length of numbers are treated specially when passed to
@@ -32,14 +37,10 @@ frame rate.
     the number signals are considered to be as long as the longest signal.
 
     ```julia
-    nframes_helper(Mix(1,2)) == inflen
-    nframes_helper(Mix(1,rand(10,2))) == 10
+    nframes(Mix(1,2)) == inflen
+    nframes(Mix(1,rand(10,2))) == 10
     ```
 
-### Example
-
-```julia
-rand(10,2) |> Amplify(20dB) |> nframes == 10
 ```
 
 """

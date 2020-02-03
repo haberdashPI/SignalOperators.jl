@@ -76,10 +76,10 @@ maximum length of the arguments. Shorter signals are extended using
 !!! note
 
     There is no piped version of `OperateOn`, use [`Operate`](@ref) to pipe.
-    The shorter name is used because it is expected to be the more common use
-    case (piping).
+    The shorter name is used to pipe because it is expected to be the more
+    common use case.
 
-## Channel-by-channel functions
+## Channel-by-channel functions (default)
 
 When `bychannel == false` the function `fn` should treat each of its
 arguments as a single number and return a single number. This operation is
@@ -111,14 +111,13 @@ channels of each input signal remains unchanged.
 Padding determines how frames past the end of shorter signals are reported.
 If you wish to change the padding for all signals you can set the value of
 the keyword argument `padding`. If you wish to specify distinct padding
-values for some of the inputs, you can first call `Extend` on those
+values for some of the inputs, you can first call [`Extend`](@ref) on those
 arguments.
 
-The default value for `padding` is determined by the `fn` passed. The
-default value for the four basic arithmetic operators is their identity
-(`one` for `*` and `zero` for `+`). These defaults are set on the basis of
-`fn` using `default_pad(fn)`. A fallback implementation of `default_pad`
-returns `zero`.
+The default value for `padding` is determined by the `fn` passed. A fallback
+implementation of `default_pad` returns `zero`. The default value for the
+four basic arithmetic operators is their identity (`one` for `*` and `zero`
+for `+`).
 
 To define a new default for a specific function, just create a new method of
 `default_pad(fn)`
