@@ -520,7 +520,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             @test all(dc_off .== 100)
 
             # AbstractArrays
-            tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |>
+            tone = Signal(sin,200Hz,ω=10Hz) |> ToChannels(nch) |> Until(10frames) |>
                 Mix(10.0.*(1:10)) |> Array
             @test all(tone[1:10,:] .>= 10.0*(1:10))
             x = Signal(10.0.*(1:10),5Hz) |> ToChannels(nch) |> Until(1s) |>
@@ -534,6 +534,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = AxisArray(rand(2,10),Axis{:channel}(1:2),
             Axis{:time}(range(0,1,length=10)))
         @test x |> Until(500ms) |> Array |> size == (4,2)
+        @test x |> Until(500ms) |> sink |> size == (2,4)
 
         # poorly shaped arrays
         @test_throws ErrorException Signal(rand(2,2,2))

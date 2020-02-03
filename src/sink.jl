@@ -65,7 +65,7 @@ sink(x,::Type{T}) where T = sink(x,T,CutMethod(x))
 function sink(x,::Type{T},::DataCut) where T
     x = process_sink_params(x)
     data = timeslice(x,:)
-    if parent(data) isa T
+    if Base.typename(typeof(parent(data))) == Base.typename(T)
         data
     else # if the sink type is new, we have to copy the data
         # because it could be in a different memory layout
@@ -240,7 +240,7 @@ function sink!(result,x,::IsSignal,block)
             block = nextblock(x,maxlen,false,block)
         end
     end
-    @assert written == size(result,1)
+    @assert written == nframes(result)
 
     block
 end
