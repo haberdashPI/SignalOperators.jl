@@ -534,7 +534,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = AxisArray(rand(2,10),Axis{:channel}(1:2),
             Axis{:time}(range(0,1,length=10)))
         @test x |> Until(500ms) |> Array |> size == (4,2)
-        @test x |> Until(500ms) |> sink |> size == (2,4)
+        @test x |> Until(500ms) |> sink |> size == (4,2)
 
         # poorly shaped arrays
         @test_throws ErrorException Signal(rand(2,2,2))
@@ -815,9 +815,11 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
         # multiple frame rates
         x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
-            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |> FadeTo(Signal(sin,ω=5Hz)) |>
+            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |>
+            FadeTo(Signal(sin,ω=5Hz) |> Until(4s),500ms) |>
             ToFramerate(20Hz)
         @test framerate(x) == 20
+        @test duration(x) == 7.5
 
         x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
             ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |> FadeTo(Signal(sin,ω=5Hz)) |>

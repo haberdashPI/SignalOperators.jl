@@ -8,7 +8,7 @@ function Signal(x::SampleBuf,fs::Union{Missing,Number}=missing)
     end
 end
 SignalTrait(::Type{<:SampleBuf{T}}) where T = IsSignal{T,Float64,Int}()
-nframes_helper(x::SampleBuf) = size(x,1)
+nframes(x::SampleBuf) = size(x,1)
 nchannels(x::SampleBuf) = size(x,2)
 framerate(x::SampleBuf) = SampledSignals.samplerate(x)
 sampletype(x::SampleBuf) = eltype(x)

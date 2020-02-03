@@ -20,7 +20,7 @@ const AxTimeD1 = Union{
 const AxTimeD2 = WithAxes{<:Tuple{<:Any,Axis{:time}}}
 const AxTime = Union{AxTimeD1,AxTimeD2}
 
-nframes_helper(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
+nframes(x::AxisArray) = length(AxisArrays.axes(x,Axis{:time}))
 function nchannels(x::AxisArray)
     chdim = axisdim(x,Axis{:time}) == 1 ? 2 : 1
     size(x,chdim)
