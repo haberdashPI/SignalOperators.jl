@@ -34,7 +34,7 @@ struct Extended{T} <:Infinite
     len::T
 end
 cleanextend(x::Extended) = inflen
-Base.:(/)(x::Extended,y::Number) = Extended(x.len)
+Base.:(/)(x::Extended,y::Number) = Extended(x.len / y)
 
 """
 

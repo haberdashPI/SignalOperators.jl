@@ -216,7 +216,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
             x = rand(10,nch)
             y = rand(15,nch)
 
-            @test Extend(x,one) |> inflen
+            @test Extend(x,one) |> nframes == inflen
             @test Mix(Extend(x,one),y) |> nframes == 15
             @test Mix(Pad(x,one),y) |> nframes |> isinf
             @test Mix(1,rand(10,2)) |> nframes == 10

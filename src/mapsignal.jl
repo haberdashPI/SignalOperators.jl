@@ -42,8 +42,8 @@ isnumbers(xs) = false
 function duration(x::MapSignal)
     durs = duration.(x.padded_signals)
     Ns = nframes_helper.(x.padded_signals)
-    durlen = ifelse.(isknowninf.(Ns),Ns ./ framerate(x),durs)
-    operatelen(durlen)
+    durlen = ifelse.(isknowninf.(durs),Ns ./ framerate(x),durs)
+    reduce(maxlen,durlen)
 end
 function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
@@ -147,11 +147,14 @@ function OperateOn(fn,xs...;
         bychannel)
 end
 
-maxlen(x,y::Number) = max(x,y)
+maxlen(x::Extended,y::Number) = max(x.len,y)
+maxlen(x::Extended,y::Extended) = max(x.len,y.len)
+maxlen(x::Extended,y::Infinite) = x.len
+maxlen(x::NumberExtended,y) = y
+maxlen(x::NumberExtended,y::Extended) = y.len
+maxlen(x,y) = max(x,y)
 maxlen(x,y::Extended) = max(x,y.len)
 maxlen(x,y::NumberExtended) = x
-maxlen(x,y::InfiniteLength) = y
-maxlen(x) = x
 nframes_helper(x::MapSignal) = reduce(maxlen,nframes_helper.(x.signals))
 
 """
