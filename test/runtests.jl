@@ -817,25 +817,27 @@ progress = Progress(total_test_groups,desc="Running tests...")
         x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
             ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |>
             FadeTo(Signal(sin,ω=5Hz) |> Until(4s),500ms) |>
-            ToFramerate(20Hz)
-        @test framerate(x) == 20
+            ToFramerate(22Hz)
+        @test framerate(x) == 22
         @test duration(x) == 7.5
 
-        x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |> sink |>
-            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |> FadeTo(Signal(sin,ω=5Hz)) |>
-            ToFramerate(25Hz) |> sink
-        @test framerate(x) == 25
+        x = Signal(sin,ω=10Hz,20Hz) |> Until(4s) |>
+            ToFramerate(30Hz) |> Filt(Lowpass,10Hz) |>
+            FadeTo(Signal(sin,ω=5Hz) |> Until(4s),500ms) |>
+            ToFramerate(22Hz) |> sink
+        @test framerate(x) == 22
+        @test duration(x) == 7.5
 
         # multiple filters
         x = noise |>
             Filt(Lowpass,9Hz) |>
-            Mix(Signal(sin,ω=12Hz)) |>
+            Mix(Signal(sin,ω=12Hz) |> Until(6s)) |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1)) |>
             Array
 
         y = noise |>
             Filt(Lowpass,9Hz) |>
-            Mix(Signal(sin,ω=12Hz)) |>
+            Mix(Signal(sin,ω=12Hz) |> Until(6s)) |>
             sink |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1)) |>
             Array
@@ -843,7 +845,7 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
         y = noise |>
             Filt(Lowpass,9Hz,blocksize=11) |>
-            Mix(Signal(sin,ω=12Hz)) |>
+            Mix(Signal(sin,ω=12Hz) |> Until(6s)) |>
             Filt(Highpass,4Hz,method=Chebyshev1(5,1),blocksize=9) |>
             Array
         @test x ≈ y

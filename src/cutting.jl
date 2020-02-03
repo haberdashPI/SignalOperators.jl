@@ -136,14 +136,19 @@ duration(x::AfterApply) =
     clamp(duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)),0,duration(x.signal))
 
 EvalTrait(x::AfterApply) = DataSignal()
+
+stretchtime(t,scale) = t
+stretchtime(t::FrameQuant,scale::Number) = inframes(Int,t*scale)*frames
 function ToFramerate(x::UntilApply,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize)
-    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),x.time,
+    t = stretchtime(x.time,fs/framerate(x))
+    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),t,
         Val{:Until}())
 end
 function ToFramerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     __ignore__,fs; blocksize) where K
 
-    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),x.time,K())
+    t = stretchtime(x.time,fs/framerate(x))
+    CutApply(ToFramerate(child(x),fs;blocksize=blocksize),t,K())
 end
 
 struct CutBlock{C}
