@@ -1,7 +1,7 @@
 name = "SignalOperators"
 uuid = "4d633899-0529-4c96-b1ed-a77d049c39ef"
 authors = ["David Little"]
-version = "0.3.1"
+version = "0.4.0"
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
