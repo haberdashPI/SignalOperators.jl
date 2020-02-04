@@ -46,6 +46,8 @@ Base.ceil(::T,x::Infinite) where T = x
 Base.ceil(x::Infinite) = x
 Base.floor(::T,x::Infinite) where T = x
 Base.floor(x::Infinite) = x
+Base.clamp(x::Infinite,min,max) = max
+Base.clamp(x::Number,min,max::Infinite) = max(x,min)
 
 Base.length(::Infinite) = 1
 Base.iterate(x::Infinite) = x, nothing
