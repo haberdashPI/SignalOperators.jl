@@ -226,7 +226,7 @@ function nextblock(x::FilteredSignal,maxlen,skip,
     last_output_index = block.last_output_index + block.len
     # TODO: figure out how to end the filtering when we don't know the length
     # of the input signal (we need to compute its length and use that)
-    if nframes_helper(x) == last_output_index
+    if !ismissing(nframes_helper(x)) && (nframes_helper(x) == last_output_index)
         return nothing
     end
 
@@ -245,6 +245,9 @@ function nextblock(x::FilteredSignal,maxlen,skip,
         childblock = !isa(child(block), UndefChild) ?
             nextblock(psig,size(block.input,1),false,child(block)) :
             nextblock(psig,size(block.input,1),false)
+        if isnothing(childblock)
+            return nothing
+        end
         childblock = sink!(block.input,psig,SignalTrait(psig),childblock)
         last_input_offset = block.last_input_offset + size(block.input,1)
 
@@ -266,7 +269,7 @@ function nextblock(x::FilteredSignal,maxlen,skip,
 end
 
 # TODO: create an online version of Normpower?
-# TODO: this should be excuted lazzily to allow for unkonwn framerates
+# TODO: this should be executed lazily to allow for unknown framerates
 struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
     signal::Si
 end

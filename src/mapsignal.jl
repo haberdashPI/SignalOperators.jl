@@ -219,7 +219,8 @@ initblock(x::MapSignal{<:Any,N}) where N =
 function nextblock(x::MapSignal{Fn,N,CN},maxlen,skip,
     block::MapSignalBlock=initblock(x)) where {Fn,N,CN}
 
-    maxlen = min(maxlen,nframes(x) - (block.offset + block.len))
+    maxlen = ismissing(nframes(x)) ? maxlen :
+        min(maxlen,nframes(x) - (block.offset + block.len))
     (maxlen == 0) && return nothing
 
     offsets = map(block.offsets, block.blocks) do offset, childblock

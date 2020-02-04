@@ -26,6 +26,29 @@ test_files = [test_wav,example_wav,example_ogg,examples_wav]
 const total_test_groups = 33
 progress = Progress(total_test_groups,desc="Running tests...")
 
+# Simulates a streaming signal, with an unknown length
+struct StreamSignal{R}
+    nch::Int
+    block::Int
+    repeat::Int
+    rng::R
+end
+SignalBase.sampletype(x::StreamSignal) = Float64
+SignalBase.nchannels(x::StreamSignal) = x.nch
+SignalBase.framerate(x::StreamSignal) = 20
+SignalBase.nframes(x::StreamSignal) = missing
+SignalOperators.SignalTrait(x::StreamSignal) = SignalOperators.IsSignal{Float64,Int,Missing}()
+function SignalOperators.nextblock(x::StreamSignal,maxlen,skip,last=ArrayBlock([],0))
+    if x.repeat > last.state
+        ArrayBlock(rand(x.rng,x.block,x.nch),last.state+1)
+    end
+end
+
+# TODO: test all operators except ramp, and make sure they work with this
+# streaming signal
+# THEN: implement the read-ahead streaming signal, so we can implement
+# the ramp operators
+
 @testset "SignalOperators.jl" begin
 
     @testset "Function Currying" begin
