@@ -1,21 +1,5 @@
 export Pad, cycle, mirror, lastframe
 
-"""
-
-    unextended_nframes(x)
-
-Normally equal to `nframes(x)`. However, a few signals override this method
-to make it a different value, for use with `OperateOn` (e.g. numbers and
-extended signals).
-
-## See Also
-
-[`OperateOn`](@ref)
-[`Extend`](@ref)
-[`Signal`](@ref)
-
-"""
-
 struct PaddedSignal{S,T,E} <: WrappedSignal{S,T}
     signal::S
     Pad::T
