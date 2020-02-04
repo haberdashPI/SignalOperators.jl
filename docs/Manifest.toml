@@ -52,9 +52,9 @@ version = "0.8.1"
 
 [[Documenter]]
 deps = ["Base64", "Dates", "DocStringExtensions", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "REPL", "Test", "Unicode"]
-git-tree-sha1 = "51f0c7df46abb9c07d80e529718951e634670afb"
+git-tree-sha1 = "d497bcc45bb98a1fbe19445a774cfafeabc6c6df"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "0.24.4"
+version = "0.24.5"
 
 [[FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "IntelOpenMP_jll", "Libdl", "LinearAlgebra", "MKL_jll", "Reexport"]
@@ -159,9 +159,9 @@ version = "1.1.0"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "0139ba59ce9bc680e2925aec5b7db79065d60556"
+git-tree-sha1 = "d112c19ccca00924d5d3a38b11ae2b4b268dda39"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "0.3.10"
+version = "0.3.11"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Test", "UUIDs"]
@@ -219,15 +219,15 @@ uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
 [[SignalBase]]
 deps = ["Unitful"]
-git-tree-sha1 = "82f259fb3dce400af93e94febd50bad25c507924"
+git-tree-sha1 = "038cc4090f2bc6f4f794be2c0d6e38c2cf996159"
 uuid = "00c44e92-20f5-44bc-8f45-a1dcef76ba38"
-version = "0.1.0"
+version = "0.1.1"
 
 [[SignalOperators]]
 deps = ["Compat", "DSP", "FileIO", "FillArrays", "LambdaFn", "MetaArrays", "PrettyPrinting", "Random", "Requires", "SignalBase", "Statistics", "Unitful"]
 path = ".."
 uuid = "4d633899-0529-4c96-b1ed-a77d049c39ef"
-version = "0.3.1"
+version = "0.4.0"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"

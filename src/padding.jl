@@ -83,6 +83,7 @@ through `sink` or `sink!`.
 
 ## See also
 
+[`Extend`](@ref)
 [`cycle`](@ref)
 [`mirror`](@ref)
 [`lastframe`](@ref)

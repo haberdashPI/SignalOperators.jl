@@ -329,7 +329,7 @@ end
 """
     normpower(x)
 
-Equivalent to `sink(Normpwoer(x))`
+Equivalent to `sink(Normpower(x))`
 
 ## See also
 

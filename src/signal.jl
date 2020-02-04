@@ -6,7 +6,7 @@ using FileIO
 """
     SignalOperators.IsSignal{T,Fs,L}
 
-Represents the Format of a signal type with three type parameters:
+Represents the format of a signal type with three type parameters:
 
 * `T` - The [`sampletype`](@ref) of the signal.
 * `Fs` - The type of the framerate. It should be either `Float64` or

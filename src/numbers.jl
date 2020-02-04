@@ -30,6 +30,8 @@ frame rate.
 ```julia
 rand(10,2) |> Amplify(20dB) |> nframes == 10
 
+```
+
 !!! note
 
     The length of numbers are treated specially when passed to
@@ -40,8 +42,6 @@ rand(10,2) |> Amplify(20dB) |> nframes == 10
     nframes(Mix(1,2)) == inflen
     nframes(Mix(1,rand(10,2))) == 10
     ```
-
-```
 
 """
 Signal(val::Number,::Nothing,fs) = NumberSignal(val,inHz(Float64,fs))

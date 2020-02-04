@@ -26,11 +26,14 @@ Until
 until
 After
 after
+Window
+window
 Append
 append
 Prepend
 prepend
 Pad
+Extend
 mirror
 cycle
 lastframe
