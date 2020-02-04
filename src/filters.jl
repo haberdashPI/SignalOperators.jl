@@ -181,9 +181,11 @@ struct FilterBlock{H,S,T,C}
     child::C
 end
 child(x::FilterBlock) = x.child
-init_length(x::FilteredSignal,h) = min(nframes(x),x.blocksize)
+init_length_(x) =
+    ismissing(nframes(x)) ? x.blocksize : min(nframes(x),x.blocksize)
+init_length(x::FilteredSignal,h) = init_length_(x)
 function init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn},h)
-    n = trunc(Int,max(1,min(nframes(x),x.blocksize) / x.fn.ratio))
+    n = trunc(Int,max(1,init_length_(x) / x.fn.ratio))
     out = DSP.outputlength(h,n)
     if out > 0
         n
@@ -222,6 +224,8 @@ function nextblock(x::FilteredSignal,maxlen,skip,
     block::FilterBlock=FilterBlock(x))
 
     last_output_index = block.last_output_index + block.len
+    # TODO: figure out how to end the filtering when we don't know the length
+    # of the input signal (we need to compute its length and use that)
     if nframes_helper(x) == last_output_index
         return nothing
     end
