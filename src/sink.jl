@@ -93,7 +93,10 @@ end
 
 function process_sink_params(x)
     x = Signal(x)
-    ismissing(nframes(x)) && error("Unknown number of frames in signal.")
+    if ismissing(nframes(x))
+        @warn("Signal has unknown number of frames, if the signal is infinite,"*
+              " the program will hang.")
+    end
     isinf(nframes(x)) && error("Cannot store infinite signal.")
     x
 end
@@ -238,6 +241,10 @@ function sink!(result,x,::IsSignal,block)
     @assert written == nframes(result)
 
     block
+end
+
+function sink!(result,x,::IsSignal{<:Any,<:Any,Missing},block)
+    # TODO:
 end
 
 """

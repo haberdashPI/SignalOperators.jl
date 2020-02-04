@@ -28,9 +28,9 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
 # Simulates a streaming signal, with an unknown length
 struct StreamSignal{R}
-    nch::Int
     block::Int
     repeat::Int
+    nch::Int
     rng::R
 end
 SignalBase.sampletype(x::StreamSignal) = Float64
@@ -569,6 +569,18 @@ end
         @test_throws ErrorException Signal(rand(2,2,2))
     end
     next!(progress)
+
+    @testset "Handle unknown length signals" begin
+        for nch in 1:2
+            stream = StreamSignal(20,10,nch,MersenneTwister(1983))
+
+            @test ismissing(nframes(stream))
+            @test framerate(straem) == 20
+            @test ismissing(nframes(Until(stream,5s)))
+            @test sink(stream) |> nfrmaes == 200
+            @test sink(Until(stream,5s)) |> nfrmaes == 100
+        end
+    end
 
     @testset "Handling of infinite signals" begin
         for nch in 1:2
