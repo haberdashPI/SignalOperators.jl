@@ -127,7 +127,15 @@ signaltile(x::CutApply) = PrettyPrinting.tile(x)
 cutname(x::UntilApply) = "Until"
 cutname(x::AfterApply) = "After"
 
-nframes_helper(x::UntilApply) = min(nframes_helper(x.signal),max(0,resolvelen(x)))
+function nframes_helper(x::UntilApply)
+    if ismissing(nframes_helper(x.signal)) && resolvelen(x) == 0
+        # missing values must still be positive, so a 0 length cut has a known
+        # length even if the underlying signal is an unknown length
+        return 0
+    else
+        min(nframes_helper(x.signal),max(0,resolvelen(x)))
+    end
+end
 duration(x::UntilApply) =
     min(duration(x.signal),max(0,inseconds(Float64,maybeseconds(x.time),framerate(x))))
 
