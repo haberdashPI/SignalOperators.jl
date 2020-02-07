@@ -61,13 +61,6 @@ CutMethod(x::AbstractArray,::DataSignal) = DataCut()
 CutMethod(x::Tuple{<:AbstractArray,<:Number},::DataSignal) = DataCut()
 CutMethod(x,::ComputedSignal) = SinkCut()
 
-function initresult(x,T)
-    if ismissing(nframes(x))
-        initsink(x,T)
-    else
-        initsink(Until(x,0frames),T)
-    end
-end
 sink(x,::Type{T}) where T = sink(x,T,CutMethod(x))
 function sink(x,::Type{T},::DataCut) where T
     x = process_sink_params(x)
@@ -76,7 +69,7 @@ function sink(x,::Type{T},::DataCut) where T
         data
     else # if the sink type is new, we have to copy the data
         # because it could be in a different memory layout
-        result = initresult(x,T)
+        result = initsink(x,T)
         sink!(result,x)
         result
     end
@@ -93,7 +86,7 @@ end
 
 function sink(x,::Type{T},::SinkCut) where T
     x = process_sink_params(x)
-    result = initresult(x,T)
+    result = initsink(x,T)
     sink!(result,x)
     result
 end
@@ -107,7 +100,6 @@ function process_sink_params(x)
     isinf(nframes(x)) && error("Cannot store infinite signal.")
     x
 end
-
 
 """
 
@@ -251,22 +243,6 @@ function sink!(result,x,::IsSignal,block)
     @assert written == nframes(result)
 
     block
-end
-
-sinkstream(x) = sinkstream(x,nextblock(x,inflen,false))
-function sinkstream(x,block)
-    if isnothing(block)
-        return Array{sampletype(x)}(undef,0,nchannels(x))
-    end
-
-    written = 0
-    result = ElasticArray{sampletype(x)}(undef,nchannels(x),nframes(block))
-    while !isnothing(block)
-        @assert nframes(block) > 0
-        sink_helper!(result,written,x,block)
-        block = nextblock(x,inflen,false,block)
-        if nframes(block)
-
 end
 
 """

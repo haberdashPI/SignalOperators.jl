@@ -66,8 +66,12 @@ function __init__()
         include("LibSndFile.jl")
     end
 
-    @require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"  begin
+    @require DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0" begin
         include("DimensionalData.jl")
+    end
+
+    @require ElasticArrays = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4" begin
+        include("ElasticArrays.jl")
     end
 end
 
