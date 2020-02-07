@@ -1,6 +1,13 @@
 using .ElasticArrays
 
-initsink(x,::Type{<:ElasticArray}) = ElasticArray{sampletype(x)}(nchannels(x),0)
+# TODO: handle tuples
+function initsink(x,::Type{<:ElasticArray})
+    if ismissing(nframes(x))
+        ElasticArray{sampletype(x)}(nchannels(x),0)
+    else
+        ElasticArray{sampletype(x)}(nchannels(x),nframes(x))
+    end
+end
 
 sink(x,::Type{ElasticArray}) = transpose(sink(x,ElasticArray,CutMethod(x)))
 
