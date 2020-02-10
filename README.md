@@ -4,6 +4,7 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://haberdashPI.github.io/SignalOperators.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://haberdashPI.github.io/SignalOperators.jl/dev)
 [![Build Status](https://travis-ci.com/haberdashPI/SignalOperators.jl.svg?branch=master)](https://travis-ci.com/haberdashPI/SignalOperators.jl)
+[![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/S/SignalOperators.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Codecov](https://codecov.io/gh/haberdashPI/SignalOperators.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/haberdashPI/SignalOperators.jl)
 
 SignalOperators is a [Julia](https://julialang.org/) package that aims to provide a clean interface for generating and manipulating signals: typically sounds, but any signal regularly sampled in time can be manipulated.
@@ -51,7 +52,7 @@ representations](https://haberdashpi.github.io/SignalOperators.jl/stable/custom_
 Operators generally produce signals that match the type input values, when these are uniform.
 
 In many cases, operators are designed to create efficient, lazy
-representations of signals, and will only generate data on a call to `sink`;
+representations of signals, and will only generate data on a call to [`sink`](https://haberdashpi.github.io/SignalOperators.jl/stable/reference/#SignalOperators.sink);
 however, there are non-lazy versions of the operators as well, for quick,
 one-off usage.
 
