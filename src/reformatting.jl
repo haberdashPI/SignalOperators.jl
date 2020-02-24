@@ -103,7 +103,7 @@ filterstring(fn::ResamplerFn) =
 function maybe_rationalize(r)
     x = rationalize(r)
     # only use rational number if it is a small integer ratio
-    if max(numerator(x),denominator(x)) ≤ 16
+    if max(numerator(x),denominator(x)) ≤ 3
         x
     else
         r
