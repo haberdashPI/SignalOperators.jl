@@ -3,13 +3,18 @@ using .ElasticArrays
 # TODO: handle tuples
 function initsink(x,::Type{<:ElasticArray})
     if ismissing(nframes(x))
-        ElasticArray{sampletype(x)}(nchannels(x),0)
+        ElasticArray{sampletype(x)}(undef,nchannels(x),0)
     else
-        ElasticArray{sampletype(x)}(nchannels(x),nframes(x))
+        ElasticArray{sampletype(x)}(undef,nchannels(x),nframes(x))
     end
 end
 
 sink(x,::Type{ElasticArray}) = transpose(sink(x,ElasticArray,CutMethod(x)))
+
+function sink!(result::ElasticArray,x)
+    x = ToChannels(x,size(result,2))
+    sink!(result,x,SignalTrait(x))
+end
 
 function sink!(result::ElasticArray,x,::IsSignal,block)
     written = 0

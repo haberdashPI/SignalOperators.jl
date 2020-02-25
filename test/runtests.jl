@@ -1,5 +1,7 @@
 using SignalOperators, SignalOperators.Units
 using SignalOperators: SignalTrait, IsSignal
+using SignalBase
+using Random
 
 using LambdaFn
 using Test
@@ -13,6 +15,7 @@ using Pkg
 using DimensionalData
 using DimensionalData: X, Time
 using AxisArrays
+using ElasticArrays
 
 using DSP
 dB = SignalOperators.Units.dB
@@ -37,7 +40,7 @@ SignalBase.sampletype(x::StreamSignal) = Float64
 SignalBase.nchannels(x::StreamSignal) = x.nch
 SignalBase.framerate(x::StreamSignal) = 20
 SignalBase.nframes(x::StreamSignal) = missing
-SignalOperators.SignalTrait(x::StreamSignal) = SignalOperators.IsSignal{Float64,Int,Missing}()
+SignalOperators.SignalTrait(::Type{<:StreamSignal}) = SignalOperators.IsSignal{Float64,Int,Missing}()
 function SignalOperators.nextblock(x::StreamSignal,maxlen,skip,last=ArrayBlock([],0))
     if x.repeat > last.state
         ArrayBlock(rand(x.rng,x.block,x.nch),last.state+1)
@@ -575,10 +578,11 @@ end
             stream = StreamSignal(20,10,nch,MersenneTwister(1983))
 
             @test ismissing(nframes(stream))
-            @test framerate(straem) == 20
+            @test framerate(stream) == 20
             @test ismissing(nframes(Until(stream,5s)))
-            @test sink(stream) |> nfrmaes == 200
-            @test sink(Until(stream,5s)) |> nfrmaes == 100
+            @test sink(stream,ElasticArray) |> nframes == 200
+            # TODO: allow sink to missing length, up to the max length??
+            @test sink(Until(stream,5s)) |> nframes == 100
             # TODO:...
         end
     end

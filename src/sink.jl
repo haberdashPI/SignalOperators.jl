@@ -97,7 +97,7 @@ function process_sink_params(x)
         @warn("Signal has unknown number of frames, if the signal is infinite,"*
               " the program will hang.")
     end
-    isinf(nframes(x)) && error("Cannot store infinite signal.")
+    isknowninf(nframes(x)) && error("Cannot store infinite signal.")
     x
 end
 
