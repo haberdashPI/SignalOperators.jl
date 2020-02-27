@@ -41,9 +41,9 @@ SignalBase.nchannels(x::StreamSignal) = x.nch
 SignalBase.framerate(x::StreamSignal) = 20
 SignalBase.nframes(x::StreamSignal) = missing
 SignalOperators.SignalTrait(::Type{<:StreamSignal}) = SignalOperators.IsSignal{Float64,Int,Missing}()
-function SignalOperators.nextblock(x::StreamSignal,maxlen,skip,last=ArrayBlock([],0))
+function SignalOperators.nextblock(x::StreamSignal,maxlen,skip,last=SignalOperators.ArrayBlock([],0))
     if x.repeat > last.state
-        ArrayBlock(rand(x.rng,x.block,x.nch),last.state+1)
+        SignalOperators.ArrayBlock(rand(x.rng,x.block,x.nch),last.state+1)
     end
 end
 
@@ -581,7 +581,6 @@ end
             @test framerate(stream) == 20
             @test ismissing(nframes(Until(stream,5s)))
             @test sink(stream,ElasticArray) |> nframes == 200
-            # TODO: allow sink to missing length, up to the max length??
             @test sink(Until(stream,5s)) |> nframes == 100
             # TODO:...
         end

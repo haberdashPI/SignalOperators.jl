@@ -20,6 +20,7 @@ function MapSignal(fn::Fn,val::El,signals::Si,
     framerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where
         {Fn,El,L,Si,Fs,Pd}
 
+    @assert length(val) > 0 "Zero-length outputs are not permitted in mapping function"
     T = El == NoValues ? Nothing : ntuple_T(El)
     N = El == NoValues ? 0 : length(signals)
     C = El == NoValues ? 1 : nchannels(signals[1])

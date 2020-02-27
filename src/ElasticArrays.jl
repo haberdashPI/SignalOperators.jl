@@ -3,16 +3,20 @@ using .ElasticArrays
 # TODO: handle tuples
 function initsink(x,::Type{<:ElasticArray})
     if ismissing(nframes(x))
-        ElasticArray{sampletype(x)}(undef,nchannels(x),0)
+        ElasticArray{sampletype(x)}(undef,@show(nchannels(x)),0)
     else
         ElasticArray{sampletype(x)}(undef,nchannels(x),nframes(x))
     end
 end
+nchannels(x::ElasticArray) = size(x,1)
+nframes(x::ElasticArray) = size(x,2)
+framerate(x::ElasticArray) = missing
+timeslice(x::ElasticArray,indices) = view(x,:,indices)
 
 sink(x,::Type{ElasticArray}) = transpose(sink(x,ElasticArray,CutMethod(x)))
 
 function sink!(result::ElasticArray,x)
-    x = ToChannels(x,size(result,2))
+    x = ToChannels(x,nchannels(result))
     sink!(result,x,SignalTrait(x))
 end
 
