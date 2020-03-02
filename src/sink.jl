@@ -11,8 +11,8 @@ then a Tuple of an array and the framerate is returned.
 !!! warning
 
     Though `sink` often makes a copy of an input array, it is not guaranteed
-    to do so. For instance `sink(Until(rand(10),5frames))` will simply take a view
-    of the first 5 frames of the input.
+    to do so. For instance `sink(Until(rand(10),5frames))` will simply take a
+    view of the first 5 frames of the input.
 
 # Values for `to`
 
