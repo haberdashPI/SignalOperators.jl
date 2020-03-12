@@ -583,6 +583,10 @@ end
             @test sink(stream,ElasticArray) |> nframes == 200
             @test sink(Until(stream,5s)) |> nframes == 100
             # TODO:...
+
+            # TODO: test unknown lengths with Extended and NumberExtended
+            # lengths (e.g. use mix, and mix with numbers, and then numbers
+            # and `Extend` on their own)
         end
     end
 

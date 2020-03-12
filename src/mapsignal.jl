@@ -153,6 +153,7 @@ tolen(x::Missing) = missing
 maxlen(x,y) = max(tolen(x),tolen(y))
 maxlen(x::NumberExtended,y::NumberExtended) = x
 nframes_helper(x::MapSignal) = reduce(maxlen,nframes_helper.(x.signals))
+maxnframes_helper(x::MapSignal) = reduce(maxlen,maxnframes_helper.(x.signals))
 
 """
     Operate(fn,rest...;padding,bychannel)

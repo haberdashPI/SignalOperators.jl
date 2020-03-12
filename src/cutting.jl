@@ -34,6 +34,13 @@ resolvelen(x::CutApply) = inframes(Int,maybeseconds(x.time),framerate(x))
 const UntilApply{S,T} = CutApply{S,T,Val{:Until}}
 const AfterApply{S,T} = CutApply{S,T,Val{:After}}
 
+maxnframes(x) = cleanextend(maxnframes_helper(x))
+maxnframes_helper(x) = nframes(x)
+maxnframes_helper(x::AbstractSignal) = nframes_helper(x)
+maxnframes_helper(x::WrappedSignal) = maxnframes_helper(child(x))
+maxnframes_helper(x::UntilApply) = ismissing(maxnframes_helper(x.signal)) ?
+    resolvelen(x) : max(maxnframes_helper(x.signal),resolvelen(x))
+
 """
     Window(x;from,to)
     Window(x;at,width)

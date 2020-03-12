@@ -93,11 +93,12 @@ end
 
 function process_sink_params(x)
     x = Signal(x)
-    if ismissing(nframes(x))
-        @warn("Signal has unknown number of frames, if the signal is infinite,"*
-              " the program will hang.")
+    if isknowninf(nframes(x))
+        error("Cannot store infinite signal.")
+    elseif ismissing(maxnframes(x))
+        @warn("The signal may have an infinite length, which could cause"*
+              " the program to hang.")
     end
-    isknowninf(nframes(x)) && error("Cannot store infinite signal.")
     x
 end
 
@@ -108,19 +109,24 @@ end
 Initialize an object of type T so that it can store all frames of signal `x`.
 
 If you wish an object to serve as a [custom sink](@ref custom_sinks) you can
-implement this method. You can use [`nchannels`](@ref) and
+implement this method. You can use [`nframes`](@ref), [`nchannels`](@ref) and
 [`sampletype`](@ref) of `x` to determine how to initialize the object for the
 first method, or you can just use `initsink(x,Array)` and wrap the return
-value with your custom type.
+value with your custom array type.
 
 """
 function initsink(x,::Type{<:Array})
-    Array{sampletype(x),2}(undef,nframes(x),nchannels(x))
+    if ismissing(nframes(x))
+        if ismissing(maxnframes(x))
+            error("Cannot store signal of unknown maximum length in an Array."*
+                " Consider using an ElasticArray.")
+        end
+        Array{sampletype(x),2}(undef,maxnframes(x),nchannels(x))
+    else
+        Array{sampletype(x),2}(undef,nframes(x),nchannels(x))
+    end
 end
-initsink(x,::Type{<:Tuple}) =
-    (Array{sampletype(x)}(undef,nframes(x),nchannels(x)),framerate(x))
-initsink(x,::Type{<:Array},data) = data
-initsink(x,::Type{<:Tuple},data) = (data,framerate(x))
+initsink(x,::Type{<:Tuple}) = (initsink(x,Array),framerate(x))
 Base.Array(x::AbstractSignal) = sink(x,Array)
 Base.Tuple(x::AbstractSignal) = sink(x,Tuple)
 
@@ -160,16 +166,21 @@ sink!(result::Tuple{<:AbstractArray,<:Number},x) =
 function sink!(result::Union{AbstractVector,AbstractMatrix},x;
     framerate=SignalOperators.framerate(x))
 
-    if ismissing(nframes(x))
-        error("Cannot sink to a fixed array when the signal has an ",
-              "unknown length.")
-    elseif nframes(x) < size(result,1)
-        error("Signal is too short to fill buffer of length $(size(result,1)).")
+    if ismissing(maxnframes(x))
+        error("Cannot sink to a fixed array when the signal has a ",
+              "length that could be infinite. Consider using `Until` to crop",
+              " the signal.")
+    elseif maxnframes(x) < nframes(result)
+        error("Maximum signal is too long for sink.")
     end
-    x = ToChannels(x,size(result,2))
+    x = ToChannels(x,nchannels(result))
 
-    sink!(result,x,SignalTrait(x))
-    result
+    _, written = sink!(result,x,SignalTrait(x))
+    if written < nframes(result)
+        timeslice(result,1:written)
+    else
+        result
+    end
 end
 
 """
@@ -240,9 +251,7 @@ function sink!(result,x,::IsSignal,block)
             block = nextblock(x,maxlen,false,block)
         end
     end
-    @assert written == nframes(result)
-
-    block
+    block, written
 end
 
 """
