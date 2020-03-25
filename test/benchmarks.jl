@@ -6,6 +6,10 @@ using Traceur
 using Statistics
 using DSP
 
+# TODO: slow performance for my german_track project
+# TODO: test randn on its own
+# TODO: test randn combined with filter
+
 dB = SignalOperators.Units.dB
 
 suite = BenchmarkGroup()
