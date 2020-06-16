@@ -157,19 +157,16 @@ struct CutBlock{C}
 end
 child(x::CutBlock) = x.child
 
-function nextblock(x::AfterApply,maxlen,skip)
-    if resolvelen(x) == 0
-        childblock = nextblock(child(x),maxlen,false)
-        CutBlock(0,childblock)
+function iterateblock(x::AfterApply,N)
+    if resolvelen(x) <= 0
+        return nothing
     else
-        len = max(0,resolvelen(x))
-        childblock = nextblock(child(x),len,true)
-        skipped = nframes(childblock)
+        len = resolvelen(x)
+        childblock = iterateblock(child(x),N)
+        skipped = !isnothing(childblock) ? block_nframes(childblock[1]) : 0
         while !isnothing(childblock) && skipped < len
-            childblock = nextblock(child(x),min(maxlen,len - skipped),true,
-                childblock)
-            isnothing(childblock) && break
-            skipped += nframes(childblock)
+            childblock = iterateblock(child(x),N,childblock[2])
+            skipped += !isnothing(childblock) ? block_nframes(childblock[1]) : 0
         end
         if skipped < len
             io = IOBuffer()
@@ -180,40 +177,17 @@ function nextblock(x::AfterApply,maxlen,skip)
                 sig_string)
         end
         @assert skipped == len
-        nextblock(x,maxlen,skip,CutBlock(0,childblock))
+        return iterateblock(x,N,childblock[2])
     end
 end
-function nextblock(x::AfterApply,maxlen,skip,block::CutBlock)
-    childblock = nextblock(child(x),maxlen,skip,child(block))
-    if !isnothing(childblock)
-        CutBlock(0,childblock)
-    end
-end
-nextblock(x::AfterApply,maxlen,skip,block::CutBlock{Nothing}) = nothing
-function timeslice(x::AfterApply,indices)
-    from = clamp(resolvelen(x),0,nframes(x.signal))+1
-    to = nframes(x.signal)
-    timeslice(x.signal,(from:to)[indices])
-end
+iterateblock(x::AfterApply,N,state) = iterateblock(child(x),N,state)
 
-initblock(x::UntilApply) = CutBlock(resolvelen(x),nothing)
-function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
-    nextlen = block.n - nframes(block)
-    if nextlen > 0
-        childblock = !isnothing(child(block)) ?
-            nextblock(child(x),min(nextlen,len),skip,child(block)) :
-            nextblock(child(x),min(nextlen,len),skip)
-        if !isnothing(childblock)
-            CutBlock(nextlen,childblock)
+function iterateblock(x::UntilApply,N,state=(resolvelen(x),))
+    if state[1] > 0
+        block = iterateblock(child(x),min(N,state[1]),Base.tail(state)...)
+        if isnothing(block)
+            data, childstate = block
+            return data, (state[1] - block_nframes(data), childstate)
         end
     end
 end
-function timeslice(x::UntilApply,indices)
-    to = clamp(resolvelen(x),0,nframes(x.signal))
-    timeslice(x.signal,(1:to)[indices])
-end
-
-nframes(x::CutBlock) = nframes(child(x))
-nframes(x::CutBlock{Nothing}) = 0
-@Base.propagate_inbounds frame(x::CutApply,block::CutBlock,i) =
-    frame(child(x),child(block),i)

@@ -4,19 +4,12 @@ using FileIO
 # Signals have a frame rate and some iterator element type
 # T, which is an NTuple{N,<:Number}.
 """
-    SignalOperators.IsSignal{T,Fs,L}
+    SignalOperators.IsSignal
 
-Represents the format of a signal type with three type parameters:
-
-* `T` - The [`sampletype`](@ref) of the signal.
-* `Fs` - The type of the framerate. It should be either `Float64` or
-    `Missing`.
-* `L` - The type of the length of the signal. It should be either
-    `Infinity`, `Missing` or `Int`.
+Indicates that a given object satisfies the Signal interface for SignalOperators.
 
 """
-struct IsSignal{T,Fs,L}
-end
+struct IsSignal; end
 
 # not everything that's a signal belongs to this package, (hence the use of
 # trait-based dispatch), but everything that is in this package is a child of
@@ -47,11 +40,6 @@ default) or [`IsSignal`](@ref) to indicate the signal format for this signal.
 SignalTrait(x::T) where T = SignalTrait(T)
 SignalTrait(::Type{T}) where T = nothing
 
-sampletype(x::AbstractSignal) = sampletype(x,SignalTrait(x))
-sampletype(x,::IsSignal{T}) where T = T
-
-IsSignal{T}(fs::Fs,len::L) where {T,Fs,L} = IsSignal{T,Fs,L}()
-
 function show_fs(io,x)
     if !get(io,:compact,false) && !ismissing(framerate(x))
         write(io," (")
@@ -76,8 +64,7 @@ isconsistent(fs,_fs) = ismissing(fs) || inHz(_fs) == inHz(fs)
 
 Coerce `x` to be a signal, optionally specifying its frame rate (usually in
 Hz). All signal operators first call `Signal(x)` for each argument. This
-means you only need to call `Signal` when you want to pass additional
-arguments to it.
+means you only need to call `Signal` when you want to specify the frame rate.
 
 !!! note
 

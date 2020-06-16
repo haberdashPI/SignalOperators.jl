@@ -147,30 +147,26 @@ can be passed as the second argument to  [`Pad`](@ref).
     x[helper(i,end),j]
 end
 
-usepad(x::PaddedSignal,block) = usepad(x,SignalTrait(x),block)
-usepad(x::PaddedSignal,s::IsSignal,block) = usepad(x,s,x.Pad,block)
-usepad(x::PaddedSignal,s::IsSignal{T},p::Number,block) where T =
-    Fill(convert(T,p),nchannels(x.signal))
-function usepad(x::PaddedSignal,s::IsSignal{T},
-    p::Union{Array,Tuple},block) where T
-
-    map(x -> convert(T,x),p)
+usepad(x::PaddedSignal,N,i,block) = usepad(x,SignalTrait(x),block)
+usepad(x::PaddedSignal,N,i,s::IsSignal,block) = usepad(x,N,i,s,x.Pad,block)
+usepad(x::PaddedSignal,N,i,::IsSignal,p::Number,block) =
+    Fill(convert(sampletype(x),p),nchannels(x.signal),N)
+usepad(x::PaddedSignal,N,i,::IsSignal,p::Union{Vector,Tuple},block) =
+    BroadcastArray(convert.(sampletype(x),p),:,N)
+function usepad(x::PaddedSignal,N,i,::IsSignal,::typeof(lastframe),block)
+    isempty(block) && error("Signal is length zero; there is no last frame to pad with.")
+    BroadcastArray(block[:,end],:,N)
 end
-usepad(x::PaddedSignal,s::IsSignal,::typeof(lastframe),block) =
-    frame(x,block,nframes(block))
-usepad(x::PaddedSignal,s::IsSignal,::typeof(lastframe),::Nothing) =
-    error("Signal is length zero; there is no last frame to pad with.")
-
 indexable(x::AbstractArray) = true
 indexable(x::Tuple{<:AbstractArray,<:Number}) = true
 indexable(x) = false
 indexing(x::AbstractArray) = x
 indexing(x::Tuple{<:AbstractArray,<:Number}) = x[1]
-function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
+function usepad(x::PaddedSignal,N,offset,::IsSignal,fn::Function,block)
     nargs = map(x -> x.nargs - 1, methods(fn).ms)
     if 3 ∈ nargs
         if indexable(x.signal)
-            i -> fn(indexing(x.signal),i,:)
+            PadIndexingArray(fn,indexing(x.signal))
         else
             io = IOBuffer()
             show(io,MIME("text/plain"),child(x))
@@ -183,7 +179,7 @@ function usepad(x::PaddedSignal,s::IsSignal{T},fn::Function,block) where T
         if valuefunction(fn)
             fn(x.signal)
         else
-            Fill(fn(T),nchannels(x.signal))
+            Fill(fn(sampletype(x)),nchannels(x.signal),N)
         end
     else
         error("Pad function ($fn) must take 1 or 3 arguments. ",
@@ -197,41 +193,22 @@ struct UsePad
 end
 const use_pad = UsePad()
 
-struct PadBlock{P,C}
-    Pad::P
-    child_or_len::C
-    offset::Int
-end
-child(x::PadBlock{<:Nothing}) = x.child_or_len
-child(x::PadBlock) = nothing
-nframes(x::PadBlock{<:Nothing}) = nframes(child(x))
-nframes(x::PadBlock) = x.child_or_len
-
-@Base.propagate_inbounds frame(x,block::PadBlock{<:Nothing},i) =
-    frame(child(x),child(block),i)
-@Base.propagate_inbounds frame(x,block::PadBlock{<:Function},i) =
-    block.Pad(i + block.offset)
-@Base.propagate_inbounds frame(x,block::PadBlock,i) = block.Pad
-
-function nextblock(x::PaddedSignal,maxlen,skip)
-    block = nextblock(child(x),maxlen,skip)
-    if isnothing(block)
-        PadBlock(usepad(x,block),maxlen,0)
-    else
-        PadBlock(nothing,block,0)
+function iterateblock(x::PaddedSignal,N,state=(false,0,Array{eltype(x)}(undef,0)))
+    pad, padoffset, oldblock = state
+    if !pad
+        block = nextblock(child(x),N,state[4:end]...)
+        if !isnothing(block)
+            data, childstate = block
+            return data, (pad, padoffset+block_nframes(data), data, childstate)
+        else
+            pad = true
+        end
     end
-end
 
-function nextblock(x::PaddedSignal,maxlen,skip,block::PadBlock{<:Nothing})
-    childblock = nextblock(child(x),maxlen,skip,child(block))
-    if isnothing(childblock)
-        PadBlock(usepad(x,block),maxlen,nframes(block) + block.offset)
-    else
-        PadBlock(nothing,childblock,nframes(block) + block.offset)
+    if pad
+        data = usepad(x,N,padoffset,oldblock)
+        return data, (pad, padoffset+block_nframes(data), oldblock)
     end
-end
-function nextblock(x::PaddedSignal,len,skip,block::PadBlock)
-    PadBlock(block.Pad,len,nframes(block) + block.offset)
 end
 
 Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)

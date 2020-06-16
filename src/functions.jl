@@ -41,23 +41,14 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
     end
 end
 
-struct FunctionBlock
-    offset::Int
-    len::Int
+function iterateblock!(x::SignalFunction,result,state=0)
+    result = ApplyArray(i -> frame(x,i),(1:size(result)[end]).+state)
+    result, state + size(result)[end]
 end
-nextblock(x::SignalFunction,maxlen,skip) = FunctionBlock(0,maxlen)
-nextblock(x::SignalFunction,maxlen,skip,block::FunctionBlock) =
-    FunctionBlock(block.offset + block.len,maxlen)
-nframes(block::FunctionBlock) = block.len
-
-frame(x,block::FunctionBlock,i) =
-    x.fn(2π*(((i+block.offset)/x.framerate*x.ω + x.ϕ) % 1.0))
-frame(x::SignalFunction{<:Any,Missing},block::FunctionBlock,i) =
-    x.fn((i+block.offset)/x.framerate + x.ϕ)
-frame(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
-    sinpi(2*((i+block.offset)/x.framerate*x.ω + x.ϕ))
-frame(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
-    sinpi(2*((i+block.offset)/x.framerate + x.ϕ))
+frame(x,i) = x.fn(2π*((i/x.framerate*x.ω + x.ϕ) % 1.0))
+frame(x::SignalFunction{<:Any,Missing},i) = x.fn(i/x.framerate + x.ϕ)
+frame(x::SignalFunction{typeof(sin)},i) = sinpi(2*(i/x.framerate*x.ω + x.ϕ))
+frame(x::SignalFunction{typeof(sin),Missing},i) = sinpi(2*(i/x.framerate + x.ϕ))
 
 ToFramerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.framerate))

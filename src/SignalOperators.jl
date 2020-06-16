@@ -8,6 +8,8 @@ import SignalBase: nframes, nchannels, sampletype, framerate, duration
 using SignalBase.Units: FrameQuant
 export nframes, nchannels, sampletype, framerate, duration
 
+using FillArrays, LazyArrays
+
 module Units
     using SignalBase.Units
     export kframes, frames, Hz, s, kHz, ms, dB, °, rad

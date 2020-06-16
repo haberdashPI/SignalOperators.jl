@@ -169,43 +169,26 @@ end
 
 """
 
-    SignalOperators.nextblock(x,maxlength,skip,[last_block])
+    SignalOperators.iterateblock(signal,N,[state])
 
-Retrieve the next block of frames for signal `x`, or nothing, if no more
-blocks exist. Analogous to `Base.iterate`. The returned block must satisfy
-the interface for signal blocks as described in [custom signals](@ref
-custom_signals).
+Return the next block of data from signal. Analogous to `Base.iterate`,
+`iterateblock` returns the data, and an internal state for
+subsequent iterations. The returned data always has its last dimension as time; all other
+dimensions will match the channel organization of `signal`.
 
 ## Arugments
 
-- `x`: the signal to retriev blocks from
-- `maxlength`: The resulting block must have no more than `maxlength` frames,
-    but may have fewer frames than that; it should not have zero frames unless
-    `maxlength == 0`.
-- `skip`: If `skip == true`, it is guaranted that [`frame`](@ref)
-    will never be called on the returned block. The value of `skip` is `true`
-    when skipping blocks during a call to [`After`](@ref)).
-- `last_block` The fourth argument is optional. If included, the block that
-    occurs after this block is returned. If it is left out, nextblock returns the
-    very first block of the signal.
+- `signal`: the signal to retrieve blocks from
+- `N`: the maximum number of frames the returned block should have.
+- `state` The second argument should pass the previous state of the last call to
+    `iterateblock!`. If it is left out, nextblock returns the very first block of the
+    signal.
 
 """
-function nextblock
+function iterateblock
 end
 
-"""
-
-    SignalOperators.timeslice(x::AbstractArray,indices)
-
-Extract the slice of x with the given time indices.
-
-[Custom signals](@ref custom_signals) can implement this method if the signal
-is an `AbstractArray` allowing the use of a fallback implementation of
-[`SignalOperators.nextblock`](@ref).
-
-"""
-function timeslice
-end
+block_nframes(x::AbstractArray) = size(x)[end]
 
 """
 
@@ -221,47 +204,30 @@ signals](@ref custom_signals).
 function frame
 end
 
+__getframes__(x::AbstractArray,ixs) = @view x[(Base.Colon() for _=1:ndims(x)-1)...,ixs]
+__setframes__(x::AbstractArray,ixs,vals) =
+    x[(Base.Colon() for _=1:ndims(x)-1)...,ixs] = vals
+
 fold(x) = zip(x,Iterators.drop(x,1))
 sink!(result,x,sig::IsSignal) =
-    sink!(result,x,sig,nextblock(x,size(result,1),false))
+    sink!(result,x,sig,iterateblock!(x,result))
 function sink!(result,x,::IsSignal,block)
     written = 0
+    N = size(result,ndims(result))
     while !isnothing(block) && written < size(result,1)
-        @assert nframes(block) > 0
-        sink_helper!(result,written,x,block)
-        written += nframes(block)
-        maxlen = size(result,1)-written
-        if maxlen > 0
-            block = nextblock(x,maxlen,false,block)
+        data, state = block
+        n = size(data)[end]
+        @assert n > 0
+        __setframes__(x,(written+1):(written+n),data)
+        written += n
+        if size(result,1)-written > 0
+            block = nextblock(x,__getframes__(result,(written+1):N),state)
         end
     end
     @assert written == nframes(result)
 
-    block
-end
-
-"""
-
-    SignalOperators.sink_helper!(result,written,x,block)
-
-Write the given `block` of frames from signal `x` to `result` given that
-a total of `written` frames have already been written to the result.
-
-This method should be fast: i.e. a for loop using @simd and @inbounds. It
-should call [`nframes`](@ref) and [`SignalOperators.frame`](@ref) on the
-block to write the frames. **Do not call `frame` more than once for each
-index of the block**.
-
-"""
-@noinline function sink_helper!(result,written,x,block)
-    @inbounds @simd for i in 1:nframes(block)
-        writesink!(result,i+written,frame(x,block,i))
+    # return the state (for internal purposes) if available
+    if !isnothing(block)
+        return block[2]
     end
-end
-
-@Base.propagate_inbounds function writesink!(result::AbstractArray,i,v)
-    for ch in 1:length(v)
-        result[i,ch] = v[ch]
-    end
-    v
 end

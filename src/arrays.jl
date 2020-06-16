@@ -44,16 +44,16 @@ function Signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
     end
 end
 
-ToFramerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;blocksize) =
+ToFramerate(x::AbstractArray,::IsSignal,::DataSignal,oldfs::Number,fs::Number;blocksize) =
     Signal(x,fs)
-ToFramerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
+ToFramerate(x::AbstractArray,s::IsSignal,::DataSignal,oldfs::Missing,fs::Number;blocksize) =
     __ToFramerate__(x,s,fs,blocksize)
 
 function SignalTrait(::Type{<:AbstractArray{T,N}}) where{T,N}
     if N ∈ [1,2]
-        IsSignal{T,Missing,Int}()
+        IsSignal()
     else
-        error("Array must have 1 or 2 dimensions to be treated as a signal.")
+        errordim()
     end
 end
 
@@ -96,39 +96,12 @@ nchannels(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],2)
 framerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
 sampletype(x::Tuple{<:AbstractVecOrMat,<:Number}) = eltype(x[1])
 timeslice(x::Tuple{<:AbstractVecOrMat,<:Number},indices) = view(x[1],indices,:)
-function nextblock(x::Tuple{<:AbstractVecOrMat,<:Number},maxlen,skip,
-    block=ArrayBlock([],0))
 
-    nextblock(x[1],maxlen,skip,block)
-end
+iterateblock(x::Tuple{<:AbstractVecOrMat,<:Number},N,state=0) =
+    iterateblock(x[1],N,state)
 
-"""
-    ArrayBlock{A,S}(data::A,state::S)
-
-A straightforward implementation of blocks as an array and a custom state.
-The array allows a generic implementation of [`nframes`](@ref) and
-[`SignalOperators.frame`](@ref). The fields of this struct are `data` and
-`state`.
-
-[Custom signals](@ref custom_signals) can return an `ArrayBlock` from
-[`SignalOperators.nextblock`](@ref) to allow for fallback implementations of
-[`nframes`](@ref) and [`SignalOperators.frame`](@ref).
-
-"""
-struct ArrayBlock{A,S}
-    data::A
-    state::S
-end
-
-nframes(block::ArrayBlock) = size(block.data,1)
-@Base.propagate_inbounds frame(x,block::ArrayBlock,i) = view(block.data,i,:)
-
-function nextblock(x::AbstractArray,maxlen,skip,block = ArrayBlock([],0))
-    offset = block.state + nframes(block)
-    if offset < nframes(x)
-        len = min(maxlen,nframes(x)-offset)
-        ArrayBlock(timeslice(x,offset .+ (1:len)),offset)
-    end
+function iterateblock(x::AbstractArray,N,state=0)
+    view(x,(Base.Colon() for _ in 1:ndims(x)-1)...,(1:N).+state), state+N
 end
 
 function signaltile(x)
