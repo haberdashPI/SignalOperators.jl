@@ -171,10 +171,12 @@ end
 
     SignalOperators.iterateblock(signal,N,[state])
 
-Return the next block of data from signal. Analogous to `Base.iterate`,
-`iterateblock` returns the data, and an internal state for
-subsequent iterations. The returned data always has its last dimension as time; all other
-dimensions will match the channel organization of `signal`.
+Return the next block of data from `signal`. Analogous to `Base.iterate`, `iterateblock`
+returns the data, and an internal state for subsequent iterations. The returned data can
+be any array-like object: it must only implement `copyto!`, `ndims` and `size`, with the
+last dimension of the object being time. There is a guarantee that `copyto!` is called
+only once for each block, to allow fo lazy array-like objects which compute their
+values on the fly.
 
 ## Arugments
 
@@ -188,7 +190,7 @@ dimensions will match the channel organization of `signal`.
 function iterateblock
 end
 
-block_nframes(x::AbstractArray) = size(x)[end]
+block_nframes(x) = size(x)[end]
 
 """
 
@@ -214,14 +216,15 @@ sink!(result,x,sig::IsSignal) =
 function sink!(result,x,::IsSignal,block)
     written = 0
     N = size(result,ndims(result))
-    while !isnothing(block) && written < size(result,1)
+    while !isnothing(block) && written < block_nframes(result)
         data, state = block
-        n = size(data)[end]
+        n = block_nframes(data)
         @assert n > 0
-        __setframes__(x,(written+1):(written+n),data)
+        copyto!(__getframes__(result,(1:N) .+ written), data)
         written += n
-        if size(result,1)-written > 0
-            block = nextblock(x,__getframes__(result,(written+1):N),state)
+        m = block_nframes(result)-written
+        if m > 0
+            block = nextblock(x,m,state)
         end
     end
     @assert written == nframes(result)
