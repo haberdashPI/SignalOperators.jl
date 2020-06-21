@@ -137,9 +137,6 @@ function OperateOn(fn,xs...;
     fs = framerate(xs[1])
 
     vals = testvalue.(xs)
-    if bychannel
-        fn = FnBr(fn)
-    end
     MapSignal(fn,astuple(fn(vals...)),xs,fs,padding,blocksize,
         bychannel)
 end
@@ -180,96 +177,79 @@ Equivalent to `sink(OperateOn(fn,args...;padding,bychannel))`
 """
 operate(fn,args...;kwds...) = sink(OperateOn(fn,args...;kwds...))
 
-struct FnBr{Fn}
-    fn::Fn
-end
-(fn::FnBr)(xs...) = fn.fn.(xs...)
-cleanfn(x) = x
-cleanfn(x::FnBr) = x.fn
-
 testvalue(x) = Tuple(zero(sampletype(x)) for _ in 1:nchannels(x))
 
-const MAX_CHANNEL_STACK = 64
+struct EmptyChildState
+end
+const emptychild = EmptyChildState()
+iterateblock(x,N,::EmptyChildState) = iterateblock(x,N)
 
-struct MapSignalBlock{Ch,C,O}
+struct MapSignalState{C,O}
     len::Int
     offset::Int
-    channels::Ch
-    blocks::C
+    children::C
     offsets::O
 end
-nframes(x::MapSignalBlock) = x.len
-
-function prepare_channels(x::MapSignal)
-    nch = ntuple_N(typeof(x.val))
-    (nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)) ?
-        Array{sampletype(x)}(undef,nch) :
-        nothing
-end
-
-struct EmptyChildBlock
-end
-const emptychild = EmptyChildBlock()
-nframes(::EmptyChildBlock) = 0
-nextblock(x,maxlen,skip,::EmptyChildBlock) = nextblock(x,maxlen,skip)
-
-initblock(x::MapSignal{<:Any,N}) where N =
-    MapSignalBlock(0,0,prepare_channels(x),Tuple(emptychild for _ in 1:N),
+nframes(x::MapSignalState) = x.len
+initstate(x::MapSignal{<:Any,N}) where N =
+    MapSignalState(0,0,
+        [(channeltype(x)[],emptychild) for _ in 1:N],
         Tuple(zeros(N)))
-function nextblock(x::MapSignal{Fn,N,CN},maxlen,skip,
-    block::MapSignalBlock=initblock(x)) where {Fn,N,CN}
 
-    maxlen = min(maxlen,nframes(x) - (block.offset + block.len))
+function iterateblock(x::MapSignal, N, state=initstate(x))
+    maxlen = min(N,nframes(x) - (state.offset + state.len))
     (maxlen == 0) && return nothing
 
-    offsets = map(block.offsets, block.blocks) do offset, childblock
-        offset += nframes(block)
-        offset == nframes(childblock) ? 0 : offset
+    offsets = map(state.offsets, state.children) do offset, (childdata, childstate)
+        offset += state.len
+        offset == block_nframes(childstate) ? 0 : offset
     end
 
-    blocks = map(x.padded_signals,block.blocks,offsets) do sig, childblock, offset
+    children = map(x.padded_signals,state.children,offsets) do sig, (childdata, childstate), offset
         if offset == 0
-            nextblock(sig,maxlen,skip,childblock)
+            iterateblock(x, maxlen, childstate)
         else
-            childblock
+            (childdata, childstate)
         end
     end
 
-    # find the smallest child block length, and use that as the length for the
-    # parent block length
-    len = min(maxlen,minimum(nframes.(blocks) .- offsets))
-    Ch, C, O = typeof(block.channels), typeof(blocks), typeof(offsets)
-    MapSignalBlock{Ch,C,O}(len,block.offset + block.len,block.channels,blocks,
+    # find the smallest child state length, and use that as the length for the
+    # parent state length
+    len = min(maxlen,minimum(zip(children,offsets)) do (child,offset)
+        if isnothing(child)
+            0
+        else
+            childdata, childstate = child
+            block_nframes(childdata) - offset
+        end
+    end)
+    Ch, C, O = typeof(state.channels), typeof(children), typeof(offsets)
+    newstate = MapSignalState{Ch,C,O}(len,state.offset + state.len,state.channels,children,
         offsets)
+
+    if x.bychannel
+        BroadcastArray(x.fn, childview.(x,state.children,state.offsets,len)...)
+    else
+        LazyMapLastDim(x.fn, childview.(x,state.children,state.offsets,len)...)
+    end
 end
 
-trange(::Val{N}) where N = (trange(Val(N-1))...,N)
-trange(::Val{1}) = (1,)
-
-@Base.propagate_inbounds function frame(x::MapSignal{<:FnBr,N,CN},
-    block::MapSignalBlock{<:Nothing},
-    i::Int) where {N,CN}
-
-    inputs = frame.(x.padded_signals,block.blocks,i .+ block.offsets)
-    map(ch -> x.fn(map(@λ(_[ch]),inputs)...),trange(Val{CN}()))
+function childview(parent,child,offset,len)
+    if !isnothing(child)
+        data, state = child
+        timeslice(data,(1:len) .+ offset)
+    else
+        sampletype(parent)[]
+    end
 end
 
-@Base.propagate_inbounds function frame(
-    x::MapSignal{<:FnBr,N,CN},
-    block::MapSignalBlock{<:Array},
-    i::Int) where {N,CN}
-
-    inputs = frame.(x.padded_signals,block.blocks,i .+ block.offsets)
-    map!(ch -> x.fn(map(@λ(_[ch]),inputs)...),block.channels,1:CN)
+# TODO:!!
+struct LazyMapLastDim{Fn,N,T}
+    fn::Fn
+    args::NTuple{M,<:Array{T}}
+    LazyMapLastDim(fn,args...) = new(fn,args)
 end
 
-@Base.propagate_inbounds function frame(
-    x::MapSignal{<:Any,N,CN},
-    block::MapSignalBlock{<:Nothing},
-    i::Int) where {N,CN}
-
-    x.fn(frame.(x.padded_signals,block.blocks,i .+ block.offsets)...)
-end
 
 default_pad(x) = zero
 default_pad(::typeof(*)) = one
@@ -293,7 +273,6 @@ function PrettyPrinting.tile(x::MapSignal)
 end
 signaltile(x::MapSignal) = PrettyPrinting.tile(x)
 mapstring(fn) = string("Operate(",fn,",")
-mapstring(x::FnBr) = string("Operate(",x.fn,",")
 
 """
 
@@ -306,7 +285,7 @@ Sum all signals together, using [`OperateOn`](@ref). Unlike `OperateOn`,
 """
 Mix(y) = x -> Mix(x,y)
 Mix(xs...) = OperateOn(+,xs...)
-mapstring(::FnBr{<:typeof(+)}) = "Mix("
+mapstring(::typeof(+)) = "Mix("
 
 """
     mix(xs...)
@@ -331,7 +310,7 @@ version.
 """
 Amplify(y) = x -> Amplify(x,y)
 Amplify(xs...) = OperateOn(*,xs...)
-mapstring(::FnBr{<:typeof(*)}) = "Amplify("
+mapstring(::typeof(*)) = "Amplify("
 
 """
     amplify(xs...)

@@ -100,9 +100,8 @@ timeslice(x::Tuple{<:AbstractVecOrMat,<:Number},indices) = view(x[1],indices,:)
 iterateblock(x::Tuple{<:AbstractVecOrMat,<:Number},N,state=0) =
     iterateblock(x[1],N,state)
 
-function iterateblock(x::AbstractArray,N,state=0)
-    view(x,(Base.Colon() for _ in 1:ndims(x)-1)...,(1:N).+state), state+N
-end
+timeslice(x::AbstractArray,ixs) = view(x,(Base.Colon() for _ in 1:ndims(x)-1)...,ixs)
+iterateblock(x::AbstractArray,N,state=0) = timeslice(x,(1:N).+state), state+N
 
 function signaltile(x)
     io = IOBuffer()
