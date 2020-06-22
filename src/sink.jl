@@ -192,20 +192,6 @@ end
 
 block_nframes(x) = size(x)[end]
 
-"""
-
-    SignalOperators.frame(x,block,i)
-
-Retrieves the frame at index `i` of the given block of signal `x`. A frame
-is one or more channels of `sampletype(x)` values. The return value
-should be an indexable object (e.g. a number, tuple or array) of these
-channel values. This method should be implemented by blocks of [custom
-signals](@ref custom_signals).
-
-"""
-function frame
-end
-
 __getframes__(x::AbstractArray,ixs) = @view x[(Base.Colon() for _=1:ndims(x)-1)...,ixs]
 __setframes__(x::AbstractArray,ixs,vals) =
     x[(Base.Colon() for _=1:ndims(x)-1)...,ixs] = vals

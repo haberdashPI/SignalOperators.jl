@@ -230,7 +230,7 @@ function iterateblock(x::MapSignal, N, state=initstate(x))
     if x.bychannel
         BroadcastArray(x.fn, childview.(x,state.children,state.offsets,len)...)
     else
-        LazyMapLastDim(x.fn, childview.(x,state.children,state.offsets,len)...)
+        LazyMapLastDim{sampletype(x)}(x.fn, childview.(x,state.children,state.offsets,len)...)
     end
 end
 
@@ -239,17 +239,28 @@ function childview(parent,child,offset,len)
         data, state = child
         timeslice(data,(1:len) .+ offset)
     else
+        # NOTE: this branch should never occur, but it exists to keep the function type
+        # stable
         sampletype(parent)[]
     end
 end
 
-# TODO:!!
-struct LazyMapLastDim{Fn,N,T}
+trange(N) = N == 0 ? () : (trange(N-1)...,N)
+struct LazyMapLastDim{Fn,Args,N,T}
     fn::Fn
-    args::NTuple{M,<:Array{T}}
-    LazyMapLastDim(fn,args...) = new(fn,args)
+    args::Args
+    LazyMapLastDim{T}(fn,args...) =
+        new{typeof(fn),typeof(args),maximum(ndims.(args)),T}(fn,args)
 end
-
+Base.ndims(x::LazyMapLastDim{<:Any,<:Any,N}) where N = N
+Base.size(x::LazyMapLastDim) = map(d -> size.(x.args,d),trange(ndims(x)))
+function Base.copyto!(to::AbstractArray,from::LazyMapLastDim)
+    @assert size(to) == size(from)
+    @simd @inbounds for frame in 1:size(to)[end]
+        __setframes__(to,frame,
+            fn(map(arg -> __getframes__(arg,frame), from.args)))
+    end
+end
 
 default_pad(x) = zero
 default_pad(::typeof(*)) = one
