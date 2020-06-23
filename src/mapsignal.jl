@@ -246,19 +246,25 @@ function childview(parent,child,offset,len)
 end
 
 trange(N) = N == 0 ? () : (trange(N-1)...,N)
-struct LazyMapLastDim{Fn,Args,N,T}
+struct LazyMapLastDim{N,T,Fn,Args}
     fn::Fn
     args::Args
     LazyMapLastDim{T}(fn,args...) =
-        new{typeof(fn),typeof(args),maximum(ndims.(args)),T}(fn,args)
+        new{maximum(ndims.(args)),T,typeof(fn),typeof(args)}(fn,args)
 end
 Base.ndims(x::LazyMapLastDim{<:Any,<:Any,N}) where N = N
 Base.size(x::LazyMapLastDim) = map(d -> size.(x.args,d),trange(ndims(x)))
-function Base.copyto!(to::AbstractArray,from::LazyMapLastDim)
-    @assert size(to) == size(from)
-    @simd @inbounds for frame in 1:size(to)[end]
-        __setframes__(to,frame,
-            fn(map(arg -> __getframes__(arg,frame), from.args)))
+
+struct LazyMapLastDimItr{N,T}
+    buffer::Array{N-1,T}
+    offest::Int
+end
+LazyMapLastDim(x::LazyMapLastDim{N,T}) where {N,T} =
+    LazyMapLastDimItr{N,T}(Array{T}(undef,size(x)[1:end-1]),0)
+function Base.iterate(x::LazyMapLastDim, state = LazyMapLastDimItr(x))
+    if state.offset == 0
+        # TODO: iterate the args...
+        state.buffer = x.fn(x.args)
     end
 end
 

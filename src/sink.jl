@@ -171,12 +171,12 @@ end
 
     SignalOperators.iterateblock(signal,N,[state])
 
-Return the next block of data from `signal`. Analogous to `Base.iterate`, `iterateblock`
-returns the data, and an internal state for subsequent iterations. The returned data can
-be any array-like object: it must only implement `copyto!`, `ndims` and `size`, with the
-last dimension of the object being time. There is a guarantee that `copyto!` is called
-only once for each block, to allow fo lazy array-like objects which compute their
-values on the fly.
+Return the next block of data from `signal`. Analogous to [`iterate`](@ref
+Base.iterate), `iterateblock` returns the data, and an internal state for subsequent
+iterations. The returned data is a value, `block`, which can be any array-like object:
+specifically, `block` can be any object which implements [`size`](@ref Base.size)
+[`ndims`](@ref Base.ndims), and [`iterate`](@ref Base.iterate). Data must iterate in
+column-major order.
 
 ## Arugments
 
@@ -189,6 +189,17 @@ values on the fly.
 """
 function iterateblock
 end
+
+struct IsSignalBlock; end
+
+"""
+    SignalBlock(x)
+
+A trait: if the return value of `SignalBlock` is `IsSignalBlock()` then `x`
+implements `iterate` with return value `sampletype(x)` and [`eachtimeslice`](x).
+"""
+SignalBlock(x) = nothing
+SignalBlock(x::AbstractArray) = x
 
 block_nframes(x) = size(x)[end]
 
