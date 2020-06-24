@@ -5,6 +5,10 @@ export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
 ################################################################################
 # binary operators
 
+# TODO: reduce all the type params, and set up for
+# fn applying element by element or across an entire block (not just
+# an entire set of channels)
+
 struct MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi} <: AbstractSignal{T}
     fn::Fn
     val::El
