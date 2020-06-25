@@ -9,41 +9,34 @@ export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
 # fn applying element by element or across an entire block (not just
 # an entire set of channels)
 
-struct MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi} <: AbstractSignal{T}
-    fn::Fn
-    val::El
-    signals::Si
-    framerate::Fs
-    padding::Pd
-    padded_signals::PSi
-    blocksize::Int
-    bychannel::Bool
+struct MapSignal{El,T} <: AbstractSignal{T}
+    fn
+    first_value::El
+    signals
+    framerate
 end
+isblockfn(x::MapSignal{<:Number}) = false
+isblockfn(x::MapSignal{<:AbstractArray}) = true
 
-function MapSignal(fn::Fn,val::El,signals::Si,
-    framerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where
-        {Fn,El,L,Si,Fs,Pd}
-
-    T = El == NoValues ? Nothing : ntuple_T(El)
-    N = El == NoValues ? 0 : length(signals)
-    C = El == NoValues ? 1 : nchannels(signals[1])
-    padded_signals = Extend.(signals,Ref(padding))
-    PSi = typeof(padded_signals)
-    MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi}(fn,val,signals,framerate,padding,
-        padded_signals,blocksize,bychannel)
+function MapSignal(fn, signals, framerate, blockfn::Bool)
+    z = zero.(sampletype.(signals))
+    val = blockfn ? fn(Fill.(z,Tuple.(nchannels.(signals),1))...) : fn(z...)
+    El = typeof(val)
+    T = blockfn ? eltype(typeof(val)) : typeof(val)
+    MapSignal{El,T}(fn,val,signals,framerate)
 end
 
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
-    IsSignal{T,Fs,L}()
-nchannels(x::MapSignal) = length(x.val)
+SignalTrait(x::MapSignal) = IsSignal()
+nchannels(x::MapSignal{<:Number}) = maximum(nchannels(s) for s in x.signals)
+nchannels(x::MapSignal{<:AbstractArray}) = nchannels(x.first_value)
 framerate(x::MapSignal) = x.framerate
 
 function duration(x::MapSignal)
-    durs = duration.(x.padded_signals)
-    Ns = nframes_helper.(x.padded_signals)
+    durs = duration.(x.signals)
+    Ns = nframes_helper.(x.signals)
     durlen = ifelse.(isknowninf.(durs),Ns ./ framerate(x),durs)
     reduce(maxlen,durlen)
 end
@@ -51,12 +44,10 @@ function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
     c::ComputedSignal,fs;blocksize)
 
     if inHz(fs) < x.framerate
-        # reframe input if we are downsampling
-        OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
-            padding=x.padding,bychannel=x.bychannel,
-            blocksize=x.blocksize)
+        # resample input if we are downsampling
+        MapSignal(x.fn,ToFramerate.(x.signals,fs,blocksize=blocksize), fs, isblockfn(x))
     else
-        # reframe output if we are upsampling
+        # resample output if we are upsampling
         ToFramerate(x,s,DataSignal(),fs,blocksize=blocksize)
     end
 end
@@ -64,12 +55,12 @@ end
 root(x::MapSignal) = reduce(mergeroot,root.(x.signals))
 
 ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
-    OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
-        padding=x.padding,bychannel=x.bychannel,blocksize=x.blocksize)
+    MapSignals(fn, ToFramerate.(x.signals,fs,blocksize=blocksize),
+        fs, !(x.first_value isa Number))
 
 """
 
-    OperateOn(fn,arguments...;padding=default_pad(fn),bychannel=false)
+    OperateOn(fn,arguments...;padding=default_pad(fn),blockfn=false)
 
 Apply `fn` across the samples of the passed signals. The output length is the
 maximum length of the arguments. Shorter signals are extended using
@@ -91,17 +82,19 @@ stable function.
 The signals are first promoted to have the same sample rate and the same
 number of channels using [`Uniform`](@ref).
 
-## Cross-channel functions
+## Block-wise functions
 
-When `bychannel=false`, rather than being applied to each channel seperately
-the function `fn` is applied to each frame, containing all channels. For
-example, for a two channel signal, the following would swap these two
-channels.
+When `blockfn=true`, the function is passed block of data (a read-only array)
+for each input, which is some time-slice of each signal. The function
+should return a an array with the same number of time samples (last array dimension)
+but can change the number of channels.
+
+For example the following command would swap the given signal's two channels.
 
 ```julia
-x = rand(10,2)
-swapped = OperateOn(x,bychannel=false) do val
-    val[2],val[1]
+x = rand(2,10)
+swapped = OperateOn(x,blockfn=false) do block
+    reverse(block,dims=size(block)[1:end-1])
 end
 ```
 
@@ -134,15 +127,12 @@ sink(OperateOn(myfun,Until(5,2frames),Until(2,4frames))) == [9,9,5,5]
 """
 function OperateOn(fn,xs...;
     padding = default_pad(fn),
-    bychannel = true,
-    blocksize = default_blocksize)
+    blockfn = true)
 
-    xs = Uniform(xs,channels=bychannel)
+    xs = Uniform(xs,channels=!blockfn)
     fs = framerate(xs[1])
 
-    vals = testvalue.(xs)
-    MapSignal(fn,astuple(fn(vals...)),xs,fs,padding,blocksize,
-        bychannel)
+    MapSignal(fn,Extend.(xs,padding),fs,blockfn)
 end
 
 tolen(x::Extended) = x.len
@@ -209,7 +199,7 @@ function iterateblock(x::MapSignal, N, state=initstate(x))
         offset == block_nframes(childstate) ? 0 : offset
     end
 
-    children = map(x.padded_signals,state.children,offsets) do sig, (childdata, childstate), offset
+    children = map(x.signals,state.children,offsets) do sig, (childdata, childstate), offset
         if offset == 0
             iterateblock(x, maxlen, childstate)
         else
@@ -231,45 +221,16 @@ function iterateblock(x::MapSignal, N, state=initstate(x))
     newstate = MapSignalState{Ch,C,O}(len,state.offset + state.len,state.channels,children,
         offsets)
 
-    if x.bychannel
-        BroadcastArray(x.fn, childview.(x,state.children,state.offsets,len)...)
+    if !isblockfn(x)
+        BroadcastArray(x.fn, childview.(state.children,state.offsets,len)...)
     else
-        LazyMapLastDim{sampletype(x)}(x.fn, childview.(x,state.children,state.offsets,len)...)
+        x.fn(childview.(state.children,state.offsets,len)...)
     end
 end
 
 function childview(parent,child,offset,len)
-    if !isnothing(child)
-        data, state = child
-        timeslice(data,(1:len) .+ offset)
-    else
-        # NOTE: this branch should never occur, but it exists to keep the function type
-        # stable
-        sampletype(parent)[]
-    end
-end
-
-trange(N) = N == 0 ? () : (trange(N-1)...,N)
-struct LazyMapLastDim{N,T,Fn,Args}
-    fn::Fn
-    args::Args
-    LazyMapLastDim{T}(fn,args...) =
-        new{maximum(ndims.(args)),T,typeof(fn),typeof(args)}(fn,args)
-end
-Base.ndims(x::LazyMapLastDim{<:Any,<:Any,N}) where N = N
-Base.size(x::LazyMapLastDim) = map(d -> size.(x.args,d),trange(ndims(x)))
-
-struct LazyMapLastDimItr{N,T}
-    buffer::Array{N-1,T}
-    offest::Int
-end
-LazyMapLastDim(x::LazyMapLastDim{N,T}) where {N,T} =
-    LazyMapLastDimItr{N,T}(Array{T}(undef,size(x)[1:end-1]),0)
-function Base.iterate(x::LazyMapLastDim, state = LazyMapLastDimItr(x))
-    if state.offset == 0
-        # TODO: iterate the args...
-        state.buffer = x.fn(x.args)
-    end
+    data, state = child
+    timeslice(data,(1:len) .+ offset)
 end
 
 default_pad(x) = zero
@@ -357,10 +318,9 @@ version.
 
 """
 AddChannel(y) = x -> AddChannel(x,y)
-AddChannel(xs...) = OperateOn(tuplecat,xs...;bychannel=false)
-tuplecat(a,b) = (a...,b...)
-tuplecat(a,b,c,rest...) = reduce(tuplecat,(a,b,c,rest...))
-mapstring(::typeof(tuplecat)) = "AddChannel("
+AddChannel(xs...) = OperateOn(addchanfn,xs...;blockfn=true)
+addchanfn(args...) = ApplyArray(vcat, args...)
+mapstring(::typeof(addchanfn)) = "AddChannel("
 
 """
     addchannel(xs...)
@@ -388,7 +348,7 @@ version.
 SelectChannel(n) = x -> SelectChannel(x,n)
 SelectChannel(x,n) = OperateOn(GetChanFn(n),x,bychannel=false)
 struct GetChanFn; n::Int; end
-(fn::GetChanFn)(x) = x[fn.n]
+(fn::GetChanFn)(x) = view(x,fn.n,:)
 mapstring(fn::GetChanFn) = string("SelectChannel(",fn.n)
 
 """
