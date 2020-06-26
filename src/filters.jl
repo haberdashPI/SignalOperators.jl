@@ -91,24 +91,19 @@ struct RawFilterFn{H}
 end
 (fn::RawFilterFn)(fs) = deepcopy(fn.h)
 
-resolve_filter(x) = DSP.Filters.DF2TFilter(x)
-resolve_filter(x::FIRFilter) = x
 Filt(x,s::IsSignal,fn;blocksize=default_blocksize,newfs=framerate(x)) =
     FilteredSignal(x,fn,blocksize,newfs)
-struct FilteredSignal{T,Si,Fn,Fs} <: WrappedSignal{Si,T}
-    signal::Si
-    fn::Fn
+struct FilteredSignal{T} <: WrappedSignal{T}
+    signal
+    fn
     blocksize::Int
-    framerate::Fs
+    framerate
 end
-function FilteredSignal(signal::Si,fn::Fn,blocksize::Number,newfs::Fs) where {Si,Fn,Fs}
+function FilteredSignal(signal,fn,blocksize,newfs)
     T = float(sampletype(signal))
-    FilteredSignal{T,Si,Fn,Fs}(signal,fn,Int(blocksize),newfs)
+    FilteredSignal{T}(signal,fn,Int(blocksize),newfs)
 end
-SignalTrait(x::Type{T}) where {S,T <: FilteredSignal{<:Any,S}} =
-    SignalTrait(x,SignalTrait(S))
-SignalTrait(x::Type{<:FilteredSignal{T}},::IsSignal{<:Any,Fs,L}) where {T,Fs,L} =
-    IsSignal{T,Fs,L}()
+SignalTrait(x::FilteredSignal) = IsSignal()
 child(x::FilteredSignal) = x.signal
 framerate(x::FilteredSignal) = x.framerate
 EvalTrait(x::FilteredSignal) = ComputedSignal()
@@ -166,8 +161,7 @@ function nframes_helper(x::FilteredSignal)
     end
 end
 
-struct FilterBlock{H,S,T,C}
-    len::Int
+struct FilterState{H,S,T,C}
     last_output_index::Int
     available_output::Int
 
@@ -180,7 +174,7 @@ struct FilterBlock{H,S,T,C}
 
     child::C
 end
-child(x::FilterBlock) = x.child
+child(x::FilterState) = x.child
 init_length(x::FilteredSignal,h) = min(nframes(x),x.blocksize)
 function init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn},h)
     n = trunc(Int,max(1,min(nframes(x),x.blocksize) / x.fn.ratio))
@@ -201,16 +195,19 @@ end
 struct UndefChild
 end
 const undef_child = UndefChild()
-function FilterBlock(x::FilteredSignal)
+
+resolve_filter(x) = DSP.Filters.DF2TFilter(x)
+resolve_filter(x::FIRFilter) = x
+
+function FilterState(x::FilteredSignal)
     hs = [resolve_filter(x.fn(framerate(x))) for _ in 1:nchannels(x.signal)]
     len = init_length(x,hs[1])
     input = Array{sampletype(x.signal)}(undef,len,nchannels(x))
     output = Array{sampletype(x)}(undef,x.blocksize,nchannels(x))
 
-    FilterBlock(0,0,0, 0,0, hs,input,output,undef_child)
+    FilterState(0,0, 0,0, hs,input,output,undef_child)
 end
-nframes(x::FilterBlock) = x.len
-@Base.propagate_inbounds frame(::FilteredSignal,x::FilterBlock,i) =
+@Base.propagate_inbounds frame(::FilteredSignal,x::FilterState,i) =
     view(x.output,i+x.last_output_index,:)
 
 inputlength(x,n) = n
@@ -218,46 +215,51 @@ outputlength(x,n) = n
 inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
 outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
 
-function nextblock(x::FilteredSignal,maxlen,skip,
-    block::FilterBlock=FilterBlock(x))
+function iterateblock(x::FilteredSignal,N,state=FilterState(x))
 
-    last_output_index = block.last_output_index + block.len
+    last_output_index = state.last_output_index + state.len
     if nframes_helper(x) == last_output_index
         return nothing
     end
 
     # check for leftover frames in the output buffer
-    if last_output_index < block.available_output
-        len = min(maxlen, block.available_output - last_output_index)
+    if last_output_index < state.available_output
+        state = FilterState(last_output_index, state.available_output,
+            state.last_input_offset, state.last_output_offset, state.hs,
+            state.input, state.output, state.child)
 
-        FilterBlock(len, last_output_index, block.available_output,
-            block.last_input_offset, block.last_output_offset, block.hs,
-            block.input, block.output, block.child)
+        len = min(N, state.available_output - last_output_index)
+        data = timeslice(state.output,(1:len) .+ state.last_output_index)
+        data, state
     # otherwise, generate more filtered output
     else
-        @assert !isnothing(child(block))
+        @assert !isnothing(child(state))
 
         psig = Pad(x.signal,zero)
-        childblock = !isa(child(block), UndefChild) ?
-            nextblock(psig,size(block.input,1),false,child(block)) :
-            nextblock(psig,size(block.input,1),false)
-        childblock = sink!(block.input,psig,SignalTrait(psig),childblock)
-        last_input_offset = block.last_input_offset + size(block.input,1)
+        childblock = !isa(child(state), UndefChild) ?
+            iterateblock(psig,size(state.input,1),child(state)) :
+            iterateblock(psig,size(state.input,1))
+        childstate = sink!(state.input,psig,SignalTrait(psig),childblock)
+        last_input_offset = state.last_input_offset + size(state.input,1)
 
         # filter the input into the output buffer
-        out_len = outputlength(block.hs[1],size(block.input,1))
+        out_len = outputlength(state.hs[1],size(state.input,1))
         if out_len ≤ 0
             error("Unexpected non-positive output length!")
         end
-        for ch in 1:size(block.output,2)
-            filt!(view(block.output,1:out_len,ch),block.hs[ch],
-                    view(block.input,:,ch))
+        for ch in 1:size(state.output,2)
+            filt!(view(state.output,1:out_len,ch),state.hs[ch],
+                    view(state.input,:,ch))
         end
-        last_output_offset = block.last_output_offset + out_len
+        last_output_offset = state.last_output_offset + out_len
 
-        FilterBlock(min(maxlen,out_len), 0,
-            out_len, last_input_offset, last_output_offset, block.hs,
-            block.input, block.output, childblock)
+        state = FilterState(0,
+            out_len, last_input_offset, last_output_offset, state.hs,
+            state.input, state.output, childstate)
+
+        len = min(N,out_len)
+        data = timeslice(state.output,(1:len) .+ state.last_output_index)
+        data, state
     end
 end
 
