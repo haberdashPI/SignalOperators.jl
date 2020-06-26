@@ -11,7 +11,7 @@ export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
 
 struct MapSignal{El,T} <: AbstractSignal{T}
     fn
-    first_value::El
+    testvalue::El
     signals
     framerate
 end
@@ -31,7 +31,7 @@ end
 novalues = NoValues()
 SignalTrait(x::MapSignal) = IsSignal()
 nchannels(x::MapSignal{<:Number}) = maximum(nchannels(s) for s in x.signals)
-nchannels(x::MapSignal{<:AbstractArray}) = nchannels(x.first_value)
+nchannels(x::MapSignal{<:AbstractArray}) = nchannels(x.testvalue)
 framerate(x::MapSignal) = x.framerate
 
 function duration(x::MapSignal)
@@ -56,7 +56,7 @@ root(x::MapSignal) = reduce(mergeroot,root.(x.signals))
 
 ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
     MapSignals(fn, ToFramerate.(x.signals,fs,blocksize=blocksize),
-        fs, !(x.first_value isa Number))
+        fs, isblockfn(x))
 
 """
 
