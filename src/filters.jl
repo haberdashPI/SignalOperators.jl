@@ -286,15 +286,6 @@ function ToFramerate(x::NormedSignal,::IsSignal{<:Any,Missing},
     NormedSignal(ToFramerate(x.signal,fs,blocksize=blocksize))
 end
 
-struct NormedBlock{A}
-    offset::Int
-    len::Int
-    vals::A
-end
-nframes(x::NormedBlock) = x.len
-@Base.propagate_inbounds frame(::NormedSignal,x::NormedBlock,i) =
-    view(x.vals,i,:)
-
 function initblock(x::NormedSignal)
     if isknowninf(nframes(x))
         error("Cannot normalize an infinite-length signal. Please ",
@@ -306,13 +297,15 @@ function initblock(x::NormedSignal)
     rms = sqrt(mean(x -> float(x)^2,vals))
     vals ./= rms
 
-    S,V = typeof(x), typeof(vals)
-    NormedBlock(0,0,vals)
+    (vals, 0)
 end
 
-function nextblock(x::NormedSignal,maxlen,skip,block::NormedBlock=initblock(x))
-    len = min(maxlen,nframes(x) - block.offset)
-    NormedBlock(block.offset + block.len, len, block.vals)
+function iterateblock(x::NormedSignal,N,state=initblock(x))
+    normed, index = state
+    len = min(N, block_nframes(normed) - index)
+    if len > 0
+        timeslice(x,(1:len) .+ index), (normed, index + len)
+    end
 end
 
 """
