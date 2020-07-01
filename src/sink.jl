@@ -208,9 +208,7 @@ __setframes__(x::AbstractArray,ixs,vals) =
     x[(Base.Colon() for _=1:ndims(x)-1)...,ixs] = vals
 
 fold(x) = zip(x,Iterators.drop(x,1))
-sink!(result,x,sig::IsSignal) =
-    sink!(result,x,sig,iterateblock!(x,result))
-function sink!(result,x,::IsSignal,block)
+function sink!(result,x,::IsSignal,block=iterateblock(x,result))
     written = 0
     N = size(result,ndims(result))
     while !isnothing(block) && written < block_nframes(result)
@@ -226,8 +224,6 @@ function sink!(result,x,::IsSignal,block)
     end
     @assert written == nframes(result)
 
-    # return the state (for internal purposes) if available
-    if !isnothing(block)
-        return block[2]
-    end
+    # return the remaining state (for internal purposes)
+    block
 end
