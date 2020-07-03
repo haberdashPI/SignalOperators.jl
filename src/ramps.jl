@@ -3,46 +3,31 @@ export RampOn, RampOff, Ramp, FadeTo, sinramp, rampon, rampoff, ramp, fadeto
 
 sinramp(x) = sinpi(0.5x)
 
-struct RampSignal{D,S,Tm,Fn,T} <: WrappedSignal{S,T}
-    signal::S
-    time::Tm
-    fn::Fn
-end
-function RampSignal(D,signal::S,time::Tm,fn::Fn) where {S,Tm,Fn}
-
-    T = sampletype(signal)
-    RampSignal{D,S,Tm,Fn,float(T)}(signal,time,fn)
+struct RampSignal <: WrappedSignal
+    signal
+    time
+    fn
 end
 
-SignalTrait(::Type{T}) where {S,T <: RampSignal{<:Any,S}} =
-    SignalTrait(T,SignalTrait(S))
-function SignalTrait(::Type{<:RampSignal{D,S,Tm,Fn,T}},::IsSignal{<:Any,Fs,L}) where
-    {D,S,Tm,Fn,T,Fs,L}
-
-    IsSignal{T,Fs,L}()
-end
+SignalTrait(::Type{<:RampSignal}) = IsSignal()
 
 child(x::RampSignal) = x.signal
 resolvelen(x::RampSignal) = max(1,inframes(Int,maybeseconds(x.time),framerate(x)))
 
-function ToFramerate(
-    x::RampSignal{D},
-    s::IsSignal{<:Any,<:Number},
-    c::ComputedSignal,fs;blocksize) where D
+function ToFramerate(x::RampSignal, ::IsSignal, ::ComputedSignal,
+    oldfs::Number, fs::Number; blocksize) where D
 
     t = stretchtime(x.time,fs/framerate(x))
-    RampSignal(D,ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+    RampSignal(ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
 
-function ToFramerate(
-    x::RampSignal{D},
-    s::IsSignal{<:Any,Missing},
-    __ignore__,fs; blocksize) where D
+function ToFramerate(x::RampSignal{D}, ::IsSignal, evaltrait,
+    oldfs::Missing, fs; blocksize) where D
 
-    RampSignal(D,ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
+    RampSignal(ToFramerate(child(x),fs;blocksize=blocksize),x.time,x.fn)
 end
 
-struct RampBlock{Fn,T}
+struct RampState{Fn,T}
     Ramp::Fn
     marker::Int
     stop::Int
@@ -51,7 +36,6 @@ struct RampBlock{Fn,T}
 end
 RampBlock(x,fn,marker,stop,offset,len) =
     RampBlock{typeof(fn),float(sampletype(x))}(fn,marker,stop,offset,len)
-nframes(x::RampBlock) = x.len
 
 frame(x::RampSignal{:on},block::RampBlock{Nothing,T},i) where T =
     Fill(one(T),nchannels(x))
