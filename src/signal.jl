@@ -7,15 +7,11 @@ using FileIO
     SignalOperators.IsSignal{T,Fs,L}
 
 Represents the format of a signal type with three type parameters:
-
-* `T` - The [`sampletype`](@ref) of the signal.
-* `Fs` - The type of the framerate. It should be either `Float64` or
-    `Missing`.
-* `L` - The type of the length of the signal. It should be either
-    `Infinity`, `Missing` or `Int`.
-
 """
 struct IsSignal{T,Fs,L}
+    framerate::Fs
+    len::L
+    nchannels::Int
 end
 
 # not everything that's a signal belongs to this package, (hence the use of

@@ -8,7 +8,7 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 
 Any array can be interpreted as a signal. By default the first dimension is
 time, the second channels and their frame rate is a missing value. If you
-pass a non-missin gframerate, and the array currently has a missing frame
+pass a non-missing framerate, and the array currently has a missing frame
 rate a `Tuple` value will be returned (see "Array & Number" below).
 
 If you specify a non-missing frame rate to an array type with a missing frame
@@ -62,8 +62,6 @@ nchannels(x::AbstractVecOrMat) = size(x,2)
 sampletype(x::AbstractVecOrMat) = eltype(x)
 framerate(x::AbstractVecOrMat) = missing
 
-timeslice(x::AbstractArray,indices) = view(x,indices,:)
-
 """
 
 ## Array & Number
@@ -95,12 +93,6 @@ nframes(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],1)
 nchannels(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],2)
 framerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
 sampletype(x::Tuple{<:AbstractVecOrMat,<:Number}) = eltype(x[1])
-timeslice(x::Tuple{<:AbstractVecOrMat,<:Number},indices) = view(x[1],indices,:)
-function nextblock(x::Tuple{<:AbstractVecOrMat,<:Number},maxlen,skip,
-    block=ArrayBlock([],0))
-
-    nextblock(x[1],maxlen,skip,block)
-end
 
 """
     ArrayBlock{A,S}(data::A,state::S)

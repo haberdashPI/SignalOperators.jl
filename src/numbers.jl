@@ -56,9 +56,7 @@ framerate(x::NumberSignal) = x.framerate
 ToFramerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)
 
-struct NumberBlock
-    len::Int
-end
-nextblock(x::NumberSignal,len,skip,block::NumberBlock=NumberBlock(0)) = NumberBlock(len)
-nframes(block::NumberBlock) = block.len
-frame(x,block::NumberBlock,i) = x.val
+# WAIT: not quite right, since signals can vary in which dimension
+# is time or channel
+sink(x::NumberSignal, to::Type{<:AbstractArray}, sig::IsSignal) =
+    Fill(x, (sig.len, sig.nchannels))
