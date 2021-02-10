@@ -25,79 +25,9 @@ If `to` is a `Tuple` the result is an `Array` of samples and a number
 indicating the sample rate in Hertz.
 
 """
-sink() = x -> sink(x,refineroot(root(x)))
-sink(to::Type) = x -> sink(x,to)
-sink(x) = sink(x,refineroot(root(x)))
-root(x) = x
-refineroot(x::AbstractArray) = refineroot(x,SignalTrait(x))
-refineroot(x,::Nothing) = Tuple{<:AbstractArray,<:Number}
-refineroot(x,::IsSignal{<:Any,Missing}) = Array
-refineroot(x,::IsSignal) = typeof(x)
-refineroot(x) = Tuple{<:AbstractArray,<:Number}
-refineroot(x::T) where T <: Tuple{<:AbstractArray,<:Number} = T
-
-mergepriority(x) = 0
-mergepriority(x::Array) = 1
-mergepriority(x::AbstractArray) = mergepriority(x,SignalTrait(x))
-mergepriority(x::AbstractArray,::IsSignal) = 2
-mergepriority(x::AbstractArray,::Nothing) = 0
-function mergeroot(x,y)
-    if mergepriority(x) ≥ mergepriority(y)
-        return x
-    else
-        return y
-    end
-end
-
-abstract type CutMethod
-end
-struct DataCut <: CutMethod
-end
-struct SinkCut <: CutMethod
-end
-CutMethod(x) = CutMethod(x,EvalTrait(x))
-CutMethod(x,::DataSignal) = SinkCut()
-CutMethod(x::AbstractArray,::DataSignal) = DataCut()
-CutMethod(x::Tuple{<:AbstractArray,<:Number},::DataSignal) = DataCut()
-CutMethod(x,::ComputedSignal) = SinkCut()
-
-sink(x,::Type{T}) where T = sink(x,T,CutMethod(x))
-function sink(x,::Type{T},::DataCut) where T
-    x = process_sink_params(x)
-    data = timeslice(x,:)
-    if Base.typename(typeof(parent(data))) == Base.typename(T)
-        data
-    else # if the sink type is new, we have to copy the data
-        # because it could be in a different memory layout
-        result = initsink(x,T)
-        sink!(result,x)
-        result
-    end
-end
-rawdata(x::SubArray) = x
-function rawdata(x::AbstractArray)
-    p = parent(x)
-    if p === x
-        return p
-    else
-        return rawdata(p)
-    end
-end
-
-function sink(x,::Type{T},::SinkCut) where T
-    x = process_sink_params(x)
-    result = initsink(x,T)
-    sink!(result,x)
-    result
-end
-
-function process_sink_params(x)
-    x = Signal(x)
-    ismissing(nframes(x)) && error("Unknown number of frames in signal.")
-    isinf(nframes(x)) && error("Cannot store infinite signal.")
-    x
-end
-
+sink(x::AbstractArray) = x
+sink(x::T, ::Type{S}) where {T <: S, S <: AbstractArray} = x
+sink(x::T, Type{S}) where {T <: AbstractArray, S} = convert(S, x)
 
 """
 
