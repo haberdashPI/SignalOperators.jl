@@ -151,6 +151,9 @@ function ToFramerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     CutApply(ToFramerate(child(x),fs;blocksize=blocksize),t,K())
 end
 
+function sink(x::CutApply, ::Type{<:AbstractArray}, ::IsSignal, n)
+end
+
 struct CutBlock{C}
     n::Int
     child::C

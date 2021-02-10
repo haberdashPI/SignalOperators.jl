@@ -41,23 +41,10 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
     end
 end
 
-struct FunctionBlock
-    offset::Int
-    len::Int
+function sink(x::SignalFunction, to::Type{<:AbstractArray}, s::IsSignal, n)
+    # TODO: handle functions with more than one output
+    ApplyArray(x.fn, ((1:n) .- 1) ./ framerate(x))
 end
-nextblock(x::SignalFunction,maxlen,skip) = FunctionBlock(0,maxlen)
-nextblock(x::SignalFunction,maxlen,skip,block::FunctionBlock) =
-    FunctionBlock(block.offset + block.len,maxlen)
-nframes(block::FunctionBlock) = block.len
-
-frame(x,block::FunctionBlock,i) =
-    x.fn(2π*(((i+block.offset)/x.framerate*x.ω + x.ϕ) % 1.0))
-frame(x::SignalFunction{<:Any,Missing},block::FunctionBlock,i) =
-    x.fn((i+block.offset)/x.framerate + x.ϕ)
-frame(x::SignalFunction{typeof(sin)},block::FunctionBlock,i) =
-    sinpi(2*((i+block.offset)/x.framerate*x.ω + x.ϕ))
-frame(x::SignalFunction{typeof(sin),Missing},block::FunctionBlock,i) =
-    sinpi(2*((i+block.offset)/x.framerate + x.ϕ))
 
 ToFramerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.framerate))
@@ -107,8 +94,8 @@ single keyword argument, `rng`, which allows you to specify the random number
 generator; `rng` defaults to `Random.GLOBAL_RNG`.
 
 """
-Signal(x::typeof(randn),fs::Union{Missing,Number}=missing;rng=Random.GLOBAL_RNG) =
-    SignalFunction(RandFn(rng),(randn(rng),),missing,0.0,inHz(Float64,fs))
-
-frame(x::SignalFunction{<:RandFn,Missing},block::FunctionBlock,i) =
-    randn(x.fn.rng)
+# TODO: change type to Array, then we can default
+# to a fallback, but array types can specialize on the signal type
+function sink(x:::SignalFunction{<:RandFn,Missing}, to::Type{<:AbstractArray}, ::IsSiganl, n)
+    randn(x.fn.rng, n)
+end

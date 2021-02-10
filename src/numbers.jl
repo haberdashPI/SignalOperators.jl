@@ -58,5 +58,4 @@ ToFramerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
 
 # WAIT: not quite right, since signals can vary in which dimension
 # is time or channel
-sink(x::NumberSignal, to::Type{<:AbstractArray}, sig::IsSignal) =
-    Fill(x, (sig.len, sig.nchannels))
+sink(x::NumberSignal, to::Type{<:AbstractArray}, ::IsSignal, n) = Fill(x, n)

@@ -234,6 +234,11 @@ function nextblock(x::PaddedSignal,len,skip,block::PadBlock)
     PadBlock(block.Pad,len,nframes(block) + block.offset)
 end
 
+function sink(x::PaddedSignal, to::Type{<:AbstractArray}, s::IsSignal, n)
+    ApplyArray(hcat, sink(child(x), to, s, n),
+        Signal(usepad(x, child(x))) |> ToChannels(nchannesl(child(x))) |> sink)
+end
+
 Base.show(io::IO,::MIME"text/plain",x::PaddedSignal) = pprint(io,x)
 function PrettyPrinting.tile(x::PaddedSignal)
     child = signaltile(x.signal)

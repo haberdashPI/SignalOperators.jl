@@ -187,88 +187,9 @@ end
 cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
-testvalue(x) = Tuple(zero(sampletype(x)) for _ in 1:nchannels(x))
-
-const MAX_CHANNEL_STACK = 64
-
-struct MapSignalBlock{Ch,C,O}
-    len::Int
-    offset::Int
-    channels::Ch
-    blocks::C
-    offsets::O
-end
-nframes(x::MapSignalBlock) = x.len
-
-function prepare_channels(x::MapSignal)
-    nch = ntuple_N(typeof(x.val))
-    (nch > MAX_CHANNEL_STACK && (x.fn isa FnBr)) ?
-        Array{sampletype(x)}(undef,nch) :
-        nothing
-end
-
-struct EmptyChildBlock
-end
-const emptychild = EmptyChildBlock()
-nframes(::EmptyChildBlock) = 0
-nextblock(x,maxlen,skip,::EmptyChildBlock) = nextblock(x,maxlen,skip)
-
-initblock(x::MapSignal{<:Any,N}) where N =
-    MapSignalBlock(0,0,prepare_channels(x),Tuple(emptychild for _ in 1:N),
-        Tuple(zeros(N)))
-function nextblock(x::MapSignal{Fn,N,CN},maxlen,skip,
-    block::MapSignalBlock=initblock(x)) where {Fn,N,CN}
-
-    maxlen = min(maxlen,nframes(x) - (block.offset + block.len))
-    (maxlen == 0) && return nothing
-
-    offsets = map(block.offsets, block.blocks) do offset, childblock
-        offset += nframes(block)
-        offset == nframes(childblock) ? 0 : offset
-    end
-
-    blocks = map(x.padded_signals,block.blocks,offsets) do sig, childblock, offset
-        if offset == 0
-            nextblock(sig,maxlen,skip,childblock)
-        else
-            childblock
-        end
-    end
-
-    # find the smallest child block length, and use that as the length for the
-    # parent block length
-    len = min(maxlen,minimum(nframes.(blocks) .- offsets))
-    Ch, C, O = typeof(block.channels), typeof(blocks), typeof(offsets)
-    MapSignalBlock{Ch,C,O}(len,block.offset + block.len,block.channels,blocks,
-        offsets)
-end
-
-trange(::Val{N}) where N = (trange(Val(N-1))...,N)
-trange(::Val{1}) = (1,)
-
-@Base.propagate_inbounds function frame(x::MapSignal{<:FnBr,N,CN},
-    block::MapSignalBlock{<:Nothing},
-    i::Int) where {N,CN}
-
-    inputs = frame.(x.padded_signals,block.blocks,i .+ block.offsets)
-    map(ch -> x.fn(map(@λ(_[ch]),inputs)...),trange(Val{CN}()))
-end
-
-@Base.propagate_inbounds function frame(
-    x::MapSignal{<:FnBr,N,CN},
-    block::MapSignalBlock{<:Array},
-    i::Int) where {N,CN}
-
-    inputs = frame.(x.padded_signals,block.blocks,i .+ block.offsets)
-    map!(ch -> x.fn(map(@λ(_[ch]),inputs)...),block.channels,1:CN)
-end
-
-@Base.propagate_inbounds function frame(
-    x::MapSignal{<:Any,N,CN},
-    block::MapSignalBlock{<:Nothing},
-    i::Int) where {N,CN}
-
-    x.fn(frame.(x.padded_signals,block.blocks,i .+ block.offsets)...)
+function sink(x::MapSignal, to::Type{<:AbstractArray}, ::IsSignal, n)
+    BroadcastArray(x.fn, sink.(x.padded_signals, to, IsSignal(), n)...)
+    # TODO: otherwise apply across columns, create custom array type here
 end
 
 default_pad(x) = zero
