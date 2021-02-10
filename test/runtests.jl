@@ -919,9 +919,10 @@ progress = Progress(total_test_groups,desc="Running tests...")
 
     @testset "Testing DimensionalData" begin
         x = rand(10,2)
-        data = DimensionalArray(x,(Time(range(0s,1s,length=10)),X(1:2)))
+        data = DimensionalArray(x,(Time(range(0s,0.9s,step=0.1s)),SigChannel(1:2)))
         @test all(Array(Mix(data,1)) .== data .+ 1)
         data2 = x |> Signal(10Hz) |> sink(DimensionalArray)
+        # failed test!!
         @test data2 == data
         @test sink(Mix(data,1)) isa DimensionalArray
     end

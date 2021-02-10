@@ -18,10 +18,10 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-Compat = "2,3.2"
+Compat = "2,3"
 DSP = "0.5,0.6.2"
 FileIO = "1"
-FillArrays = "0.3,0.4,0.5,0.6,0.7,0.8"
+FillArrays = "0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.10,0.11"
 LambdaFn = "0.2,0.3"
 MetaArrays = "0.2,0.3"
 PrettyPrinting = "0.1,0.2"
