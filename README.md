@@ -3,7 +3,7 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://haberdashPI.github.io/SignalOperators.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://haberdashPI.github.io/SignalOperators.jl/dev)
-[![Build Status](https://travis-ci.com/haberdashPI/SignalOperators.jl.svg?branch=master)](https://travis-ci.com/haberdashPI/SignalOperators.jl)
+[![GitHub Actions](https://github.com/haberdashPI/MetaArrays.jl/workflows/CI/badge.svg)](https://github.com/haberdashPI/MetaArrays.jl/actions?query=workflow%3ACI)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/S/SignalOperators.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Codecov](https://codecov.io/gh/haberdashPI/SignalOperators.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/haberdashPI/SignalOperators.jl)
 
