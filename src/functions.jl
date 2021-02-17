@@ -23,7 +23,7 @@ end
 SignalTrait(::Type{<:SignalFunction{<:Any,<:Any,<:Any,T,Fs}}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nchannels(x::SignalFunction) = ntuple_N(typeof(x.first))
-nframes_helper(x::SignalFunction) = inflen
+tagged_nframes(x::SignalFunction) = tag(inflen)
 framerate(x::SignalFunction) = x.framerate
 EvalTrait(x::SignalFunction) = ComputedSignal()
 
@@ -41,10 +41,18 @@ function Base.show(io::IO, ::MIME"text/plain",x::SignalFunction)
     end
 end
 
-function sink(x::SignalFunction, to::Type{<:AbstractArray}, s::IsSignal, n)
-    # TODO: handle functions with more than one output
-    ApplyArray(x.fn, ((1:n) .- 1) ./ framerate(x))
-end
+# TODO: handle functions with more than one output
+# NOTE: this can probably be done by making arrays of number-tuples
+# a type of signal
+st(x::SignalFunction) = ((1:n) .- 1) ./ x.framerate
+sink(x::SignalFunction, ::IsSignal, n) =
+    ApplyArray(x.fn, 2π*((st(x)*x.ω + x.ϕ) % 1.0))
+sink(x::SignalFunction{<:Any, Missing}, ::IsSignal, n) =
+    ApplyArray(x.fn, st(t) + x.ϕ)
+sink(x::SignalFunction{typeof(sin)}, ::IsSignal, n) =
+    ApplyArray(sinpi, 2*(st(t)/x.framerate*x.ω + x.ϕ))
+sink(x::SignalFunction{typeof(sin),Missing}, ::IsSignal, n) =
+    ApplyArray(sinpi, 2*(st(t)/x.framerate + x.ϕ))
 
 ToFramerate(x::SignalFunction,::IsSignal,::ComputedSignal,fs;blocksize) =
     SignalFunction(x.fn,x.first,x.ω,x.ϕ,coalesce(inHz(Float64,fs),x.framerate))
@@ -96,6 +104,4 @@ generator; `rng` defaults to `Random.GLOBAL_RNG`.
 """
 # TODO: change type to Array, then we can default
 # to a fallback, but array types can specialize on the signal type
-function sink(x:::SignalFunction{<:RandFn,Missing}, to::Type{<:AbstractArray}, ::IsSiganl, n)
-    randn(x.fn.rng, n)
-end
+sink(x:::SignalFunction{<:RandFn,Missing}, ::IsSiganl, n) = randn(x.fn.rng, n)

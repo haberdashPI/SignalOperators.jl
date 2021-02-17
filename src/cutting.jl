@@ -127,11 +127,12 @@ signaltile(x::CutApply) = PrettyPrinting.tile(x)
 cutname(x::UntilApply) = "Until"
 cutname(x::AfterApply) = "After"
 
-nframes_helper(x::UntilApply) = min(nframes_helper(x.signal),max(0,resolvelen(x)))
+tagged_nframes(x::UntilApply) = tag(min(tagged_nframes(x.signal),max(0,resolvelen(x))), tagsym(tagged_nframes(x.signal)))
 duration(x::UntilApply) =
     min(duration(x.signal),max(0,inseconds(Float64,maybeseconds(x.time),framerate(x))))
 
-nframes_helper(x::AfterApply) = clamp(nframes_helper(x.signal) - resolvelen(x),0,nframes_helper(x.signal))
+tagged_nframes(x::AfterApply) =
+    tag(clamp(tagged_nframes(x.signal) - resolvelen(x),0,tagged_nframes(x.signal)), tagsym(tagged_nframes(x.signal)))
 duration(x::AfterApply) =
     clamp(duration(x.signal) - inseconds(Float64,maybeseconds(x.time),framerate(x)),0,duration(x.signal))
 
@@ -151,72 +152,10 @@ function ToFramerate(x::CutApply{<:Any,<:Any,K},s::IsSignal{<:Any,Missing},
     CutApply(ToFramerate(child(x),fs;blocksize=blocksize),t,K())
 end
 
-function sink(x::CutApply, ::Type{<:AbstractArray}, ::IsSignal, n)
+function sink(x::AfterApply, s::IsSignal, n)
+    m = resolvelen(x)
+    result = sink(x.signal, s, n + m)
+    view(result, axes(result)[1:(end-1)], m .+ (1:n))
 end
 
-struct CutBlock{C}
-    n::Int
-    child::C
-end
-child(x::CutBlock) = x.child
-
-function nextblock(x::AfterApply,maxlen,skip)
-    if resolvelen(x) == 0
-        childblock = nextblock(child(x),maxlen,false)
-        CutBlock(0,childblock)
-    else
-        len = max(0,resolvelen(x))
-        childblock = nextblock(child(x),len,true)
-        skipped = nframes(childblock)
-        while !isnothing(childblock) && skipped < len
-            childblock = nextblock(child(x),min(maxlen,len - skipped),true,
-                childblock)
-            isnothing(childblock) && break
-            skipped += nframes(childblock)
-        end
-        if skipped < len
-            io = IOBuffer()
-            signalshow(io,child(x))
-            sig_string = String(take!(io))
-
-            error("Signal is too short to skip $(maybeseconds(x.time)): ",
-                sig_string)
-        end
-        @assert skipped == len
-        nextblock(x,maxlen,skip,CutBlock(0,childblock))
-    end
-end
-function nextblock(x::AfterApply,maxlen,skip,block::CutBlock)
-    childblock = nextblock(child(x),maxlen,skip,child(block))
-    if !isnothing(childblock)
-        CutBlock(0,childblock)
-    end
-end
-nextblock(x::AfterApply,maxlen,skip,block::CutBlock{Nothing}) = nothing
-function timeslice(x::AfterApply,indices)
-    from = clamp(resolvelen(x),0,nframes(x.signal))+1
-    to = nframes(x.signal)
-    timeslice(x.signal,(from:to)[indices])
-end
-
-initblock(x::UntilApply) = CutBlock(resolvelen(x),nothing)
-function nextblock(x::UntilApply,len,skip,block::CutBlock=initblock(x))
-    nextlen = block.n - nframes(block)
-    if nextlen > 0
-        childblock = !isnothing(child(block)) ?
-            nextblock(child(x),min(nextlen,len),skip,child(block)) :
-            nextblock(child(x),min(nextlen,len),skip)
-        if !isnothing(childblock)
-            CutBlock(nextlen,childblock)
-        end
-    end
-end
-function timeslice(x::UntilApply,indices)
-    to = clamp(resolvelen(x),0,nframes(x.signal))
-    timeslice(x.signal,(1:to)[indices])
-end
-
-nframes(x::CutBlock) = nframes(child(x))
-nframes(x::CutBlock{Nothing}) = 0
-@Base.propagate_inbounds frame(x::CutApply,block::CutBlock,i) =
-    frame(child(x),child(block),i)
+sink(x::BeforeApply, s::IsSignal, n) = sink(child(x), s, n)

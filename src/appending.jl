@@ -79,33 +79,13 @@ ToFramerate(x::AppendSignals,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;bl
 ToFramerate(x::AppendSignals,s::IsSignal{<:Any,Missing},__ignore__,fs;
     blocksize) = Append(ToFramerate.(x.signals,fs;blocksize=blocksize)...)
 
-struct AppendBlock{S,C}
-    signal::S
-    child::C
-    k::Int
-end
-child(x::AppendBlock) = x.child
-nframes(x::AppendBlock) = nframes(x.child)
-@Base.propagate_inbounds frame(::AppendSignals,x::AppendBlock,i) =
-    frame(x.signal,x.child,i)
-
-function nextblock(x::AppendSignals,maxlen,skip)
-    child = nextblock(x.signals[1],maxlen,skip)
-    advancechild(x,maxlen,skip,1,child)
-end
-function nextblock(x::AppendSignals,maxlen,skip,block::AppendBlock)
-    childblock = nextblock(x.signals[block.k],maxlen,skip,child(block))
-    advancechild(x,maxlen,skip,block.k,childblock)
-end
-
-function advancechild(x::AppendSignals,maxlen,skip,k,childblock)
-    K = length(x.signals)
-    while k < K && isnothing(childblock)
-        k += 1
-        childblock = nextblock(x.signals[k],maxlen,skip)
-    end
-    if !isnothing(childblock)
-        AppendBlock(x.signals[k],childblock,k)
+function sink(x::AppendSignals, ::IsSignal, n)
+    if ndims(x.signals[1]) > 2
+        error("Concatenating signals with more than 2 dimensions is not yet supported")
+    elseif ndims(x.signals[1]) == 2
+        ApplyArray(hcat, x.signals...)
+    else # ndims(x.signals[1]) == 1
+        ApplyArray(vcat, x.signals...)
     end
 end
 

@@ -6,18 +6,14 @@ errordim() = error("To treat an array as a signal it must have 1 or 2 dimensions
 """
 ## Arrays
 
-Any array can be interpreted as a signal. By default the first dimension is
-time, the second channels and their frame rate is a missing value. If you
-pass a non-missing framerate, and the array currently has a missing frame
-rate a `Tuple` value will be returned (see "Array & Number" below).
+Any array can be interpreted as a signal. By default the last dimension is
+time.
 
 If you specify a non-missing frame rate to an array type with a missing frame
-rate the return value will be a Tuple (see Array & Number
-section below). Some array types change this default behavior, as follows.
+rate, the return value will be a Tuple (see Array & Number
+section below).
 
-!!! warning
-
-    Arrays of more than two dimensions are not currently supported.
+Some array types change these default behaviors, as follows.
 
 - [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl), if they have an
     axis labeled `time` and one or zero additional axes, can be treated as a
@@ -28,17 +24,12 @@ section below). Some array types change this default behavior, as follows.
     package.
 - [`DimensionalArrays`](https://github.com/rafaqz/DimensionalData.jl) can be
     treated as signals if there is a `Time` dimension, which must be represented
-    using an object with the `step` function defined (e.g. `AbstractRange`) and
-    zero or one additional dimensions (treated as channels)
+    using an object with the `step` function defined (e.g. `AbstractRange`).
 
 """
 function Signal(x::AbstractArray,fs::Union{Missing,Number}=missing)
     if ismissing(fs)
-        if ndims(x) ∈ [1,2]
-            return x
-        else
-            errordim()
-        end
+        return x
     else
         (x,Float64(inHz(fs)))
     end
@@ -49,25 +40,21 @@ ToFramerate(x::AbstractArray,::IsSignal{<:Any,Missing},::DataSignal,fs::Number;b
 ToFramerate(x::AbstractArray,s::IsSignal{<:Any,<:Number},::DataSignal,fs::Number;blocksize) =
     __ToFramerate__(x,s,fs,blocksize)
 
-function SignalTrait(::Type{<:AbstractArray{T,N}}) where{T,N}
-    if N ∈ [1,2]
-        IsSignal{T,Missing,Int}()
-    else
-        error("Array must have 1 or 2 dimensions to be treated as a signal.")
-    end
-end
+SignalTrait(::Type{<:AbstractArray{T,N}}) where{T,N} = IsSignal{T,Missing,Int}()
 
-nframes(x::AbstractVecOrMat) = size(x,1)
-nchannels(x::AbstractVecOrMat) = size(x,2)
-sampletype(x::AbstractVecOrMat) = eltype(x)
-framerate(x::AbstractVecOrMat) = missing
+SignalBase.nframes(x::AbstractArray) = size(x,1)
+SignalBase.nchannels(x::AbstractArray) = size(x,2)
+SignalBase.sampletype(x::AbstractArray) = eltype(x)
+SignalBase.framerate(x::AbstractArray) = missing
+sink(x::AbstractArray, ::IsSignal, n) =
+    view(x, axes(x)[1:(end-1)]..., firstindex(x) .+ (0:(n-1)))
 
 """
 
 ## Array & Number
 
-A tuple of an array and a number can be interepted as a signal. The first
-dimension is time, the second channels, and the number determines the frame
+A tuple of an array and a number can be interepted as a signal. The last
+dimension is time, and the number determines the frame
 rate (in Hertz).
 
 """
@@ -82,46 +69,15 @@ function Signal(x::Tuple{<:AbstractArray,<:Number},
 end
 
 function SignalTrait(::Type{<:Tuple{<:AbstractArray{T,N},<:Number}}) where {T,N}
-    if N ∈ [1,2]
-        IsSignal{T,Float64,Int}()
-    else
-        error("Array must have 1 or 2 dimensions to be treated as a signal.")
-    end
+    IsSignal{T,Float64,Int}()
 end
 
-nframes(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],1)
-nchannels(x::Tuple{<:AbstractVecOrMat,<:Number}) = size(x[1],2)
-framerate(x::Tuple{<:AbstractVecOrMat,<:Number}) = x[2]
-sampletype(x::Tuple{<:AbstractVecOrMat,<:Number}) = eltype(x[1])
-
-"""
-    ArrayBlock{A,S}(data::A,state::S)
-
-A straightforward implementation of blocks as an array and a custom state.
-The array allows a generic implementation of [`nframes`](@ref) and
-[`SignalOperators.frame`](@ref). The fields of this struct are `data` and
-`state`.
-
-[Custom signals](@ref custom_signals) can return an `ArrayBlock` from
-[`SignalOperators.nextblock`](@ref) to allow for fallback implementations of
-[`nframes`](@ref) and [`SignalOperators.frame`](@ref).
-
-"""
-struct ArrayBlock{A,S}
-    data::A
-    state::S
-end
-
-nframes(block::ArrayBlock) = size(block.data,1)
-@Base.propagate_inbounds frame(x,block::ArrayBlock,i) = view(block.data,i,:)
-
-function nextblock(x::AbstractArray,maxlen,skip,block = ArrayBlock([],0))
-    offset = block.state + nframes(block)
-    if offset < nframes(x)
-        len = min(maxlen,nframes(x)-offset)
-        ArrayBlock(timeslice(x,offset .+ (1:len)),offset)
-    end
-end
+SignalBase.nframes(x::Tuple{<:AbstractArray,<:Number}) = size(x[1],1)
+SignalBase.nchannels(x::Tuple{<:AbstractArray,<:Number}) = size(x[1],2)
+SignalBase.framerate(x::Tuple{<:AbstractArray,<:Number}) = x[2]
+SignalBase.sampletype(x::Tuple{<:AbstractArray,<:Number}) = eltype(x[1])
+sink(x::Tuple{<:AbstractArray,<:Number}, ::IsSignal, n) =
+    view(x[1], axes(x)[1:(end-1)]..., firstindex(x) .+ (0:(n-1)))
 
 function signaltile(x)
     io = IOBuffer()

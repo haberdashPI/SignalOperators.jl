@@ -4,9 +4,7 @@ struct NumberSignal{T,S,DB} <: AbstractSignal{T}
 end
 struct NumberExtended <: Infinite
 end
-const numextend = NumberExtended()
-nframes_helper(x::NumberSignal) = numextend
-cleanextend(x::NumberExtended) = inflen
+tagged_nframes(x::NumberSignal) = tag(inflen, :number)
 
 NumberSignal(x::T,sr::Fs;dB=false) where {T,Fs} = NumberSignal{T,Fs,dB}(x,sr)
 function Base.show(io::IO, ::MIME"text/plain", x::NumberSignal{<:Any,<:Any,true})
@@ -28,15 +26,18 @@ frame rate.
 ### Example
 
 ```julia
-rand(10,2) |> Amplify(20dB) |> nframes == 10
+rand(2,10) |> Amplify(20dB) |> nframes == 10
 
 ```
+
+In this example `20dB` is a number signal.
 
 !!! note
 
     The length of numbers are treated specially when passed to
-    [`OperateOn`](@ref): if there are other types of signal passed as input,
-    the number signals are considered to be as long as the longest signal.
+    [`OperateOn`](@ref), and its derivatives (`Mix`, `Amplify` etc...): if there are other
+    types of signal passed as input, the number signals are considered to be as long as
+    the longest signal.
 
     ```julia
     nframes(Mix(1,2)) == inflen
@@ -56,6 +57,4 @@ framerate(x::NumberSignal) = x.framerate
 ToFramerate(x::NumberSignal{<:Any,<:Any,DB},::IsSignal,::ComputedSignal,
     fs=missing;blocksize) where DB = NumberSignal(x.val,fs,dB=DB)
 
-# WAIT: not quite right, since signals can vary in which dimension
-# is time or channel
-sink(x::NumberSignal, to::Type{<:AbstractArray}, ::IsSignal, n) = Fill(x, n)
+sink(x::NumberSignal, ::IsSignal, n) = Fill(x, n)

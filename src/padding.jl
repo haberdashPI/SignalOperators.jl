@@ -25,7 +25,8 @@ ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,Missing},__ignore__,fs;
 Create a signal that appends an infinite number of values, `padding`, to `x`.
 The value `padding` can be:
 
-- a number
+- a value representing a sample from a single channel (number)
+- a type function:
 - a tuple or vector
 - a type function: a one argument function of the `sampletype` of `x`
 - a value function: a one argument function of the signal `x` for which
@@ -147,6 +148,15 @@ can be passed as the second argument to  [`Pad`](@ref).
     x[helper(i,end),j]
 end
 
+function sink(x::PaddedSignal, s::IsSignal, n)
+    data = sink(child(s), s, min(nframes(child(s)), n))
+    PaddedView(usepad(x.pad, data), data, (axes(data)[1:(end-1)]..., 1:n))
+end
+
+usepad(x, data) = x
+usepad(fn::Base.Callable, data) = fn(typeof(data))
+
+#=
 usepad(x::PaddedSignal,block) = usepad(x,SignalTrait(x),block)
 usepad(x::PaddedSignal,s::IsSignal,block) = usepad(x,s,x.Pad,block)
 usepad(x::PaddedSignal,s::IsSignal{T},p::Number,block) where T =
@@ -250,4 +260,4 @@ function PrettyPrinting.tile(x::PaddedSignal{<:Any,<:Any,true})
     operate = literal(string("Extend(",x.Pad,")"))
     tilepipe(child,operate)
 end
-signaltile(x::PaddedSignal) = PrettyPrinting.tile(x)
+signaltile(x::PaddedSignal) = PrettyPrinting.tile(x) =#

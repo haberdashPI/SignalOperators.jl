@@ -21,16 +21,17 @@ end
 # sampletype
 abstract type AbstractSignal{T}
 end
-nframes_helper(x) = nframes(x)
-nframes_helper(x::AbstractSignal) =
-    error("Undefined `nframes_helper` for $(typeof(x))")
-nframes(x::AbstractSignal) = cleanextend(nframes_helper(x))
-cleanextend(x) = x
-struct Extended{T} <:Infinite
-    len::T
+tagged_nframes(x) = tag(nframes(x))
+tagged_nframes(x::AbstractSignal) =
+    error("Undefined `tagged_nframes` for $(typeof(x))")
+nframes(x::AbstractSignal) = untag(tagged_nframes(x))
+struct Tag{S,T}
+    val::T
 end
-cleanextend(x::Extended) = inflen
-Base.:(/)(x::Extended,y::Number) = Extended(x.len / y)
+tag(x, tag = :normal) = Tag{tag, typeof(x)}(x)
+untag(x) = x.val
+untag(x::Tag{:extend}) = inflen
+Base.:(/)(x::Tag{S},y::Number) where S = tag(x/y, S)
 
 """
 
