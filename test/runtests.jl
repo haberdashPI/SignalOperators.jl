@@ -631,8 +631,15 @@ progress = Progress(total_test_groups,desc="Running tests...")
             "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Until(5 s)"
         @test x |> After(2s) |> showstring ==
             "100×2 $(Array{Float64,2}): … (10.0 Hz) |> After(2 s)"
-        @test x |> Append(y) |> showstring ==
-            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Append(50×2 $(Array{Float64,2}): … (10.0 Hz))"
+        # the below is a bit of a hack, but it works for now...
+        # this might break on future 1.x julia versions
+        if VERSION <= v"1.5.99"
+            @test x |> Append(y) |> showstring ==
+                "100×2 $(Array{Float64,2}): … (10.0 Hz) |>\n    Append(50×2 $(Array{Float64,2}): … (10.0 Hz))"
+        else
+            @test x |> Append(y) |> showstring ==
+                "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Append(50×2 $(Array{Float64,2}): … (10.0 Hz))"
+        end
         @test x |> Pad(zero) |> showstring ==
             "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Pad(zero)"
         @test x |> Extend(zero) |> showstring ==
