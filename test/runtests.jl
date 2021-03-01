@@ -628,44 +628,44 @@ progress = Progress(total_test_groups,desc="Running tests...")
         @test Signal(2dB,10Hz) |> showstring ==
             "2.0000000000000004 dB (10.0 Hz)"
         @test x |> Until(5s) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Until(5 s)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Until(5 s)"
         @test x |> After(2s) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> After(2 s)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> After(2 s)"
         @test x |> Append(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    Append(50×2 Array{Float64,2}: … (10.0 Hz))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Append(50×2 $(Array{Float64,2}): … (10.0 Hz))"
         @test x |> Pad(zero) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Pad(zero)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Pad(zero)"
         @test x |> Extend(zero) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Extend(zero)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Extend(zero)"
         @test x |> Filt(Lowpass,3Hz) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Filt(Lowpass,3 Hz)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Filt(Lowpass,3 Hz)"
         @test x |> Normpower |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Normpower"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Normpower"
         @test x |> Mix(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Mix(50×2 Array{Float64,2}: … (10.0 Hz))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Mix(50×2 $(Array{Float64,2}): … (10.0 Hz))"
         @test x |> Amplify(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    Amplify(50×2 Array{Float64,2}: … (10.0 Hz))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |>\n    Amplify(50×2 $(Array{Float64,2}): … (10.0 Hz))"
         @test x |> AddChannel(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    AddChannel(50×2 Array{Float64,2}: … (10.0 Hz))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |>\n    AddChannel(50×2 $(Array{Float64,2}): … (10.0 Hz))"
         @test x |> SelectChannel(1) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> SelectChannel(1)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> SelectChannel(1)"
         @test x |> Operate(identity) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Operate(identity,)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Operate(identity,)"
         @test x |> ToFramerate(20Hz) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> ToFramerate(20 Hz)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> ToFramerate(20 Hz)"
         @test x |> ToChannels(1) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> ToChannels(1)"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> ToChannels(1)"
         @test ( x[1][:,1],x[2] ) |> ToChannels(2) |> showstring ==
-            "100-element Array{Float64,1}: … (10.0 Hz) |> ToChannels(2)"
+            "100-element $(Array{Float64,1}): … (10.0 Hz) |> ToChannels(2)"
         @test startswith(rand(5,2) |> Filt(fs -> Highpass(10,20,fs=fs)) |> showstring,
-            "5×2 Array{Float64,2}: … |> Filt(")
+            "5×2 $(Array{Float64,2}): … |> Filt(")
 
         @test x |> Ramp |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    Amplify(RampOnFn(10 ms)) |> Amplify(RampOffFn(10 ms))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |>\n    Amplify(RampOnFn(10 ms)) |> Amplify(RampOffFn(10 ms))"
         @test x |> Ramp(identity) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |>\n    Amplify(RampOnFn(10 ms,identity)) |> Amplify(RampOffFn(10 ms,identity))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |>\n    Amplify(RampOnFn(10 ms,identity)) |> Amplify(RampOffFn(10 ms,identity))"
         @test x |> FadeTo(y) |> showstring ==
-            "100×2 Array{Float64,2}: … (10.0 Hz) |> Amplify(RampOffFn(10 ms)) |>\n    Mix(0.0 (10.0 Hz) |> Until(100 frames) |>\n            ToChannels(2) |> Append(50×2 Array{Float64,2}: … (10.0 Hz) |>\n                                        Amplify(RampOnFn(10 ms))))"
+            "100×2 $(Array{Float64,2}): … (10.0 Hz) |> Amplify(RampOffFn(10 ms)) |>\n    Mix(0.0 (10.0 Hz) |> Until(100 frames) |>\n            ToChannels(2) |> Append(50×2 $(Array{Float64,2}): … (10.0 Hz) |>\n                                        Amplify(RampOnFn(10 ms))))"
     end
     next!(progress)
 
