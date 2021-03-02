@@ -11,7 +11,7 @@ SignalTrait(x::Type{T}) where {S,T <: PaddedSignal{S}} =
 SignalTrait(x::Type{<:PaddedSignal},::IsSignal{T,Fs}) where {T,Fs} =
     IsSignal{T,Fs,InfiniteLength}()
 nframes_helper(x::PaddedSignal) = inflen
-nframes_helper(x::PaddedSignal{<:Any,<:Any,true}) = Extended(nframes(x.signal))
+tagged_nframes(x::PaddedSignal{<:Any,<:Any,true}) = tag(nframes(x.signal), :extend)
 duration(x::PaddedSignal) = inflen
 ToFramerate(x::PaddedSignal,s::IsSignal{<:Any,<:Number},c::ComputedSignal,fs;blocksize) =
     PaddedSignal(ToFramerate(x.signal,fs,blocksize=blocksize),x.Pad)

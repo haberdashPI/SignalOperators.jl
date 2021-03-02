@@ -5,63 +5,50 @@ export OperateOn, Operate, Mix, Amplify, AddChannel, SelectChannel,
 ################################################################################
 # binary operators
 
-struct MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi} <: AbstractSignal{T}
-    fn::Fn
-    val::El
-    signals::Si
+struct MapSignal{T, Fs, L, El, Fn, Si} <: AbstractSignal{T}
     framerate::Fs
-    padding::Pd
-    padded_signals::PSi
-    blocksize::Int
-    bychannel::Bool
+    val::El
+    fn::Fn
+    signals::Si
 end
 
-function MapSignal(fn::Fn,val::El,signals::Si,
-    framerate::Fs,padding::Pd,blocksize::Int,bychannel::Bool) where
-        {Fn,El,L,Si,Fs,Pd}
-
+function MapSignal(fn::Fn, val::El, signals::Si, framerate::Fs) where {Fs, L, El, Fn, Si}
     T = El == NoValues ? Nothing : ntuple_T(El)
-    N = El == NoValues ? 0 : length(signals)
-    C = El == NoValues ? 1 : nchannels(signals[1])
-    padded_signals = Extend.(signals,Ref(padding))
-    PSi = typeof(padded_signals)
-    MapSignal{Fn,N,C,T,Fs,El,Si,Pd,PSi}(fn,val,signals,framerate,padding,
-        padded_signals,blocksize,bychannel)
+    MapSignal{F, Fs, L, El, Fn, Si}(fn, val, signals, framerate)
 end
 
 struct NoValues
 end
 novalues = NoValues()
-SignalTrait(x::Type{<:MapSignal{<:Any,<:Any,<:Any,T,Fs,L}}) where {Fs,T,L} =
-    IsSignal{T,Fs,L}()
+SignalTrait(x::Type{<:MapSignal{T, Fs, L}}) where {T, Fs, L} = IsSignal{T, Fs, L}()
 nchannels(x::MapSignal) = length(x.val)
 framerate(x::MapSignal) = x.framerate
 
+# TOOD: stopped here
+
 function duration(x::MapSignal)
-    durs = duration.(x.padded_signals)
-    Ns = nframes_helper.(x.padded_signals)
+    durs = duration.(x.signals)
+    Ns = nframes_helper.(x.signals)
     durlen = ifelse.(isknowninf.(durs),Ns ./ framerate(x),durs)
     reduce(maxlen,durlen)
 end
-function ToFramerate(x::MapSignal,s::IsSignal{<:Any,<:Number},
-    c::ComputedSignal,fs;blocksize)
+
+# TODO: fix with new format
+function ToFramerate(x::MapSignal, s::IsSignal{<:Any,<:Number}, c::ComputedSignal, fs)
 
     if inHz(fs) < x.framerate
         # reframe input if we are downsampling
-        OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
-            padding=x.padding,bychannel=x.bychannel,
-            blocksize=x.blocksize)
+        OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs)...)
     else
         # reframe output if we are upsampling
-        ToFramerate(x,s,DataSignal(),fs,blocksize=blocksize)
+        ToFramerate(x,s,DataSignal(),fs)
     end
 end
 
 root(x::MapSignal) = reduce(mergeroot,root.(x.signals))
 
-ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs;blocksize) =
-    OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs,blocksize=blocksize)...,
-        padding=x.padding,bychannel=x.bychannel,blocksize=x.blocksize)
+ToFramerate(x::MapSignal,::IsSignal{<:Any,Missing},__ignore__,fs) =
+    OperateOn(cleanfn(x.fn),ToFramerate.(x.signals,fs))
 
 """
 
@@ -140,18 +127,17 @@ function OperateOn(fn,xs...;
     if bychannel
         fn = FnBr(fn)
     end
-    MapSignal(fn,astuple(fn(vals...)),xs,fs,padding,blocksize,
-        bychannel)
+    MapSignal(fn, fn(vals...), Extend.(xs, Ref(padding)), fs)
 end
 
-tolen(x::Extended) = x.len
+tolen(x::Tag{:extend}) = x.len
 tolen(x::Number) = x
-tolen(x::NumberExtended) = 0
+tolen(x::Tag{:number}) = 0
 tolen(x::InfiniteLength) = inflen
 tolen(x::Missing) = missing
 maxlen(x,y) = max(tolen(x),tolen(y))
-maxlen(x::NumberExtended,y::NumberExtended) = x
-nframes_helper(x::MapSignal) = reduce(maxlen,nframes_helper.(x.signals))
+maxlen(x::Tag{:number},y::Tag{:number}) = x
+tagged_nframes(x::MapSignal) = reduce(maxlen,tagged_nframes.(x.signals))
 
 """
     Operate(fn,rest...;padding,bychannel)
@@ -187,6 +173,7 @@ end
 cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
+# NOTE: assumes x is FnBr
 function sink(x::MapSignal, to::Type{<:AbstractArray}, ::IsSignal, n)
     BroadcastArray(x.fn, sink.(x.padded_signals, to, IsSignal(), n)...)
     # TODO: otherwise apply across columns, create custom array type here
