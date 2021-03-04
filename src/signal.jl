@@ -25,13 +25,25 @@ tagged_nframes(x) = tag(nframes(x))
 tagged_nframes(x::AbstractSignal) =
     error("Undefined `tagged_nframes` for $(typeof(x))")
 nframes(x::AbstractSignal) = untag(tagged_nframes(x))
-struct Tag{S,T}
+struct Tag{S, T}
     val::T
 end
 tag(x, tag = :normal) = Tag{tag, typeof(x)}(x)
 untag(x) = x.val
 untag(x::Tag{:extend}) = inflen
-Base.:(/)(x::Tag{S},y::Number) where S = tag(x/y, S)
+for op in [:+, :-, :*, :/, :min, :max]
+    @eval begin
+        Base.$op(x::Tag{S}, y::Number) where S = tag($op(x.val, y), S)
+        Base.$op(x::Number, y::Tag{S}) where S = tag($op(x, y.val), S)
+        Base.$op(x::Tag, y::Tag) = tag($op(x.val, y.val), resolvetag(op, x, y))
+    end
+end
+for fn in [:ceil, :floor]
+    @eval Base.$fn(::Type{T}, val::Tag{S}) where {T,S} = tag($fn(T, val.val), S)
+end
+resolvetag(fn, x::Tag{S}, y::Tag{S}) where S = S
+resolvetag(fn, x::Tag{:normal}, y::Tag{S}) where S = S
+resolvetag(fn, x::Tag{S}, y::Tag{:normal}) where S = S
 
 """
 

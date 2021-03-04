@@ -21,23 +21,16 @@ end
 
 """
 
-    Filt(x,::Type{<:FilterType},bounds...;method=Butterworth(order),order=5,
-         blocksize=4096)
+    Filt(x,::Type{<:FilterType},bounds...;method=Butterworth(order),order=5)
 
 Apply the given filter type (e.g. `Lowpass`) using the given method to design
 the filter coefficients. The type is specified as per the types from
 [`DSP`](https://github.com/JuliaDSP/DSP.jl)
 
-    Filt(x,h;[blocksize=4096])
+    Filt(x,h)
 
 Apply the given digital filter `h` (from
 [`DSP`](https://github.com/JuliaDSP/DSP.jl)) to signal `x`.
-
-## Blocksize
-
-Blocksize determines the size of the buffer used when computing intermediate
-values of the filter. It need not normally be adjusted, though changing it
-can alter how efficient filter application is.
 
 !!! note
 
@@ -156,118 +149,125 @@ function ToFramerate(x::FilteredSignal,::IsSignal{<:Any,Missing},__ignore__,fs;
         x.fn,x.blocksize,fs)
 end
 
-function nframes_helper(x::FilteredSignal)
+function tagged_nframes(x::FilteredSignal)
     if ismissing(framerate(x.signal))
         missing
     elseif framerate(x) == framerate(x.signal)
-        nframes_helper(x.signal)
+        tagged_nframes(x.signal)
     else
-        ceil(Int,nframes_helper(x.signal)*framerate(x)/framerate(x.signal))
+        ceil(Int,tagged_nframes(x.signal)*framerate(x)/framerate(x.signal))
     end
 end
 
-struct FilterBlock{H,S,T,C}
-    len::Int
-    last_output_index::Int
-    available_output::Int
-
-    last_input_offset::Int
-    last_output_offset::Int
-
-    hs::Vector{H}
-    input::Matrix{S}
-    output::Matrix{T}
-
-    child::C
-end
-child(x::FilterBlock) = x.child
-init_length(x::FilteredSignal,h) = min(nframes(x),x.blocksize)
-function init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn},h)
-    n = trunc(Int,max(1,min(nframes(x),x.blocksize) / x.fn.ratio))
-    out = DSP.outputlength(h,n)
-    if out > 0
-        n
-    else
-        n = trunc(Int,max(1,x.blocksize / x.fn.ratio))
-        out = DSP.outputlength(h,n)
-        if out > 0
-            n
-        else
-            error("Blocksize is too small for this resampling filter.")
-        end
-    end
+function sink(x::FilteredSignal, s::IsSignal, n)
+    data = sink(parent(x), s, n)
+    h = x.fn(framerate(x))
+    result = filt(h, data)
+    Signal(result, framerate(x))
 end
 
-struct UndefChild
-end
-const undef_child = UndefChild()
-function FilterBlock(x::FilteredSignal)
-    hs = [resolve_filter(x.fn(framerate(x))) for _ in 1:nchannels(x.signal)]
-    len = init_length(x,hs[1])
-    input = Array{sampletype(x.signal)}(undef,len,nchannels(x))
-    output = Array{sampletype(x)}(undef,x.blocksize,nchannels(x))
+# struct FilterBlock{H,S,T,C}
+#     len::Int
+#     last_output_index::Int
+#     available_output::Int
 
-    FilterBlock(0,0,0, 0,0, hs,input,output,undef_child)
-end
-nframes(x::FilterBlock) = x.len
-@Base.propagate_inbounds frame(::FilteredSignal,x::FilterBlock,i) =
-    view(x.output,i+x.last_output_index,:)
+#     last_input_offset::Int
+#     last_output_offset::Int
 
-inputlength(x,n) = n
-outputlength(x,n) = n
-inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
-outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
+#     hs::Vector{H}
+#     input::Matrix{S}
+#     output::Matrix{T}
 
-function nextblock(x::FilteredSignal,maxlen,skip,
-    block::FilterBlock=FilterBlock(x))
+#     child::C
+# end
+# child(x::FilterBlock) = x.child
+# init_length(x::FilteredSignal,h) = min(nframes(x),x.blocksize)
+# function init_length(x::FilteredSignal{<:Any,<:Any,<:ResamplerFn},h)
+#     n = trunc(Int,max(1,min(nframes(x),x.blocksize) / x.fn.ratio))
+#     out = DSP.outputlength(h,n)
+#     if out > 0
+#         n
+#     else
+#         n = trunc(Int,max(1,x.blocksize / x.fn.ratio))
+#         out = DSP.outputlength(h,n)
+#         if out > 0
+#             n
+#         else
+#             error("Blocksize is too small for this resampling filter.")
+#         end
+#     end
+# end
 
-    last_output_index = block.last_output_index + block.len
-    if nframes_helper(x) == last_output_index
-        return nothing
-    end
+# struct UndefChild
+# end
+# const undef_child = UndefChild()
+# function FilterBlock(x::FilteredSignal)
+#     hs = [resolve_filter(x.fn(framerate(x))) for _ in 1:nchannels(x.signal)]
+#     len = init_length(x,hs[1])
+#     input = Array{sampletype(x.signal)}(undef,len,nchannels(x))
+#     output = Array{sampletype(x)}(undef,x.blocksize,nchannels(x))
 
-    # check for leftover frames in the output buffer
-    if last_output_index < block.available_output
-        len = min(maxlen, block.available_output - last_output_index)
+#     FilterBlock(0,0,0, 0,0, hs,input,output,undef_child)
+# end
+# nframes(x::FilterBlock) = x.len
+# @Base.propagate_inbounds frame(::FilteredSignal,x::FilterBlock,i) =
+#     view(x.output,i+x.last_output_index,:)
 
-        FilterBlock(len, last_output_index, block.available_output,
-            block.last_input_offset, block.last_output_offset, block.hs,
-            block.input, block.output, block.child)
-    # otherwise, generate more filtered output
-    else
-        @assert !isnothing(child(block))
+# inputlength(x,n) = n
+# outputlength(x,n) = n
+# inputlength(x::DSP.Filters.Filter,n) = DSP.inputlength(x,n)
+# outputlength(x::DSP.Filters.Filter,n) = DSP.outputlength(x,n)
 
-        psig = Pad(x.signal,zero)
-        childblock = !isa(child(block), UndefChild) ?
-            nextblock(psig,size(block.input,1),false,child(block)) :
-            nextblock(psig,size(block.input,1),false)
-        childblock = sink!(block.input,psig,SignalTrait(psig),childblock)
-        last_input_offset = block.last_input_offset + size(block.input,1)
+# function nextblock(x::FilteredSignal,maxlen,skip,
+#     block::FilterBlock=FilterBlock(x))
 
-        # filter the input into the output buffer
-        out_len = outputlength(block.hs[1],size(block.input,1))
-        if out_len ≤ 0
-            error("Unexpected non-positive output length!")
-        end
-        for ch in 1:size(block.output,2)
-            filt!(view(block.output,1:out_len,ch),block.hs[ch],
-                    view(block.input,:,ch))
-        end
-        last_output_offset = block.last_output_offset + out_len
+#     last_output_index = block.last_output_index + block.len
+#     if nframes_helper(x) == last_output_index
+#         return nothing
+#     end
 
-        FilterBlock(min(maxlen,out_len), 0,
-            out_len, last_input_offset, last_output_offset, block.hs,
-            block.input, block.output, childblock)
-    end
-end
+#     # check for leftover frames in the output buffer
+#     if last_output_index < block.available_output
+#         len = min(maxlen, block.available_output - last_output_index)
 
-# TODO: create an online version of Normpower?
-# TODO: this should be excuted lazzily to allow for unkonwn framerates
+#         FilterBlock(len, last_output_index, block.available_output,
+#             block.last_input_offset, block.last_output_offset, block.hs,
+#             block.input, block.output, block.child)
+#     # otherwise, generate more filtered output
+#     else
+#         @assert !isnothing(child(block))
+
+#         psig = Pad(x.signal,zero)
+#         childblock = !isa(child(block), UndefChild) ?
+#             nextblock(psig,size(block.input,1),false,child(block)) :
+#             nextblock(psig,size(block.input,1),false)
+#         childblock = sink!(block.input,psig,SignalTrait(psig),childblock)
+#         last_input_offset = block.last_input_offset + size(block.input,1)
+
+#         # filter the input into the output buffer
+#         out_len = outputlength(block.hs[1],size(block.input,1))
+#         if out_len ≤ 0
+#             error("Unexpected non-positive output length!")
+#         end
+#         for ch in 1:size(block.output,2)
+#             filt!(view(block.output,1:out_len,ch),block.hs[ch],
+#                     view(block.input,:,ch))
+#         end
+#         last_output_offset = block.last_output_offset + out_len
+
+#         FilterBlock(min(maxlen,out_len), 0,
+#             out_len, last_input_offset, last_output_offset, block.hs,
+#             block.input, block.output, childblock)
+#     end
+# end
+
 struct NormedSignal{Si,T} <: WrappedSignal{Si,T}
     signal::Si
 end
 child(x::NormedSignal) = x.signal
-nframes_helper(x::NormedSignal) = nframes_helper(x.signal)
+tagged_nframes(x::NormedSignal) = tagged_nframes(x.signal)
+
+# TODO: stopped here
 NormedSignal(x::Si) where Si = NormedSignal{Si,float(sampletype(x))}(x)
 SignalTrait(x::Type{T}) where {S,T <: NormedSignal{S}} =
     SignalTrait(x,SignalTrait(S))

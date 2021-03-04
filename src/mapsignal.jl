@@ -174,8 +174,8 @@ cleanfn(x) = x
 cleanfn(x::FnBr) = x.fn
 
 # NOTE: assumes x is FnBr
-function sink(x::MapSignal, to::Type{<:AbstractArray}, ::IsSignal, n)
-    BroadcastArray(x.fn, sink.(x.padded_signals, to, IsSignal(), n)...)
+function sink(x::MapSignal, ::IsSignal, n)
+    BroadcastArray(cleanfn(x.fn), sink.(x.padded_signals, to, IsSignal(), n)...)
     # TODO: otherwise apply across columns, create custom array type here
 end
 
