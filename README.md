@@ -9,6 +9,8 @@
 
 SignalOperators is a [Julia](https://julialang.org/) package that aims to provide a clean interface for generating and manipulating signals: typically sounds, but any signal regularly sampled in time can be manipulated.
 
+**NOTE**: It's come to my attention that folks have encountered some poor performance with SignalOperators ([#65](https://github.com/haberdashPI/SignalOperators.jl/issues/65)). You may be able to solve some problems by making liberal use of `sink`. However, I am in the (slow) process of re-implementing this package to avoid those issues. Fair warning, this package is low priority for me, as it is not the thrust of my current work.
+
 ```julia
 using WAV
 using SignalOperators
